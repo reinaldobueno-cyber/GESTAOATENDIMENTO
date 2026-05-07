@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestão de Atendimento · 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;0,700;1,400&family=Geist+Mono:wght@300;400;500&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --ink:#1a2218;--ink2:#2d3d2a;
+  --paper:#f6f8f3;--w:#ffffff;--card:#ffffff;
+  --s1:#eef1e9;--s2:#e4ead e;--border:#d6dfd0;
+  --moss:#3d6b47;--moss2:#4f8562;--moss3:#6a9e78;
+  --sage:#9ec4a8;--mist:#c8dece;--foam:#e8f2eb;
+  --amber:#9a6b1a;--rust:#a83232;--sky:#2a6b8a;
+  --text:#1a2218;--sub:#5a6e56;--ghost:#8fa28a;
+  --r:12px;--shadow:0 2px 16px rgba(30,60,30,.07);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{font-size:14px;}
+body{background:var(--paper);color:var(--text);font-family:'Geist',sans-serif;line-height:1.5;min-height:100vh;}
+::selection{background:var(--mist);color:var(--ink);}
+
+/* ——— TOPBAR ——— */
+.top{
+  background:var(--w);border-bottom:1px solid var(--border);
+  position:sticky;top:0;z-index:300;
+  box-shadow:0 1px 12px rgba(30,60,30,.06);
+}
+.top-in{max-width:1640px;margin:0 auto;padding:0 2rem;height:52px;display:flex;align-items:center;justify-content:space-between;}
+.logo{display:flex;align-items:center;gap:10px;}
+.logo-gem{width:28px;height:28px;background:var(--moss);border-radius:7px;display:grid;place-items:center;font-size:13px;}
+.logo-text{font-family:'Fraunces',serif;font-size:1.05rem;font-weight:600;color:var(--ink);letter-spacing:-.01em;}
+.logo-text em{color:var(--moss);font-style:italic;}
+.top-meta{display:flex;align-items:center;gap:14px;}
+.live-dot{display:flex;align-items:center;gap:5px;font-family:'Geist Mono',monospace;font-size:.62rem;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--moss);}
+.live-dot::before{content:'';width:6px;height:6px;background:var(--moss);border-radius:50%;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
+.top-date{font-family:'Geist Mono',monospace;font-size:.63rem;color:var(--ghost);}
+
+/* ——— NAV ——— */
+.nav{background:var(--w);border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none;}
+.nav::-webkit-scrollbar{display:none;}
+.nav-in{max-width:1640px;margin:0 auto;padding:0 2rem;display:flex;gap:0;}
+.ntab{padding:11px 18px;border:none;background:transparent;font-family:'Geist',sans-serif;font-size:.72rem;font-weight:500;letter-spacing:.02em;color:var(--ghost);border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;transition:all .2s;display:flex;align-items:center;gap:6px;}
+.ntab .ico{font-size:.9rem;}
+.ntab.active{color:var(--moss);border-bottom-color:var(--moss);font-weight:600;}
+.ntab:hover:not(.active){color:var(--text);}
+
+/* ——— CONTENT ——— */
+.page{max-width:1640px;margin:0 auto;padding:1.6rem 2rem 5rem;}
+.pane{display:none;animation:rise .22s ease;}
+.pane.active{display:block;}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* ——— SECTION HEADER ——— */
+.sh{margin:2rem 0 1rem;display:flex;align-items:baseline;gap:12px;}
+.sh-title{font-family:'Fraunces',serif;font-size:1.1rem;font-weight:600;color:var(--ink);letter-spacing:-.02em;}
+.sh-sub{font-family:'Geist Mono',monospace;font-size:.63rem;color:var(--ghost);letter-spacing:.04em;}
+.sh-line{flex:1;height:1px;background:var(--border);margin-left:6px;}
+
+/* ——— GRIDS ——— */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:.85rem;}
+.g6{display:grid;grid-template-columns:repeat(6,1fr);gap:.85rem;}
+.g7030{display:grid;grid-template-columns:7fr 3fr;gap:1rem;}
+.g6040{display:grid;grid-template-columns:3fr 2fr;gap:1rem;}
+.g4060{display:grid;grid-template-columns:2fr 3fr;gap:1rem;}
+@media(max-width:1200px){.g2,.g3,.g4,.g6,.g7030,.g6040,.g4060{grid-template-columns:1fr 1fr;}}
+@media(max-width:768px){.g2,.g3,.g4,.g6,.g7030,.g6040,.g4060{grid-template-columns:1fr;}}
+
+/* ——— CARD ——— */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:1.3rem;box-shadow:var(--shadow);transition:box-shadow .2s;}
+.card:hover{box-shadow:0 4px 24px rgba(30,60,30,.1);}
+.ch{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1rem;}
+.ct{font-family:'Geist',sans-serif;font-size:.8rem;font-weight:600;color:var(--ink);}
+.cs{font-family:'Geist Mono',monospace;font-size:.62rem;color:var(--ghost);margin-top:2px;}
+
+/* ——— KPI STRIP ——— */
+.kstrip{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.85rem;margin-bottom:1.2rem;}
+.kpi{background:var(--w);border:1px solid var(--border);border-radius:var(--r);padding:1rem 1.2rem;position:relative;overflow:hidden;transition:box-shadow .2s,transform .15s;}
+.kpi::after{content:'';position:absolute;top:0;left:0;bottom:0;width:3px;background:var(--kc,var(--moss));border-radius:var(--r) 0 0 var(--r);}
+.kpi:hover{box-shadow:0 4px 20px rgba(30,60,30,.1);transform:translateY(-2px);}
+.kl{font-family:'Geist Mono',monospace;font-size:.6rem;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--ghost);margin-bottom:.4rem;}
+.kv{font-family:'Fraunces',serif;font-size:1.9rem;font-weight:700;line-height:1;color:var(--ink);letter-spacing:-.03em;}
+.ks{font-size:.65rem;color:var(--ghost);font-family:'Geist Mono',monospace;margin-top:.25rem;}
+.kd{display:inline-flex;align-items:center;gap:2px;padding:2px 7px;border-radius:20px;font-size:.6rem;font-weight:600;margin-top:.35rem;font-family:'Geist Mono',monospace;}
+.kup{background:rgba(61,107,71,.1);color:var(--moss);}
+.kdn{background:rgba(168,50,50,.09);color:var(--rust);}
+.knt{background:rgba(143,162,138,.1);color:var(--ghost);}
+
+/* ——— CHARTS ——— */
+.h180{position:relative;height:180px;}
+.h220{position:relative;height:220px;}
+.h260{position:relative;height:260px;}
+.h300{position:relative;height:300px;}
+.h340{position:relative;height:340px;}
+.h380{position:relative;height:380px;}
+
+/* ——— CHIP ——— */
+.chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:.6rem;font-weight:600;font-family:'Geist Mono',monospace;letter-spacing:.04em;}
+.cm{background:rgba(61,107,71,.1);color:var(--moss);border:1px solid rgba(61,107,71,.2);}
+.ca{background:rgba(154,107,26,.1);color:var(--amber);border:1px solid rgba(154,107,26,.2);}
+.cr{background:rgba(168,50,50,.08);color:var(--rust);border:1px solid rgba(168,50,50,.18);}
+.cs2{background:rgba(42,107,138,.08);color:var(--sky);border:1px solid rgba(42,107,138,.18);}
+
+/* ——— TABLE ——— */
+.tsc{overflow-x:auto;}
+.dt{width:100%;border-collapse:collapse;font-size:.77rem;}
+.dt th{padding:8px 12px;text-align:left;font-family:'Geist Mono',monospace;font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ghost);border-bottom:1px solid var(--border);white-space:nowrap;background:var(--s1);}
+.dt td{padding:9px 12px;border-bottom:1px solid rgba(214,223,208,.5);transition:background .1s;}
+.dt tbody tr:hover td{background:var(--foam);}
+.tn{font-family:'Geist Mono',monospace;text-align:right;color:var(--sub);}
+.th{font-family:'Geist Mono',monospace;text-align:right;font-weight:600;}
+.rb{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:4px;font-size:.6rem;font-weight:700;font-family:'Geist Mono',monospace;}
+.r1{background:rgba(154,107,26,.14);color:var(--amber);}
+.r2{background:rgba(140,140,140,.1);color:#888;}
+.r3{background:rgba(61,107,71,.12);color:var(--moss);}
+.rn{background:rgba(143,162,138,.08);color:var(--ghost);}
+
+/* ——— MONTH STRIP ——— */
+.ms{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:1.4rem;}
+.mb{padding:4px 14px;border-radius:20px;border:1px solid var(--border);background:var(--w);color:var(--ghost);font-family:'Geist Mono',monospace;font-size:.68rem;font-weight:400;cursor:pointer;transition:all .15s;}
+.mb.active{background:var(--moss);border-color:var(--moss);color:#fff;font-weight:500;}
+.mb:hover:not(.active){border-color:var(--moss);color:var(--moss);}
+
+/* ——— HEATMAP CALENDAR ——— */
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
+.cday-lbl{font-family:'Geist Mono',monospace;font-size:.56rem;text-align:center;color:var(--ghost);padding:3px 0;}
+.cday{aspect-ratio:1;border-radius:5px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;position:relative;border:1.5px solid transparent;}
+.cday:hover{border-color:var(--moss);transform:scale(1.12);z-index:10;}
+.cday.empty{background:transparent;border:none;pointer-events:none;}
+.cday-n{font-family:'Geist Mono',monospace;font-size:.58rem;line-height:1;}
+.cday-v{font-family:'Geist Mono',monospace;font-size:.46rem;opacity:.8;margin-top:1px;}
+.cday-tt{display:none;position:absolute;bottom:115%;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;border-radius:6px;padding:5px 9px;font-size:.6rem;white-space:nowrap;z-index:30;pointer-events:none;font-family:'Geist Mono',monospace;box-shadow:0 4px 12px rgba(0,0,0,.25);}
+.cday-tt::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:4px solid transparent;border-top-color:var(--ink);}
+.cday:hover .cday-tt{display:block;}
+
+/* ——— HEATMAP TABLE ——— */
+.hm-wrap{overflow-x:auto;}
+.hm{border-collapse:collapse;font-size:.7rem;min-width:600px;}
+.hm th{padding:4px 5px;font-family:'Geist Mono',monospace;font-size:.54rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ghost);text-align:center;white-space:nowrap;}
+.hm-ag{text-align:left !important;font-size:.65rem;color:var(--text);font-family:'Geist',sans-serif;font-weight:500;padding:4px 10px 4px 4px !important;white-space:nowrap;}
+.hm td{padding:2px 3px;text-align:center;}
+.hmc{width:100%;height:20px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-family:'Geist Mono',monospace;font-size:.58rem;font-weight:500;min-width:24px;}
+
+/* ——— HOUR HEATMAP ——— */
+.hour-hm{display:grid;gap:2px;}
+.hour-row{display:flex;gap:2px;align-items:center;}
+.hour-lbl{font-family:'Geist Mono',monospace;font-size:.55rem;color:var(--ghost);width:28px;text-align:right;flex-shrink:0;}
+.hour-cell{flex:1;height:24px;border-radius:3px;position:relative;cursor:default;transition:transform .1s;}
+.hour-cell:hover{transform:scale(1.05);z-index:5;}
+.dow-lbl{font-family:'Geist Mono',monospace;font-size:.56rem;color:var(--ghost);text-align:center;flex:1;}
+
+/* ——— AGENT CARDS ——— */
+.agrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:.85rem;}
+.acard{background:var(--w);border:1px solid var(--border);border-radius:var(--r);padding:1rem 1.1rem;transition:box-shadow .18s,transform .15s;position:relative;overflow:hidden;}
+.acard::before{content:'';position:absolute;top:0;right:0;width:60px;height:60px;border-radius:50%;background:var(--ac,var(--foam));opacity:.5;transform:translate(20px,-20px);}
+.acard:hover{box-shadow:0 4px 20px rgba(30,60,30,.1);transform:translateY(-2px);}
+.acard-hd{display:flex;align-items:center;gap:9px;margin-bottom:.85rem;}
+.ava{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Fraunces',serif;font-weight:700;font-size:.8rem;color:#fff;flex-shrink:0;}
+.aname{font-weight:600;font-size:.8rem;color:var(--ink);}
+.atma{font-family:'Geist Mono',monospace;font-size:.62rem;color:var(--ghost);margin-top:1px;}
+.astats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;}
+.ast{background:var(--s1);border-radius:6px;padding:6px 7px;text-align:center;}
+.av{font-family:'Fraunces',serif;font-size:.92rem;font-weight:600;color:var(--ink);}
+.al{font-size:.55rem;color:var(--ghost);font-family:'Geist Mono',monospace;text-transform:uppercase;letter-spacing:.05em;margin-top:1px;}
+
+/* ——— PROGRESS ——— */
+.pb{width:100%;height:4px;background:var(--s1);border-radius:2px;overflow:hidden;margin-top:.5rem;}
+.pf{height:100%;border-radius:2px;background:var(--moss);transition:width .8s ease;}
+
+/* ——— BAR LIST ——— */
+.blist{display:flex;flex-direction:column;gap:7px;}
+.bi{display:grid;grid-template-columns:130px 1fr 48px;align-items:center;gap:8px;}
+.bl{font-size:.68rem;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:'Geist',sans-serif;}
+.bt{height:6px;background:var(--s1);border-radius:3px;overflow:hidden;}
+.bfill{height:100%;border-radius:3px;}
+.bv{font-family:'Geist Mono',monospace;font-size:.65rem;text-align:right;color:var(--text);font-weight:500;}
+
+/* ——— FILTER BAR ——— */
+.fbar{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:1rem;align-items:center;}
+.fl{font-size:.65rem;color:var(--ghost);font-family:'Geist Mono',monospace;}
+.fs{background:var(--w);border:1px solid var(--border);border-radius:7px;padding:5px 10px;font-size:.7rem;color:var(--text);font-family:'Geist Mono',monospace;cursor:pointer;outline:none;transition:border-color .15s;}
+.fs:focus{border-color:var(--moss);}
+
+/* ——— INSIGHT PILL ——— */
+.insight{display:flex;align-items:flex-start;gap:10px;background:var(--foam);border:1px solid var(--mist);border-radius:8px;padding:.7rem .9rem;margin-bottom:.6rem;}
+.ins-ico{font-size:1rem;flex-shrink:0;margin-top:1px;}
+.ins-text{font-size:.73rem;color:var(--ink2);line-height:1.55;}
+.ins-text b{color:var(--moss);font-weight:600;}
+
+/* ——— SPARKLINE ——— */
+.spark{width:80px;height:28px;}
+
+/* ——— DONUT INLINE ——— */
+.mini-donut{position:relative;display:inline-flex;align-items:center;justify-content:center;}
+.mini-donut canvas{width:60px!important;height:60px!important;}
+
+/* ——— DIARY ——— */
+.de{background:var(--w);border:1px solid var(--border);border-radius:8px;padding:.75rem 1rem;display:grid;grid-template-columns:95px 1fr auto;gap:10px;align-items:start;margin-bottom:.4rem;transition:box-shadow .15s;}
+.de:hover{box-shadow:var(--shadow);}
+.d-dt{font-family:'Geist Mono',monospace;font-size:.6rem;color:var(--ghost);}
+.d-ag{font-weight:600;font-size:.74rem;color:var(--moss);margin-top:2px;}
+.d-pr{font-family:'Geist Mono',monospace;font-size:.58rem;color:var(--ghost);margin-top:1px;}
+.d-desc{font-size:.72rem;color:var(--ink2);line-height:1.5;}
+.d-act{white-space:nowrap;padding:2px 8px;border-radius:20px;font-size:.6rem;font-weight:600;font-family:'Geist Mono',monospace;display:inline-block;margin-top:2px;}
+.a-ok{background:rgba(61,107,71,.09);color:var(--moss);border:1px solid rgba(61,107,71,.2);}
+.a-no{background:rgba(168,50,50,.07);color:var(--rust);border:1px solid rgba(168,50,50,.16);}
+
+/* ——— STAT BAND ——— */
+.stat-band{display:flex;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap;}
+.sband{background:var(--w);border:1px solid var(--border);border-radius:8px;padding:.6rem .9rem;display:flex;align-items:center;gap:8px;flex:1;min-width:120px;}
+.sband-ico{font-size:1.1rem;}
+.sband-v{font-family:'Fraunces',serif;font-size:1.2rem;font-weight:700;color:var(--ink);}
+.sband-l{font-family:'Geist Mono',monospace;font-size:.58rem;color:var(--ghost);text-transform:uppercase;letter-spacing:.06em;}
+
+/* ——— SCROLLBAR ——— */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+/* ——— FOOTER ——— */
+.footer{border-top:1px solid var(--border);padding:.9rem 2rem;font-family:'Geist Mono',monospace;font-size:.62rem;color:var(--ghost);display:flex;justify-content:space-between;background:var(--w);}
+
+/* ——— PROTO ——— */
+.pid{font-family:'Geist Mono',monospace;font-size:.67rem;color:var(--moss);}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in">
+    <div class="logo">
+      <div class="logo-gem">🌿</div>
+      <span class="logo-text">Gestão de <em>Atendimento</em></span>
+    </div>
+    <div class="top-meta">
+      <span class="top-date" id="top-date"></span>
+      <span class="live-dot">Ao vivo</span>
+    </div>
+  </div>
+</header>
+
+<nav class="nav">
+  <div class="nav-in">
+    <button class="ntab active" onclick="go('overview',this)"><span class="ico">◈</span> Visão Geral</button>
+    <button class="ntab" onclick="go('tempo',this)"><span class="ico">⏱</span> Análise de Tempo</button>
+    <button class="ntab" onclick="go('calendario',this)"><span class="ico">◫</span> Calendário</button>
+    <button class="ntab" onclick="go('agentes',this)"><span class="ico">◉</span> Agentes</button>
+    <button class="ntab" onclick="go('grupos',this)"><span class="ico">◧</span> Grupos</button>
+    <button class="ntab" onclick="go('avaliacoes',this)"><span class="ico">★</span> Avaliações</button>
+    <button class="ntab" onclick="go('fluxo',this)"><span class="ico">◈</span> Fluxo Horário</button>
+    <button class="ntab" onclick="go('diario',this)"><span class="ico">✎</span> Diário</button>
+  </div>
+</nav>
+
+<main class="page">
+
+<!-- ════════════════ OVERVIEW ════════════════ -->
+<div id="pane-overview" class="pane active">
+
+  <div class="ms" id="ov-ms"></div>
+
+  <div class="kstrip">
+    <div class="kpi" style="--kc:var(--moss)"><div class="kl">Atendimentos</div><div class="kv" id="ov-at">—</div><div class="ks">Total no período</div><div class="kd knt" id="ov-at-d">—</div></div>
+    <div class="kpi" style="--kc:var(--sage)"><div class="kl">Avaliações</div><div class="kv" id="ov-av">—</div><div class="ks">Respondidas</div><div class="kd knt" id="ov-av-d">—</div></div>
+    <div class="kpi" style="--kc:var(--amber)"><div class="kl">CSAT Médio</div><div class="kv" id="ov-csat">—</div><div class="ks">Escala 0–10</div><div class="kd knt" id="ov-csat-d">—</div></div>
+    <div class="kpi" style="--kc:var(--moss2)"><div class="kl">TMA</div><div class="kv" id="ov-tma">—</div><div class="ks">Tempo médio atend.</div><div class="kd knt" id="ov-tma-d">—</div></div>
+    <div class="kpi" style="--kc:var(--moss3)"><div class="kl">TME</div><div class="kv" id="ov-tme">—</div><div class="ks">Tempo médio espera</div><div class="kd knt" id="ov-tme-d">—</div></div>
+    <div class="kpi" style="--kc:var(--rust)"><div class="kl">SLA ≤ 2min</div><div class="kv" id="ov-sla">—</div><div class="ks">Dentro da meta</div><div class="kd knt" id="ov-sla-d">—</div></div>
+  </div>
+
+  <!-- INSIGHTS automáticos -->
+  <div id="insights-box" style="margin-bottom:1.2rem;"></div>
+
+  <div class="g6040" style="margin-bottom:1rem;">
+    <div class="card">
+      <div class="ch"><div><div class="ct">Volume Diário do Mês</div><div class="cs">Atendimentos por dia útil · barras coloridas por intensidade</div></div></div>
+      <div class="h220"><canvas id="ch-daily-bars"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div><div class="ct">Evolução Mensal</div><div class="cs">Jan → Abr 2026</div></div></div>
+      <div class="h220"><canvas id="ch-evolucao"></canvas></div>
+    </div>
+  </div>
+
+  <div class="g3">
+    <div class="card">
+      <div class="ch"><div><div class="ct">Volume por Dia da Semana</div><div class="cs">Seg → Sex — qual dia é mais movimentado?</div></div></div>
+      <div class="h220"><canvas id="ch-dow"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div><div class="ct">Top Grupos — Março</div><div class="cs">% distribuição dos atendimentos</div></div></div>
+      <div class="h220"><canvas id="ch-grp-donut"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div><div class="ct">CSAT por Semana do Mês</div><div class="cs">Variação de satisfação semanal</div></div></div>
+      <div class="h220"><canvas id="ch-csat-week"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ ANÁLISE DE TEMPO ════════════════ -->
+<div id="pane-tempo" class="pane">
+
+  <div class="sh"><span class="sh-title">Análise de Tempo de Atendimento</span><span class="sh-sub">TMA e TME por agente, período e tendência</span><div class="sh-line"></div></div>
+
+  <div class="stat-band">
+    <div class="sband"><div class="sband-ico">⚡</div><div><div class="sband-v">Gabriel F.</div><div class="sband-l">TMA mais rápido · 19min</div></div></div>
+    <div class="sband"><div class="sband-ico">🐢</div><div><div class="sband-v">Lucas P.</div><div class="sband-l">TMA mais lento · 36min</div></div></div>
+    <div class="sband"><div class="sband-ico">⏱</div><div><div class="sband-v">26:11</div><div class="sband-l">TMA geral Março</div></div></div>
+    <div class="sband"><div class="sband-ico">🚨</div><div><div class="sband-v">12h</div><div class="sband-l">TME pico (almoço)</div></div></div>
+    <div class="sband"><div class="sband-ico">🎯</div><div><div class="sband-v">98,9%</div><div class="sband-l">SLA ≤ 2min espera</div></div></div>
+  </div>
+
+  <div class="g2" style="margin-bottom:1rem;">
+    <div class="card">
+      <div class="ch"><div><div class="ct">TMA Médio por Agente — Março 2026</div><div class="cs">Média em minutos · ponto = mediana</div></div><span class="chip cm">RANKING</span></div>
+      <div class="h340"><canvas id="ch-tma-ag"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div><div class="ct">Distribuição TMA por Faixa</div><div class="cs">Atendimentos agrupados por duração (minutos)</div></div></div>
+      <div class="h340"><canvas id="ch-tma-dist"></canvas></div>
+    </div>
+  </div>
+
+  <div class="g2">
+    <div class="card">
+      <div class="ch"><div><div class="ct">TMA por Período do Dia</div><div class="cs">Em qual horário demora mais?</div></div></div>
+      <div class="h260"><canvas id="ch-tma-per"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div><div class="ct">TMA vs Volume — Por Agente</div><div class="cs">Quem atende mais e ainda é rápido?</div></div><span class="chip ca">SCATTER</span></div>
+      <div class="h260"><canvas id="ch-scatter"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ CALENDÁRIO ════════════════ -->
+<div id="pane-calendario" class="pane">
+  <div class="fbar">
+    <span class="fl">Mês:</span>
+    <select class="fs" id="cal-mes" onchange="renderCal()">
+      <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+      <option value="3" selected>Março</option><option value="4">Abril</option>
+    </select>
+    <span class="fl" style="margin-left:8px;">Métrica:</span>
+    <select class="fs" id="cal-mode" onchange="renderCal()">
+      <option value="vol">Volume de atendimentos</option>
+      <option value="csat">CSAT (satisfação)</option>
+    </select>
+  </div>
+
+  <div class="g6040" style="align-items:start;margin-bottom:1rem;">
+    <div class="card">
+      <div class="ch">
+        <div><div class="ct">Mapa de Calor — <span id="cal-title">Março 2026</span></div><div class="cs">Cada célula = 1 dia · cor = intensidade da métrica</div></div>
+        <div style="display:flex;gap:3px;align-items:center;font-family:'Geist Mono',monospace;font-size:.58rem;color:var(--ghost);">
+          Baixo <div style="width:9px;height:9px;border-radius:2px;background:#eef1e9;border:1px solid #d6dfd0;margin:0 2px;"></div><div style="width:9px;height:9px;border-radius:2px;background:#c8dece;margin:0 2px;"></div><div style="width:9px;height:9px;border-radius:2px;background:#9ec4a8;margin:0 2px;"></div><div style="width:9px;height:9px;border-radius:2px;background:#4f8562;margin:0 2px;"></div><div style="width:9px;height:9px;border-radius:2px;background:#3d6b47;margin:0 2px;"></div> Alto
+        </div>
+      </div>
+      <div class="cal-grid" id="cal-lbl" style="margin-bottom:5px;"></div>
+      <div class="cal-grid" id="cal-grid"></div>
+      <div id="cal-stats" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.6rem;margin-top:1rem;"></div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:1rem;">
+        <div class="ch"><div class="ct">Volume Diário</div><div class="cs">Linha do tempo do mês</div></div>
+        <div class="h220"><canvas id="ch-cal-line"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="ch"><div class="ct">CSAT por Dia</div><div class="cs">Verde = ≥9,95 · Âmbar = 9,8–9,95 · Vermelho = &lt;9,8</div></div>
+        <div class="h180"><canvas id="ch-cal-csat"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="g3">
+    <div class="card">
+      <div class="ch"><div class="ct">Volume por Semana</div><div class="cs">Jan / Fev / Mar — 5 semanas</div></div>
+      <div class="h220"><canvas id="ch-sems"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div class="ct">Distribuição Semanal × Dia</div><div class="cs">Volume real por semana e dia-da-semana (Mar)</div></div>
+      <div class="h220"><canvas id="ch-semxdow"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div class="ct">Dia da Semana no Mês</div><div class="cs">Total de atendimentos por dia da semana</div></div>
+      <div class="h220"><canvas id="ch-cal-dow"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ AGENTES ════════════════ -->
+<div id="pane-agentes" class="pane">
+  <div class="ms" id="ag-ms"></div>
+
+  <div class="kstrip" style="grid-template-columns:repeat(auto-fit,minmax(145px,1fr))">
+    <div class="kpi" style="--kc:var(--moss)"><div class="kl">Agentes Ativos</div><div class="kv" id="ag-k1">—</div><div class="ks">No período</div></div>
+    <div class="kpi" style="--kc:var(--sage)"><div class="kl">Média/Agente</div><div class="kv" id="ag-k2">—</div><div class="ks">Atendimentos</div></div>
+    <div class="kpi" style="--kc:var(--moss2)"><div class="kl">Maior Volume</div><div class="kv" id="ag-k3">—</div><div class="ks" id="ag-k3n">—</div></div>
+    <div class="kpi" style="--kc:var(--amber)"><div class="kl">Melhor CSAT</div><div class="kv" id="ag-k4">—</div><div class="ks" id="ag-k4n">—</div></div>
+    <div class="kpi" style="--kc:var(--moss3)"><div class="kl">TMA mais rápido</div><div class="kv" id="ag-k5">—</div><div class="ks" id="ag-k5n">—</div></div>
+  </div>
+
+  <div class="agrid" id="ag-cards" style="margin-bottom:1.4rem;"></div>
+
+  <div class="sh"><span class="sh-title">Heatmap · Agente × Dia (Março)</span><span class="sh-sub">Cada célula = atendimentos naquele dia · intensidade = volume</span><div class="sh-line"></div></div>
+  <div class="card" style="margin-bottom:1rem;">
+    <div class="hm-wrap"><table class="hm" id="ag-heatmap"></table></div>
+  </div>
+
+  <div class="g2">
+    <div class="card">
+      <div class="ch"><div class="ct">Volume × CSAT por Agente</div><div class="cs">Scatter plot · quanto atende vs qualidade</div></div>
+      <div class="h300"><canvas id="ch-ag-scatter"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div class="ct">Especialização por Grupo</div><div class="cs">Cada agente no seu grupo principal · Março</div></div>
+      <div class="h300"><canvas id="ch-ag-grp"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ GRUPOS ════════════════ -->
+<div id="pane-grupos" class="pane">
+  <div class="sh"><span class="sh-title">Grupos de Atendimento</span><span class="sh-sub">Jan → Abr 2026 · volume, tendência e participação</span><div class="sh-line"></div></div>
+
+  <div class="g4060" style="margin-bottom:1rem;">
+    <div class="card">
+      <div class="ch"><div class="ct">Ranking por Volume Total</div><div class="cs">Acumulado Jan–Abr · largura = participação</div></div>
+      <div class="blist" id="grp-blist"></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div class="ct">Comparativo Mensal</div><div class="cs">Jan / Fev / Mar / Abr por grupo</div></div>
+      <div class="h300"><canvas id="ch-grp-comp"></canvas></div>
+    </div>
+  </div>
+
+  <div class="g3" style="margin-bottom:1rem;">
+    <div class="card">
+      <div class="ch"><div class="ct">Distribuição Março</div><div class="cs">% de participação de cada grupo</div></div>
+      <div class="h260"><canvas id="ch-grp-pie"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div class="ct">Tendência — Top 5 Grupos</div><div class="cs">Evolução Jan → Mar volume</div></div>
+      <div class="h260"><canvas id="ch-grp-line"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div class="ct">Agentes × Grupos (Mar)</div><div class="cs">Heatmap de especialização · quem atende o quê</div></div>
+      <div class="hm-wrap"><table class="hm" id="grp-ag-hm" style="width:100%;"></table></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="tsc">
+      <table class="dt">
+        <thead><tr><th>#</th><th>Grupo</th><th style="text-align:right">Jan</th><th style="text-align:right">Fev</th><th style="text-align:right">Mar</th><th style="text-align:right">Abr</th><th style="text-align:right">Total</th><th style="text-align:right">Var Mar→Abr</th></tr></thead>
+        <tbody id="grp-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ AVALIAÇÕES ════════════════ -->
+<div id="pane-avaliacoes" class="pane">
+  <div class="sh"><span class="sh-title">Análise Profunda de Avaliações</span><span class="sh-sub">Distribuição, padrões e agentes com baixas notas</span><div class="sh-line"></div></div>
+
+  <div class="stat-band">
+    <div class="sband"><div class="sband-ico">⭐</div><div><div class="sband-v">94,7%</div><div class="sband-l">Avaliações = 10 (Mar)</div></div></div>
+    <div class="sband"><div class="sband-ico">📊</div><div><div class="sband-v">874</div><div class="sband-l">Total avaliações (Mar)</div></div></div>
+    <div class="sband"><div class="sband-ico">😐</div><div><div class="sband-v">3,1%</div><div class="sband-l">Notas 8 ou menos</div></div></div>
+    <div class="sband"><div class="sband-ico">🎯</div><div><div class="sband-v">45,0%</div><div class="sband-l">Taxa cobertura (Mar)</div></div></div>
+    <div class="sband"><div class="sband-ico">📈</div><div><div class="sband-v">1.068</div><div class="sband-l">Sem avaliação (Mar)</div></div></div>
+  </div>
+
+  <div class="g3" style="margin-bottom:1rem;">
+    <div class="card">
+      <div class="ch"><div class="ct">Distribuição de Notas — Março</div><div class="cs">Frequência de cada nota recebida</div></div>
+      <div class="h260"><canvas id="ch-av-dist"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div class="ct">CSAT por Agente — Março</div><div class="cs">Nota média · linha de referência = 9,9</div></div>
+      <div class="h260"><canvas id="ch-csat-ag"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div class="ct">Cobertura de Avaliações</div><div class="cs">% de atend. avaliados por agente</div></div>
+      <div class="h260"><canvas id="ch-cob-ag"></canvas></div>
+    </div>
+  </div>
+
+  <div class="g2">
+    <div class="card">
+      <div class="ch"><div class="ct">Notas Baixas (&lt; 9) por Agente — Março</div><div class="cs">Análise de incidências que precisam de atenção</div></div>
+      <div class="h260"><canvas id="ch-baixa-ag"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div class="ct">CSAT × Dia da Semana</div><div class="cs">Em qual dia a satisfação é mais alta?</div></div>
+      <div class="h260"><canvas id="ch-csat-dow"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ FLUXO HORÁRIO ════════════════ -->
+<div id="pane-fluxo" class="pane">
+  <div class="sh"><span class="sh-title">Fluxo Horário de Atendimentos</span><span class="sh-sub">Quando a equipe está mais sobrecarregada · heatmap hora × dia da semana</span><div class="sh-line"></div></div>
+
+  <div class="stat-band">
+    <div class="sband"><div class="sband-ico">🔥</div><div><div class="sband-v">8–9h Seg</div><div class="sband-l">Horário de pico (72 atend.)</div></div></div>
+    <div class="sband"><div class="sband-ico">😴</div><div><div class="sband-v">Sex 17h</div><div class="sband-l">Menor volume (19 atend.)</div></div></div>
+    <div class="sband"><div class="sband-ico">⚠️</div><div><div class="sband-v">12–13h</div><div class="sband-l">TME mais alto · almoço</div></div></div>
+    <div class="sband"><div class="sband-ico">📌</div><div><div class="sband-v">Reprodução</div><div class="sband-l">Grupo mais demandado 8–10h</div></div></div>
+  </div>
+
+  <div class="g6040" style="margin-bottom:1rem;">
+    <div class="card">
+      <div class="ch"><div class="ct">Heatmap Hora × Dia da Semana</div><div class="cs">Cada célula = volume de atendimentos · Março 2026</div></div>
+      <div id="hour-heatmap" style="margin-top:.5rem;"></div>
+      <div style="margin-top:.6rem;display:flex;gap:4px;align-items:center;font-family:'Geist Mono',monospace;font-size:.58rem;color:var(--ghost);">Vazio <div style="width:10px;height:10px;border-radius:2px;background:#eef1e9;margin:0 2px;"></div><div style="width:10px;height:10px;border-radius:2px;background:#c8dece;margin:0 2px;"></div><div style="width:10px;height:10px;border-radius:2px;background:#9ec4a8;margin:0 2px;"></div><div style="width:10px;height:10px;border-radius:2px;background:#4f8562;margin:0 2px;"></div><div style="width:10px;height:10px;border-radius:2px;background:#3d6b47;margin:0 2px;"></div> Cheio</div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:1rem;">
+        <div class="ch"><div class="ct">Volume por Hora</div><div class="cs">Todos os dias · distribuição por faixa horária</div></div>
+        <div class="h220"><canvas id="ch-hora-vol"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="ch"><div class="ct">TME por Hora</div><div class="cs">Tempo de espera em segundos por faixa horária</div></div>
+        <div class="h180"><canvas id="ch-hora-tme"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="g2">
+    <div class="card">
+      <div class="ch"><div class="ct">Grupos por Período</div><div class="cs">Quais grupos dominam cada horário do dia</div></div>
+      <div class="h300"><canvas id="ch-grp-hora"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div class="ct">Períodos do Dia — Detalhamento</div><div class="cs">Volume, CSAT e TMA por cada faixa</div></div>
+      <div class="tsc">
+        <table class="dt">
+          <thead><tr><th>Período</th><th>Horário</th><th style="text-align:right">Atend.</th><th style="text-align:right">%</th><th style="text-align:right">CSAT</th><th style="text-align:right">Cobert.</th><th style="text-align:right">TMA</th></tr></thead>
+          <tbody id="per-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ DIÁRIO ════════════════ -->
+<div id="pane-diario" class="pane">
+  <div class="sh"><span class="sh-title">Diário de Bordo</span><span class="sh-sub">101 ocorrências registradas · Jan–Abr 2026</span><div class="sh-line"></div></div>
+
+  <div class="g4" style="margin-bottom:1.2rem;">
+    <div class="kpi" style="--kc:var(--rust)"><div class="kl">Total Registros</div><div class="kv">101</div><div class="ks">Jan–Abr 2026</div></div>
+    <div class="kpi" style="--kc:var(--rust)"><div class="kl">Desconsiderados</div><div class="kv">77</div><div class="ks">Tempo ou avaliação</div></div>
+    <div class="kpi" style="--kc:var(--moss)"><div class="kl">Ajustados</div><div class="kv">18</div><div class="ks">Nota ou tempo</div></div>
+    <div class="kpi" style="--kc:var(--amber)"><div class="kl">Motivo Principal</div><div class="kv" style="font-size:1rem;margin-top:.2rem">Aval. Bot</div><div class="ks">Cliente quis voltar ao bot</div></div>
+  </div>
+
+  <div class="g2" style="margin-bottom:1rem;">
+    <div class="card">
+      <div class="ch"><div class="ct">Ocorrências por Agente</div><div class="cs">Total de registros no Diário</div></div>
+      <div class="h220"><canvas id="ch-diary-ag"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div class="ct">Tipo de Ação por Mês</div><div class="cs">Desconsiderados vs Ajustados</div></div>
+      <div class="h220"><canvas id="ch-diary-type"></canvas></div>
+    </div>
+  </div>
+
+  <div class="fbar">
+    <span class="fl">Filtrar:</span>
+    <select class="fs" id="d-filter" onchange="renderDiary()">
+      <option value="">Todos</option>
+      <option value="avaliação">Avaliação desconsiderada</option>
+      <option value="tempo">Tempo desconsiderado</option>
+      <option value="Ajustei">Ajuste realizado</option>
+    </select>
+    <span class="fl" style="margin-left:8px;">Agente:</span>
+    <select class="fs" id="d-ag" onchange="renderDiary()"><option value="">Todos</option></select>
+  </div>
+  <div class="card">
+    <div id="diary-list"></div>
+    <div style="margin-top:.7rem;font-family:'Geist Mono',monospace;font-size:.62rem;color:var(--ghost);" id="diary-count"></div>
+  </div>
+</div>
+
+</main>
+
+<footer class="footer">
+  <span>Gestão de Atendimento · Base 2026 · Reinaldo V11</span>
+  <span id="footer-date"></span>
+</footer>
+
+<script>
+// ════════════════════ DATA ════════════════════
+const D = {
+  meses:['Jan','Fev','Mar','Abr'],
+  mesNomes:['Janeiro 2026','Fevereiro 2026','Março 2026','Abril 2026'],
+  atend:[1943,1704,1942,94], aval:[939,855,874,37],
+  cobert:[.4833,.5018,.4501,.3936], sat:[9.916,9.903,9.912,9.919],
+  tma:['23:29','23:47','26:11','25:27'], tme:['00:02','00:01','00:01','00:02'],
+  sla:[1,1,1,.9894],
+
+  daily:{
+    1:{2:{v:62,c:9.872},5:{v:88,c:9.957},6:{v:96,c:9.929},7:{v:85,c:9.860},8:{v:100,c:9.980},9:{v:88,c:9.884},12:{v:94,c:9.974},13:{v:95,c:9.942},14:{v:78,c:9.933},15:{v:93,c:10.000},16:{v:94,c:9.964},19:{v:105,c:10.000},20:{v:129,c:9.658},21:{v:96,c:9.925},22:{v:88,c:9.956},23:{v:81,c:10.000},26:{v:102,c:9.836},27:{v:89,c:9.957},28:{v:95,c:9.816},29:{v:95,c:9.830},30:{v:90,c:9.940}},
+    2:{2:{v:110,c:9.935},3:{v:97,c:10.000},4:{v:107,c:9.983},5:{v:76,c:9.917},6:{v:101,c:9.981},9:{v:105,c:9.938},10:{v:99,c:9.846},11:{v:66,c:9.903},12:{v:116,c:9.636},13:{v:83,c:9.833},16:{v:72,c:9.914},18:{v:111,c:9.900},19:{v:102,c:9.964},20:{v:67,c:9.935},23:{v:75,c:9.857},24:{v:69,c:10.000},25:{v:80,c:9.842},26:{v:95,c:9.900},27:{v:73,c:9.902}},
+    3:{2:{v:99,c:9.590},3:{v:75,c:9.947},4:{v:68,c:9.867},5:{v:82,c:10.000},6:{v:50,c:10.000},9:{v:80,c:9.977},10:{v:111,c:9.951},11:{v:75,c:9.921},12:{v:81,c:10.000},13:{v:78,c:9.921},16:{v:106,c:9.957},17:{v:85,c:9.972},18:{v:95,c:10.000},19:{v:88,c:9.951},20:{v:68,c:9.900},23:{v:103,c:9.896},24:{v:115,c:9.959},25:{v:114,c:9.900},26:{v:94,c:9.976},27:{v:73,c:9.692},30:{v:99,c:9.940},31:{v:103,c:9.761}},
+    4:{1:{v:94,c:9.919}}
+  },
+
+  // Hora × Dia da semana (0=Seg) — Março 2026 (dados reais)
+  hourDow:[[63,72,56,36,51],[68,75,43,56,34],[65,77,46,46,34],[37,28,31,22,15],[21,28,10,10,7],[36,35,27,30,23],[55,48,46,48,33],[58,55,43,43,33],[55,54,33,38,20],[29,17,17,16,19]],
+  hours:[8,9,10,11,12,13,14,15,16,17],
+
+  // TME por hora (segundos) — Março 2026 (dados reais)
+  tmeHora:[1.2,1.2,0.6,1.8,6.6,2.4,0.0,0.6,0.6,1.2],
+
+  // TMA por agente Março (mean, median, max, count)
+  tmaAg:{
+    'Gabriel Freire':[19.9,14.6,92,124],'Evelyn Gonçalves':[21.0,19.0,82.5,224],
+    'Ana Paula':[22.0,19.0,66,89],'Raissa Ribeiro':[23.2,19.4,104.2,221],
+    'Natalia Vieira':[23.2,18.1,107,166],'Lais Medeiros':[23.9,19.4,62.2,39],
+    'Dhon Freitas':[24.0,18.0,106,119],'Beatriz Araujo':[24.6,20.0,108.2,223],
+    'Wiviane Borges':[25.5,19.6,68,56],'Julia Almeida':[29.3,23.0,114,209],
+    'Alexandre Lobo':[29.6,24.0,126,201],'Marcelo Santos':[29.8,26.3,95,66],
+    'Marcus Silva':[32.0,22.0,301,86],'Marcelo Costa':[32.1,25.0,110.2,101],
+    'Wanderley Cabral':[32.1,24.0,105,15]
+  },
+
+  // Avaliação distribuição Março (nota: count)
+  avDist:{0:1,5:1,7:1,8:16,9:27,10:828},
+
+  // Notas baixas (<9) por agente Março
+  avBaixa:{'Alexandre Lobo':4,'Dhon Freitas':3,'Julia Almeida':3,'Marcus Silva':2,'Evelyn Gonçalves':2,'Raissa Ribeiro':2,'Beatriz Araujo':1,'Gabriel Freire':1,'Marcelo Costa':1},
+
+  // Avaliação por agente (notas detalhadas) Março
+  avAg:{
+    'Alexandre Lobo':{0:0,5:0,7:1,8:3,9:3,10:68},'Ana Paula':{0:0,5:0,7:0,8:0,9:1,10:41},
+    'Beatriz Araujo':{0:1,5:0,7:0,8:0,9:4,10:99},'Dhon Freitas':{0:0,5:0,7:0,8:3,9:0,10:52},
+    'Evelyn Gonçalves':{0:0,5:0,7:0,8:2,9:4,10:94},'Gabriel Freire':{0:0,5:0,7:0,8:1,9:2,10:71},
+    'Julia Almeida':{0:0,5:1,7:0,8:2,9:3,10:69},'Lais Medeiros':{0:0,5:0,7:0,8:0,9:1,10:23},
+    'Marcelo Costa':{0:0,5:0,7:0,8:1,9:1,10:46},'Marcelo Santos':{0:0,5:0,7:0,8:0,9:2,10:29},
+    'Marcus Silva':{0:0,5:0,7:0,8:2,9:0,10:31},'Natalia Vieira':{0:0,5:0,7:0,8:0,9:3,10:83},
+    'Raissa Ribeiro':{0:0,5:0,7:0,8:2,9:2,10:94},'Wiviane Borges':{0:0,5:0,7:0,8:0,9:0,10:19}
+  },
+
+  dow:{1:[389,409,354,376,415],2:[362,265,364,389,324],3:[487,489,352,345,269],4:[0,0,94,0,0]},
+
+  semanas:{1:[62,457,454,499,471],2:[0,491,469,352,392],3:[0,374,425,442,499]},
+  semDow:{'Sem.2':[99,75,68,82,50],'Sem.3':[80,111,75,81,78],'Sem.4':[106,85,95,88,68],'Sem.5':[103,115,114,94,73],'Sem.6':[99,103,0,0,0]},
+
+  grupos:{
+    nomes:['Estoque Animais','Reprodução','Infraestrutura','Confinamento','Ret. Envio Ativo','SISBOV','PMG e Comunic.','Financeiro','Config. Balança','Fila Suporte','Agrícola','Neppo Voz'],
+    jan:[546,515,310,110,116,123,45,68,39,53,10,3],
+    fev:[484,447,285,116,87,83,71,40,50,24,13,3],
+    mar:[551,524,275,128,117,122,69,65,55,19,15,2],
+    abr:[33,8,19,10,5,2,2,5,3,3,0,4],
+  },
+
+  // Grupos por hora Março (top 5 apenas)
+  grpHora:{
+    'Estoque Animais':[60,72,70,51,44,45,63,65,48,33],
+    'Reprodução':     [76,72,85,26,15,37,58,65,64,26],
+    'Infraestrutura': [46,45,28,19,6,20,34,40,20,17],
+    'Confinamento':   [23,23,14,4,2,9,19,12,15,7],
+    'SISBOV':         [20,7,21,6,2,9,16,13,16,3],
+  },
+
+  // Agente × Grupo Março (principais)
+  agGrp:{
+    'Alexandre Lobo': {'Reprodução':112,'Estoque Animais':61,'SISBOV':21,'Ret. Envio Ativo':2,'Fila Suporte':5},
+    'Ana Paula':      {'Confinamento':18,'Estoque Animais':43,'Financeiro':8,'SISBOV':13,'Ret. Envio Ativo':7},
+    'Beatriz Araujo': {'Confinamento':35,'Estoque Animais':99,'Financeiro':27,'SISBOV':28,'Fila Suporte':9},
+    'Dhon Freitas':   {'Config. Balança':15,'Infraestrutura':102,'Ret. Envio Ativo':2},
+    'Evelyn Gonçalves':{'Reprodução':138,'Estoque Animais':47,'SISBOV':16},
+    'Gabriel Freire': {'Config. Balança':22,'Infraestrutura':100,'Ret. Envio Ativo':2},
+    'Julia Almeida':  {'Reprodução':120,'Estoque Animais':51,'SISBOV':17,'Fila Suporte':4},
+    'Marcelo Costa':  {'Config. Balança':18,'Infraestrutura':73,'SISBOV':10},
+    'Natalia Vieira': {'Confinamento':27,'Estoque Animais':87,'Financeiro':12,'SISBOV':30},
+    'Raissa Ribeiro': {'Reprodução':125,'Estoque Animais':55,'SISBOV':16},
+  },
+
+  agentes:{
+    'Alexandre Lobo':   [[179,76,9.84,'28:02'],[155,74,9.96,'23:00'],[201,75,9.84,'28:03'],[8,3,10.0,'29:38']],
+    'Ana Paula':        [[174,92,9.96,'23:00'],[68,38,9.87,'23:10'],[89,42,9.98,'23:00'],[6,2,9.50,'20:10']],
+    'Beatriz Araujo':   [[148,55,9.76,'25:27'],[163,75,9.92,'25:00'],[223,104,9.87,'25:27'],[17,3,9.33,'27:56']],
+    'Dhon Freitas':     [[189,118,9.94,'24:05'],[159,90,9.91,'24:05'],[119,55,9.89,'24:05'],[8,5,10.0,'28:23']],
+    'Evelyn Gonçalves': [[186,95,9.97,'30:03'],[155,94,9.96,'30:03'],[225,100,9.92,'30:21'],[8,6,10.0,'24:15']],
+    'Gabriel Almeida':  [[114,58,9.78,'22:00'],[124,56,9.59,'22:00'],[0,0,0,'—'],[0,0,0,'—']],
+    'Gabriel Freire':   [[170,86,9.94,'19:26'],[192,88,9.88,'19:26'],[124,74,9.95,'19:26'],[3,3,10.0,'22:40']],
+    'Julia Almeida':    [[161,66,9.85,'30:21'],[164,82,9.88,'30:21'],[209,75,9.84,'30:21'],[4,0,0,'27:00']],
+    'Lais Medeiros':    [[203,100,9.97,'23:56'],[172,84,9.95,'23:56'],[39,24,9.96,'23:56'],[0,0,0,'—']],
+    'Lucas Pereira':    [[3,2,10.0,'36:13'],[0,0,0,'—'],[2,1,10.0,'36:13'],[0,0,0,'—']],
+    'Marcelo Costa':    [[0,0,0,'—'],[0,0,0,'—'],[101,48,9.94,'33:08'],[12,3,10.0,'29:30']],
+    'Marcelo Santos':   [[0,0,0,'—'],[0,0,0,'—'],[66,31,9.94,'26:26'],[3,1,10.0,'25:40']],
+    'Marcus Silva':     [[0,0,0,'—'],[0,0,0,'—'],[86,33,9.88,'27:29'],[9,4,10.0,'28:00']],
+    'Natalia Vieira':   [[139,77,10.0,'22:27'],[69,38,10.0,'22:27'],[166,86,9.97,'22:27'],[8,4,10.0,'13:08']],
+    'Raissa Ribeiro':   [[162,66,9.95,'23:33'],[161,78,9.99,'23:33'],[221,98,9.94,'23:33'],[7,2,10.0,'21:17']],
+    'Wanderley Cabral': [[37,22,9.86,'32:05'],[1,1,10.0,'32:05'],[15,9,9.89,'32:05'],[0,0,0,'—']],
+    'Wiviane Borges':   [[78,26,9.88,'23:14'],[121,57,9.86,'23:14'],[56,19,10.0,'23:14'],[1,1,10.0,'26:00']],
+  },
+
+  agDayMar:{
+    'Alexandre Lobo':{2:10,3:6,4:7,5:8,6:8,9:8,10:8,11:6,12:13,13:7,16:11,17:13,18:9,19:8,20:7,23:8,24:17,25:13,26:9,27:8,30:10,31:7},
+    'Ana Paula':{16:8,17:3,18:12,19:9,20:6,23:5,24:10,26:11,27:4,30:12,31:9},
+    'Beatriz Araujo':{2:17,3:13,4:10,5:15,6:4,9:9,10:18,11:8,12:10,13:8,16:8,17:8,18:8,19:6,20:7,23:12,24:12,25:13,26:7,27:5,30:11,31:14},
+    'Dhon Freitas':{2:9,3:7,4:3,5:10,6:4,9:5,10:7,11:5,12:5,13:1,16:5,17:5,18:5,19:4,20:4,23:8,24:6,25:7,26:4,27:3,30:6,31:6},
+    'Evelyn Gonçalves':{2:13,3:11,4:10,5:7,6:4,10:16,11:9,12:8,13:13,16:15,17:7,18:13,19:14,20:9,23:15,24:11,25:16,26:10,27:5,30:7,31:12},
+    'Gabriel Freire':{2:8,3:4,4:1,5:2,6:2,9:3,10:7,11:5,12:7,13:9,16:13,17:5,18:10,19:8,23:6,24:8,25:7,26:4,27:6,30:4,31:5},
+    'Julia Almeida':{2:11,3:5,4:13,5:13,6:7,9:12,10:11,11:9,12:5,16:11,17:12,18:8,19:11,20:9,23:6,24:12,25:16,26:8,27:12,30:10,31:8},
+    'Lais Medeiros':{3:5,9:8,10:9,11:4,12:7,13:6},
+    'Marcelo Costa':{2:2,3:3,4:5,5:5,6:6,9:4,10:3,11:2,12:4,13:6,16:4,17:2,18:7,19:2,20:6,23:2,24:8,25:4,26:3,27:5,30:11,31:7},
+    'Natalia Vieira':{2:8,3:9,4:7,5:12,6:1,9:10,10:15,11:4,12:6,13:7,16:7,17:9,19:8,20:4,23:13,24:11,25:11,26:8,27:4,30:5,31:7},
+    'Raissa Ribeiro':{2:16,3:9,4:12,5:7,6:4,9:11,10:11,11:9,12:7,13:10,16:13,17:8,18:8,19:7,20:6,23:14,24:12,25:11,26:14,27:8,30:10,31:14},
+    'Wiviane Borges':{9:10,11:4,12:2,13:6,16:2,17:2,18:4,19:7,20:6,26:3,27:3,30:3,31:4},
+  },
+
+  periodos:[
+    {n:'1º Manhã',h:'07–09h',at:278,pct:.143,av:134,cob:.482,sat:9.933,tma:'29:30'},
+    {n:'2º Manhã',h:'09–10h',at:276,pct:.142,av:134,cob:.486,sat:9.918,tma:'27:19'},
+    {n:'3º Manhã',h:'10–11h',at:268,pct:.138,av:125,cob:.466,sat:9.840,tma:'24:27'},
+    {n:'4º Manhã',h:'11–12h',at:133,pct:.069,av:55,cob:.414,sat:9.909,tma:'21:45'},
+    {n:'Almoço 1',h:'12–13h',at:76,pct:.039,av:28,cob:.368,sat:9.929,tma:'17:20'},
+    {n:'Almoço 2',h:'13–14h',at:151,pct:.078,av:69,cob:.457,sat:9.928,tma:'27:33'},
+    {n:'1º Tarde',h:'14–15h',at:230,pct:.118,av:89,cob:.387,sat:9.888,tma:'28:42'},
+    {n:'2º Tarde',h:'15–16h',at:232,pct:.119,av:105,cob:.453,sat:9.943,tma:'27:14'},
+    {n:'3º Tarde',h:'16–17h',at:200,pct:.103,av:87,cob:.435,sat:9.931,tma:'26:52'},
+    {n:'4º Tarde',h:'17–18:30h',at:98,pct:.050,av:48,cob:.490,sat:9.938,tma:'19:18'},
+  ],
+  perMes:{jan:[254,239,257,167,93,145,244,224,220,100],fev:[234,197,207,157,58,135,221,201,203,91],mar:[278,276,268,133,76,151,230,232,200,98]},
+
+  diary:[
+    {dt:'02/01',ag:'DHON',proto:'WA103739',desc:'Férias: falha na configuração do Neppo pela equipe em atendimento.',ac:'Desconsiderei o tempo',mes:1},
+    {dt:'05/01',ag:'NATALIA',proto:'WA103893',desc:'Puxou atendimento para ajudar o Dhon sozinho, pediu para desconsiderar a nota.',ac:'Desconsiderei a avaliação',mes:1},
+    {dt:'06/01',ag:'RAISSA',proto:'WA104109',desc:'Michel avaliou com 10 na mensagem, mas deu 0 pelo ponto em desenvolvimento.',ac:'Ajustei a avaliação',mes:1},
+    {dt:'06/01',ag:'BEATRIZ',proto:'WA104189',desc:'Beatriz ajudou cliente da infra para desafogar a equipe. Cliente avaliou com 7 pela demora, problema foi resolvido.',ac:'Desconsiderei a avaliação',mes:1},
+    {dt:'06/01',ag:'LAIS',proto:'WA104143',desc:'Lais pediu prazo para testar versão atualizada, cliente disse ok mas deu avaliação ruim. Procedimento realizado corretamente.',ac:'Desconsiderei a avaliação',mes:1},
+    {dt:'09/01',ag:'ALEXANDRE',proto:'WA104730',desc:'Cliente precisava criar demanda e não gostou pois estava com usuário no serviço no curral.',ac:'Desconsiderei a avaliação',mes:1},
+    {dt:'12/01',ag:'ANA PAULA',proto:'WA104930',desc:'Problema no NEPPO na tela de monitoramento.',ac:'Desconsiderei o tempo',mes:1},
+    {dt:'20/01',ag:'WIVIANE',proto:'WA106080',desc:'Cliente avaliou com 6 pois Wiviane precisaria validar rotinas. Ela rodou as rotinas, funcionou e vai retornar.',ac:'Desconsiderei a avaliação',mes:1},
+    {dt:'21/01',ag:'RAISSA',proto:'WA106300',desc:'Cliente avaliou com 1, mas era 10. Voltou em atendimento para corrigir.',ac:'Ajustei a avaliação',mes:1},
+    {dt:'27/01',ag:'LAIS',proto:'WA107100',desc:'Cliente extremamente incoerente (Jhonson). Lais mastigou toda problemática, super agradeceu e deu 8. Todo 8 dele = 10.',ac:'Ajustei a avaliação',mes:1},
+    {dt:'02/02',ag:'DHON',proto:'WA108082',desc:'Tempo de espera ultrapassou 1 min pois caiu para o CSI.',ac:'Desconsiderei o tempo',mes:2},
+    {dt:'02/02',ag:'ANA PAULA',proto:'WA108080',desc:'Cliente avaliou com 2, mas queria voltar ao bot.',ac:'Desconsiderei a avaliação',mes:2},
+    {dt:'09/02',ag:'GABRIEL FREIRE',proto:'WA108930',desc:'Cliente já estava na fila e ao logar havia tempo de espera acumulado.',ac:'Desconsiderei o tempo',mes:2},
+    {dt:'18/02',ag:'EVELYN',proto:'WA110328',desc:'Cliente sem treinamento, entrou 10min antes do fechamento. Evelyn coletou informações para retornar e foi desconsiderada.',ac:'Desconsiderei a avaliação',mes:2},
+    {dt:'23/02',ag:'RAISSA',proto:'WA110730',desc:'Cliente avaliou com 0 errado. Voltou registrando 10.',ac:'Ajustei a avaliação',mes:2},
+    {dt:'25/02',ag:'GABRIEL FREIRE',proto:'WA111064',desc:'Cliente com problemas de replicação. Gabriel pediu apoio, cliente avaliou mal — sem TI para desbloqueio de rede.',ac:'Desconsiderei a avaliação',mes:2},
+    {dt:'02/03',ag:'DHON',proto:'WA111726',desc:'Atendimento não encerrou por inatividade. Reportei ao NEPPO que tem problema sendo corrigido.',ac:'Desconsiderei o tempo',mes:3},
+    {dt:'03/03',ag:'ALEXANDRE',proto:'WA111790',desc:'Cliente com problema em partos, avaliou com 0. Comprometemo-nos a lançar os restantes.',ac:'Desconsiderei a avaliação',mes:3},
+    {dt:'05/03',ag:'NATALIA',proto:'WA112044',desc:'Cliente avaliou errado e voltou para o bot com nota 10.',ac:'Ajustei a avaliação',mes:3},
+    {dt:'05/03',ag:'RAISSA',proto:'WA112154',desc:'Cliente queria excluir venda no remoto, mas precisava ser no servidor. Avaliou com nota baixa.',ac:'Desconsiderei a avaliação',mes:3},
+    {dt:'16/03',ag:'EVELYN',proto:'WA113402',desc:'Cliente marcou CSI para treinamento. Transferências sem sucesso. Evelyn puxou para finalizar.',ac:'Desconsiderei o tempo',mes:3},
+    {dt:'20/03',ag:'EVELYN',proto:'WA114068',desc:'Atendimento transferido com mais de 1h. Considerado somente o tempo da Evelyn.',ac:'Ajustei o tempo de atendimento',mes:3},
+    {dt:'25/03',ag:'RAISSA',proto:'WA114762',desc:'Cliente avaliou com 1 errado. Em contato confirmou atendimento 10.',ac:'Ajustei a avaliação',mes:3},
+    {dt:'27/03',ag:'NATALIA',proto:'WA115166',desc:'Passou de 1 min de espera pela reforma na sala do suporte.',ac:'Desconsiderei o tempo',mes:3},
+    {dt:'30/03',ag:'GABRIEL FREIRE',proto:'WA115212',desc:'Passou de 1 min de espera pela reforma na sala do suporte.',ac:'Desconsiderei o tempo',mes:3},
+    {dt:'01/04',ag:'ALEXANDRE',proto:'WA115620',desc:'Cliente avaliou tentando retornar ao bot — avaliação indevida.',ac:'Desconsiderei a avaliação',mes:4},
+    {dt:'01/04',ag:'EVELYN',proto:'WA115730',desc:'Usuário retornou do envio ativo informando já ter resolvido. Técnica finalizou normalmente.',ac:'Desconsiderei a avaliação',mes:4},
+  ],
+};
+
+// ════════ UTILS ════════
+const $=id=>document.getElementById(id);
+const fN=v=>v.toLocaleString('pt-BR');
+const fS=v=>typeof v==='number'?v.toFixed(2).replace('.',','):'—';
+const fP=v=>(v*100).toFixed(1)+'%';
+const PAL=['#3d6b47','#6a9e78','#4f8562','#9ec4a8','#2d5038','#c8dece','#5a8a65','#b8d8c0','#8ab89a','#3a5a42','#7aae88','#d8eedd'];
+const PAL2=['#3d6b47','#9a6b1a','#a83232','#2a6b8a','#6a9e78','#2d5038','#c8a048','#6a3a3a'];
+
+const cDef={responsive:true,maintainAspectRatio:false,
+  plugins:{legend:{labels:{color:'#8fa28a',font:{family:'Geist Mono',size:10},boxWidth:10,padding:10}},
+    tooltip:{backgroundColor:'#1a2218',borderColor:'rgba(255,255,255,.08)',borderWidth:1,titleColor:'#fff',bodyColor:'#c8dece',padding:10,titleFont:{family:'Fraunces',weight:'600',size:13},bodyFont:{family:'Geist Mono',size:11},cornerRadius:8}},
+  scales:{x:{grid:{color:'rgba(214,223,208,.4)'},ticks:{color:'#8fa28a',font:{family:'Geist Mono',size:9}}},
+    y:{grid:{color:'rgba(214,223,208,.4)'},ticks:{color:'#8fa28a',font:{family:'Geist Mono',size:9}}}}};
+
+// ════════ TABS ════════
+let chDl=null,chDcsat=null,chDowm=null,chTDbar=null,chAgRk=null;
+function go(id,el){
+  document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');$('pane-'+id).classList.add('active');
+  if(id==='calendario')renderCal();
+  if(id==='agentes')buildAgentes(agM);
+}
+
+// ════════ OVERVIEW ════════
+let ovM=2;
+function buildOvMs(){
+  D.meses.forEach((m,i)=>{
+    const b=document.createElement('button');b.className='mb'+(i===2?' active':'');
+    b.innerHTML=m+` <small style="opacity:.45">${fN(D.atend[i])}</small>`;
+    b.onclick=()=>{document.querySelectorAll('#ov-ms .mb').forEach(x=>x.classList.remove('active'));b.classList.add('active');ovM=i;updateOvKPIs(i);updateDailyChart(i);};
+    $('ov-ms').appendChild(b);
+  });
+}
+function updateOvKPIs(m){
+  $('ov-at').textContent=fN(D.atend[m]);$('ov-av').textContent=fN(D.aval[m]);
+  $('ov-csat').textContent=fS(D.sat[m]);$('ov-tma').textContent=D.tma[m];
+  $('ov-tme').textContent=D.tme[m];$('ov-sla').textContent=fP(D.sla[m]);
+  if(m>0){
+    const d=((D.atend[m]-D.atend[m-1])/D.atend[m-1]*100).toFixed(1);
+    $('ov-at-d').textContent=(d>0?'▲ +':'▼ ')+d+'% vs '+D.meses[m-1];
+    $('ov-at-d').className='kd '+(d>0?'kup':'kdn');
+    const ds=((D.sat[m]-D.sat[m-1])/D.sat[m-1]*100);
+    $('ov-csat-d').textContent=(ds>0?'▲ +':'▼ ')+Math.abs(ds*100).toFixed(3)+'% vs '+D.meses[m-1];
+    $('ov-csat-d').className='kd '+(ds>0?'kup':'kdn');
+  } else { ['ov-at-d','ov-csat-d'].forEach(id=>{$(id).textContent='— base';$(id).className='kd knt';}); }
+  $('ov-av-d').textContent=fP(D.cobert[m])+' cobertura';$('ov-av-d').className='kd knt';
+  $('ov-tma-d').textContent='vs média';$('ov-tma-d').className='kd knt';
+  $('ov-tme-d').textContent='dentro SLA';$('ov-tme-d').className='kd knt';
+  $('ov-sla-d').textContent=D.sla[m]<1?'⚠ '+Math.round((1-D.sla[m])*D.atend[m])+' fora':'✓ Meta 100%';
+  $('ov-sla-d').className='kd '+(D.sla[m]<1?'kdn':'kup');
+  buildInsights(m);
+}
+
+function buildInsights(m){
+  const box=$('insights-box');
+  const dias=D.daily[m];if(!dias){box.innerHTML='';return;}
+  const vs=Object.values(dias).map(d=>d.v);
+  const mx=Math.max(...vs),mn=Math.min(...vs);
+  const mxDay=Object.keys(dias).find(d=>dias[d].v===mx);
+  const mnDay=Object.keys(dias).find(d=>dias[d].v===mn);
+  const badCsat=Object.entries(dias).filter(([d,v])=>v.c<9.8);
+  const ins=[];
+  ins.push({ico:'🔥',txt:`O <b>dia ${mxDay}</b> foi o pico do mês com <b>${mx} atendimentos</b> — ${Math.round((mx-D.atend[m]/Object.keys(dias).length)*100/D.atend[m]*Object.keys(dias).length)}% acima da média diária.`});
+  if(badCsat.length>0) ins.push({ico:'⚠️',txt:`${badCsat.length} ${badCsat.length===1?'dia teve':'dias tiveram'} CSAT abaixo de 9,8: <b>${badCsat.map(([d])=>d+'/'+D.meses[m]?.charAt(0)||'').join(', ')}</b>.`});
+  ins.push({ico:'📊',txt:`Taxa de cobertura de avaliações: <b>${fP(D.cobert[m])}</b> — ${D.cobert[m]<0.5?'<b>abaixo de 50%</b>, há oportunidade de melhora na solicitação de feedback.':'acima de 50%, boa cobertura.'}`});
+  if(m===2) ins.push({ico:'⚡',txt:`<b>Gabriel Freire</b> tem o TMA mais rápido com média de <b>19,9 min</b> — 24% mais rápido que a média da equipe (26:11).`});
+  box.innerHTML=ins.map(i=>`<div class="insight"><div class="ins-ico">${i.ico}</div><div class="ins-text">${i.txt}</div></div>`).join('');
+}
+
+buildOvMs();updateOvKPIs(2);
+
+// Overview daily bar chart
+let chOvDaily=null;
+function updateDailyChart(m){
+  const dias=D.daily[m];if(!dias){if(chOvDaily)chOvDaily.destroy();return;}
+  const ks=Object.keys(dias).map(Number).sort((a,b)=>a-b);
+  const vs=ks.map(d=>dias[d].v);const mx=Math.max(...vs);
+  if(chOvDaily)chOvDaily.destroy();
+  chOvDaily=new Chart($('ch-daily-bars'),{type:'bar',data:{
+    labels:ks.map(d=>`${d}`),
+    datasets:[{label:'Atendimentos',data:vs,backgroundColor:vs.map(v=>{
+      const p=v/mx;return p>.8?'#3d6b47':p>.6?'#4f8562':p>.4?'#6a9e78':p>.25?'#9ec4a8':'#c8dece';
+    }),borderRadius:4}]
+  },options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}}}});
+}
+updateDailyChart(2);
+
+// Evolução
+new Chart($('ch-evolucao'),{type:'line',data:{
+  labels:D.meses,
+  datasets:[
+    {label:'Atendimentos',data:D.atend,borderColor:'#3d6b47',backgroundColor:'rgba(61,107,71,.08)',tension:.4,pointRadius:5,pointBackgroundColor:D.atend.map(v=>v===Math.max(...D.atend)?'#9a6b1a':'#3d6b47'),fill:true,yAxisID:'y'},
+    {label:'Avaliações',data:D.aval,borderColor:'#9ec4a8',backgroundColor:'transparent',tension:.4,pointRadius:4,borderDash:[5,3],yAxisID:'y'}
+  ]
+},options:{...cDef}});
+
+// DOW overview
+new Chart($('ch-dow'),{type:'bar',data:{
+  labels:['Seg','Ter','Qua','Qui','Sex'],
+  datasets:[
+    {label:'Jan',data:D.dow[1],backgroundColor:'rgba(61,107,71,.45)',borderRadius:4},
+    {label:'Fev',data:D.dow[2],backgroundColor:'rgba(106,158,120,.5)',borderRadius:4},
+    {label:'Mar',data:D.dow[3],backgroundColor:'rgba(45,80,56,.7)',borderRadius:4},
+  ]
+},options:{...cDef}});
+
+// Donut Grupos Mar
+const grpSorted=D.grupos.nomes.map((n,i)=>({n,v:D.grupos.mar[i]})).sort((a,b)=>b.v-a.v).slice(0,7);
+const topRest=D.grupos.mar.reduce((s,v)=>s+v,0)-grpSorted.reduce((s,g)=>s+g.v,0);
+new Chart($('ch-grp-donut'),{type:'doughnut',data:{
+  labels:[...grpSorted.map(g=>g.n),'Outros'],
+  datasets:[{data:[...grpSorted.map(g=>g.v),topRest],backgroundColor:[...PAL.slice(0,7),'#e4ead0'],borderWidth:2,borderColor:'#fff'}]
+},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{color:'#8fa28a',font:{family:'Geist Mono',size:9},boxWidth:9,padding:5}},tooltip:{...cDef.plugins.tooltip}}}});
+
+// CSAT semanal
+new Chart($('ch-csat-week'),{type:'line',data:{
+  labels:['Sem.2','Sem.3','Sem.4','Sem.5'],
+  datasets:[{
+    label:'CSAT Médio por Semana',
+    data:[9.92,9.91,9.93,9.89],
+    borderColor:'#9a6b1a',backgroundColor:'rgba(154,107,26,.08)',
+    tension:.4,pointRadius:6,pointBackgroundColor:'#9a6b1a',fill:true
+  }]
+},options:{...cDef,scales:{...cDef.scales,y:{...cDef.scales.y,min:9.85,max:9.98}},plugins:{...cDef.plugins,legend:{display:false}}}});
+
+// ════════ TEMPO ════════
+const tmaAgs=Object.entries(D.tmaAg).sort((a,b)=>a[1][0]-b[1][0]);
+new Chart($('ch-tma-ag'),{type:'bar',data:{
+  labels:tmaAgs.map(([n])=>n.split(' ')[0]),
+  datasets:[
+    {label:'TMA Médio (min)',data:tmaAgs.map(([,v])=>v[0]),backgroundColor:tmaAgs.map(([,v])=>v[0]<22?'#3d6b47':v[0]<27?'#6a9e78':v[0]<32?'#9a6b1a':'#a83232'),borderRadius:5},
+    {label:'Mediana',data:tmaAgs.map(([,v])=>v[1]),type:'scatter',backgroundColor:'#2d5038',pointRadius:5,showLine:false}
+  ]
+},options:{...cDef,plugins:{...cDef.plugins}}});
+
+new Chart($('ch-tma-dist'),{type:'bar',data:{
+  labels:['0–10 min','10–20 min','20–30 min','30–45 min','45–60 min','+60 min'],
+  datasets:[{
+    label:'Atendimentos — Mar',
+    data:[12,380,820,520,160,50],
+    backgroundColor:['#c8dece','#9ec4a8','#6a9e78','#4f8562','#9a6b1a','#a83232'],
+    borderRadius:6
+  }]
+},options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}},indexAxis:'y'}});
+
+new Chart($('ch-tma-per'),{type:'bar',data:{
+  labels:D.periodos.map(p=>p.h),
+  datasets:[{
+    label:'TMA (minutos)',
+    data:[29.5,27.3,24.5,21.7,17.3,27.6,28.7,27.2,26.9,19.3],
+    backgroundColor:['#3d6b47','#4f8562','#6a9e78','#9ec4a8','#c8dece','#4f8562','#3d6b47','#6a9e78','#9a6b1a','#c8dece'],
+    borderRadius:5
+  }]
+},options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}}}});
+
+// Scatter TMA vs Volume
+const scAgMar=Object.entries(D.agentes).filter(([,d])=>d[2][0]>0).map(([nm,d])=>({nm,at:d[2][0],tma:D.tmaAg[nm]?D.tmaAg[nm][0]:null})).filter(a=>a.tma);
+new Chart($('ch-scatter'),{type:'scatter',data:{
+  datasets:[{
+    label:'Agentes — Março',
+    data:scAgMar.map(a=>({x:a.at,y:a.tma,label:a.nm.split(' ')[0]})),
+    backgroundColor:scAgMar.map(a=>a.tma<22?'#3d6b47':a.tma<28?'#6a9e78':'#a83232'),
+    pointRadius:8,pointHoverRadius:10
+  }]
+},options:{...cDef,plugins:{...cDef.plugins,legend:{display:false},tooltip:{...cDef.plugins.tooltip,callbacks:{label:ctx=>`${ctx.raw.label} · ${ctx.raw.x} atend. · ${ctx.raw.y.toFixed(1)}min`}}},scales:{...cDef.scales,x:{...cDef.scales.x,title:{display:true,text:'Volume de Atendimentos',color:'#8fa28a',font:{family:'Geist Mono',size:9}}},y:{...cDef.scales.y,title:{display:true,text:'TMA (min)',color:'#8fa28a',font:{family:'Geist Mono',size:9}}}}}});
+
+// ════════ CALENDÁRIO ════════
+function hc(p,mode){
+  if(mode==='csat'){return p<.5?'#fde8e8':p<.7?'#f5c8c8':p<.85?'#9ec4a8':p<.95?'#4f8562':'#3d6b47';}
+  return p<.15?'#eef1e9':p<.35?'#c8dece':p<.6?'#9ec4a8':p<.8?'#4f8562':'#3d6b47';
+}
+function tc(bg){return['#3d6b47','#4f8562','#2d5038'].includes(bg)?'#fff':'#2d5038';}
+
+function renderCal(){
+  const m=parseInt($('cal-mes').value);const mode=$('cal-mode').value;
+  const mn=['Janeiro 2026','Fevereiro 2026','Março 2026','Abril 2026'];
+  $('cal-title').textContent=mn[m-1];
+  const dias=D.daily[m];const vs=Object.values(dias).map(d=>mode==='vol'?d.v:d.c);
+  const mx=Math.max(...vs),mi=Math.min(...vs);
+  const fd=new Date(2026,m-1,1).getDay();const afd=(fd===0)?6:fd-1;
+  const dim=new Date(2026,m,0).getDate();
+  $('cal-lbl').innerHTML=['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'].map(d=>`<div class="cday-lbl">${d}</div>`).join('');
+  const g=$('cal-grid');g.innerHTML='';
+  for(let i=0;i<afd;i++)g.innerHTML+=`<div class="cday empty"></div>`;
+  let totV=0,totD=0,pkD={v:0,d:0},lkD={v:9999,d:0};
+  for(let d=1;d<=dim;d++){
+    const info=dias[d];
+    if(!info){g.innerHTML+=`<div class="cday" style="background:#eef1e9;opacity:.4"><span class="cday-n" style="color:#8fa28a">${d}</span></div>`;continue;}
+    const raw=mode==='vol'?info.v:info.c;const p=(raw-mi)/(mx-mi||1);
+    const bg=hc(p,mode);const tcolor=tc(bg);const lbl=mode==='vol'?info.v:info.c.toFixed(1);
+    if(info.v>pkD.v)pkD={v:info.v,d};if(info.v<lkD.v)lkD={v:info.v,d};
+    totV+=info.v;totD++;
+    g.innerHTML+=`<div class="cday" style="background:${bg}"><span class="cday-n" style="color:${tcolor}">${d}</span><span class="cday-v" style="color:${tcolor}">${lbl}</span><div class="cday-tt">Dia ${d}/${m}: ${info.v} atend.&nbsp;·&nbsp;CSAT ${info.c.toFixed(2)}</div></div>`;
+  }
+  const avg=Math.round(totV/totD);
+  $('cal-stats').innerHTML=`<div style="background:var(--foam);border:1px solid var(--mist);border-radius:8px;padding:.65rem .8rem;text-align:center"><div style="font-family:'Fraunces',serif;font-size:1.1rem;font-weight:700;color:var(--moss)">${avg}</div><div style="font-family:'Geist Mono',monospace;font-size:.57rem;color:var(--ghost);margin-top:2px;letter-spacing:.07em;text-transform:uppercase">Média/dia</div></div><div style="background:rgba(61,107,71,.06);border:1px solid var(--mist);border-radius:8px;padding:.65rem .8rem;text-align:center"><div style="font-family:'Fraunces',serif;font-size:1.1rem;font-weight:700;color:var(--moss)">${pkD.v}<span style="font-size:.65rem;color:var(--ghost)"> D${pkD.d}</span></div><div style="font-family:'Geist Mono',monospace;font-size:.57rem;color:var(--ghost);margin-top:2px;letter-spacing:.07em;text-transform:uppercase">Pico</div></div><div style="background:rgba(168,50,50,.04);border:1px solid rgba(168,50,50,.12);border-radius:8px;padding:.65rem .8rem;text-align:center"><div style="font-family:'Fraunces',serif;font-size:1.1rem;font-weight:700;color:var(--rust)">${lkD.v}<span style="font-size:.65rem;color:var(--ghost)"> D${lkD.d}</span></div><div style="font-family:'Geist Mono',monospace;font-size:.57rem;color:var(--ghost);margin-top:2px;letter-spacing:.07em;text-transform:uppercase">Mínimo</div></div>`;
+  const ks=Object.keys(dias).map(Number).sort((a,b)=>a-b);
+  if(chDl)chDl.destroy();
+  chDl=new Chart($('ch-cal-line'),{type:'line',data:{
+    labels:ks.map(d=>`${d}`),
+    datasets:[{label:'Atendimentos',data:ks.map(d=>dias[d].v),borderColor:'#3d6b47',backgroundColor:'rgba(61,107,71,.07)',tension:.3,pointRadius:ks.map(d=>dias[d].v===pkD.v||dias[d].v===lkD.v?6:2),pointBackgroundColor:ks.map(d=>dias[d].v===pkD.v?'#9a6b1a':dias[d].v===lkD.v?'#a83232':'#3d6b47'),fill:true}]
+  },options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}}}});
+  if(chDcsat)chDcsat.destroy();
+  chDcsat=new Chart($('ch-cal-csat'),{type:'bar',data:{
+    labels:ks.map(d=>`${d}`),
+    datasets:[{label:'CSAT',data:ks.map(d=>dias[d].c),backgroundColor:ks.map(d=>{const c=dias[d].c;return c>=9.95?'#3d6b47':c>=9.8?'#6a9e78':'#a83232';}),borderRadius:3}]
+  },options:{...cDef,scales:{...cDef.scales,y:{...cDef.scales.y,min:9.5,max:10.1}},plugins:{...cDef.plugins,legend:{display:false}}}});
+  const dc=[0,0,0,0,0,0,0];for(let d=1;d<=dim;d++){if(!dias[d])continue;const dow=new Date(2026,m-1,d).getDay();dc[dow]+=dias[d].v;}
+  const dco=[dc[1],dc[2],dc[3],dc[4],dc[5],dc[6],dc[0]];
+  if(chDowm)chDowm.destroy();
+  chDowm=new Chart($('ch-cal-dow'),{type:'bar',data:{
+    labels:['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'],
+    datasets:[{label:'Atendimentos',data:dco,backgroundColor:['#3d6b47','#4f8562','#6a9e78','#3d6b47','#4f8562','#c8dece','#eef1e9'],borderRadius:5}]
+  },options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}}}});
+}
+new Chart($('ch-sems'),{type:'bar',data:{
+  labels:['Sem.1','Sem.2','Sem.3','Sem.4','Sem.5'],
+  datasets:[{label:'Jan',data:D.semanas[1],backgroundColor:'rgba(61,107,71,.45)',borderRadius:4},{label:'Fev',data:D.semanas[2],backgroundColor:'rgba(106,158,120,.5)',borderRadius:4},{label:'Mar',data:[...D.semanas[3],202],backgroundColor:'rgba(45,80,56,.7)',borderRadius:4}]
+},options:{...cDef}});
+new Chart($('ch-semxdow'),{type:'bar',data:{
+  labels:['Seg','Ter','Qua','Qui','Sex'],
+  datasets:Object.entries(D.semDow).filter(([,v])=>v.some(x=>x>0)).map(([sem,vals],i)=>({label:sem,data:vals,backgroundColor:PAL[i],borderRadius:3}))
+},options:{...cDef}});
+
+// ════════ AGENTES ════════
+let agM=2;
+function buildAgMs(){
+  D.meses.forEach((m,i)=>{
+    const b=document.createElement('button');b.className='mb'+(i===2?' active':'');
+    b.textContent=m;
+    b.onclick=()=>{document.querySelectorAll('#ag-ms .mb').forEach(x=>x.classList.remove('active'));b.classList.add('active');agM=i;buildAgentes(i);};
+    $('ag-ms').appendChild(b);
+  });
+}
+buildAgMs();
+
+const APAL=['#3d6b47','#4f8562','#6a9e78','#9ec4a8','#2d5038','#c8a048','#a83232','#2a6b8a','#7aae88','#5a6b3d','#8a9e5a','#6a4a2a','#3a5a8a','#8a5a3a','#2a4a5a','#5a3a2a'];
+function buildAgentes(m){
+  const ags=Object.entries(D.agentes).map(([nm,d])=>({nm,at:d[m][0],av:d[m][1],sat:d[m][2],tma:d[m][3]})).filter(a=>a.at>0).sort((a,b)=>b.at-a.at);
+  const mx=Math.max(...ags.map(a=>a.at));
+  $('ag-k1').textContent=ags.length;$('ag-k2').textContent=Math.round(ags.reduce((s,a)=>s+a.at,0)/ags.length);
+  const tv=ags[0];$('ag-k3').textContent=tv?.at;$('ag-k3n').textContent=tv?.nm;
+  const ts=[...ags].filter(a=>a.sat>0).sort((a,b)=>b.sat-a.sat)[0];$('ag-k4').textContent=fS(ts?.sat||0);$('ag-k4n').textContent=ts?.nm;
+  const tf=Object.entries(D.tmaAg).sort((a,b)=>a[1][0]-b[1][0])[0];$('ag-k5').textContent=(tf?tf[1][0].toFixed(0):'—')+'min';$('ag-k5n').textContent=tf?tf[0].split(' ')[0]:'—';
+
+  $('ag-cards').innerHTML=ags.map((a,i)=>{
+    const ini=a.nm.split(' ').slice(0,2).map(n=>n[0]).join('').toUpperCase();
+    const sc=a.sat>=9.95?'color:var(--moss)':a.sat>=9.8?'color:var(--amber)':'color:var(--rust)';
+    return `<div class="acard" style="--ac:${APAL[i%APAL.length]}22"><div class="acard-hd"><div class="ava" style="background:${APAL[i%APAL.length]}">${ini}</div><div><div class="aname">${a.nm}</div><div class="atma">TMA ${a.tma}</div></div></div><div class="astats"><div class="ast"><div class="av">${a.at}</div><div class="al">Atend.</div></div><div class="ast"><div class="av" style="${sc}">${a.sat>0?fS(a.sat):'—'}</div><div class="al">CSAT</div></div><div class="ast"><div class="av">${a.av>0?Math.round(a.av/a.at*100)+'%':'—'}</div><div class="al">Cobert.</div></div></div><div class="pb"><div class="pf" style="width:${(a.at/mx*100).toFixed(0)}%;background:${APAL[i%APAL.length]}"></div></div></div>`;
+  }).join('');
+
+  // Heatmap agente × dia
+  if(m===2){
+    const ags2=Object.keys(D.agDayMar);
+    const days=[2,3,4,5,6,9,10,11,12,13,16,17,18,19,20,23,24,25,26,27,30,31];
+    const allV=[];ags2.forEach(a=>days.forEach(d=>{if(D.agDayMar[a][d])allV.push(D.agDayMar[a][d]);}));
+    const hmMx=Math.max(...allV);
+    function hmc(v){if(!v||v===0)return'#f6f8f3';const p=v/hmMx;return p<.2?'#e4ead0':p<.4?'#c8dece':p<.6?'#9ec4a8':p<.8?'#4f8562':'#3d6b47';}
+    function hmtc(v){if(!v||v===0)return'#c8dece';const p=v/hmMx;return p>.5?'#fff':'#2d5038';}
+    let html=`<tr><th class="hm-ag">Agente</th>${days.map(d=>`<th>${d}</th>`).join('')}</tr>`;
+    ags2.forEach((a,i)=>{const sn=a.split(' ')[0];html+=`<tr style="background:${i%2===0?'transparent':'var(--s1)'}"><td class="hm-ag">${sn}</td>${days.map(d=>{const v=D.agDayMar[a][d]||0;return`<td><div class="hmc" style="background:${hmc(v)};color:${hmtc(v)}">${v||''}</div></td>`;}).join('')}</tr>`;});
+    $('ag-heatmap').innerHTML=html;
+  } else {$('ag-heatmap').innerHTML=`<tr><td class="hm-ag" style="padding:1rem;color:var(--ghost);font-family:'Geist Mono',monospace;font-size:.7rem">Heatmap disponível para Março 2026</td></tr>`;}
+
+  // Scatter vol vs csat
+  if($('ch-ag-scatter')._ch)$('ch-ag-scatter')._ch.destroy();
+  const sc2=new Chart($('ch-ag-scatter'),{type:'scatter',data:{
+    datasets:[{label:'Agentes',data:ags.filter(a=>a.sat>0).map(a=>({x:a.at,y:a.sat,nm:a.nm.split(' ')[0]})),
+      backgroundColor:ags.filter(a=>a.sat>0).map(a=>a.sat>=9.95?'#3d6b47':a.sat>=9.8?'#9a6b1a':'#a83232'),
+      pointRadius:9,pointHoverRadius:12}]
+  },options:{...cDef,plugins:{...cDef.plugins,legend:{display:false},tooltip:{...cDef.plugins.tooltip,callbacks:{label:ctx=>`${ctx.raw.nm}: ${ctx.raw.x} atend · CSAT ${ctx.raw.y.toFixed(2)}`}}},scales:{...cDef.scales,x:{...cDef.scales.x,title:{display:true,text:'Volume',color:'#8fa28a',font:{family:'Geist Mono',size:9}}},y:{...cDef.scales.y,min:9.75,max:10.05,title:{display:true,text:'CSAT',color:'#8fa28a',font:{family:'Geist Mono',size:9}}}}}});
+  $('ch-ag-scatter')._ch=sc2;
+
+  // Agente × Grupo radar-like
+  if($('ch-ag-grp')._ch)$('ch-ag-grp')._ch.destroy();
+  const grpNames=['Estoque Animais','Reprodução','Infraestrutura','Confinamento','SISBOV'];
+  const topAgs5=ags.slice(0,5).map(a=>a.nm);
+  const rk=new Chart($('ch-ag-grp'),{type:'bar',data:{
+    labels:grpNames,
+    datasets:topAgs5.map((nm,i)=>({label:nm.split(' ')[0],data:grpNames.map(g=>D.agGrp[nm]?D.agGrp[nm][g]||0:0),backgroundColor:APAL[i]+'bb',borderRadius:4}))
+  },options:{...cDef}});
+  $('ch-ag-grp')._ch=rk;
+}
+buildAgentes(agM);
+
+// ════════ GRUPOS ════════
+const gRaw=D.grupos.nomes.map((n,i)=>({n,jan:D.grupos.jan[i],fev:D.grupos.fev[i],mar:D.grupos.mar[i],abr:D.grupos.abr[i],tot:D.grupos.jan[i]+D.grupos.fev[i]+D.grupos.mar[i]+D.grupos.abr[i]})).sort((a,b)=>b.tot-a.tot);
+const gMx=Math.max(...gRaw.map(g=>g.tot));
+$('grp-blist').innerHTML=gRaw.map((g,i)=>{
+  const pct=(g.tot/gRaw[0].tot*100).toFixed(0);
+  return `<div class="bi"><span class="bl" title="${g.n}">${g.n.length>14?g.n.slice(0,14)+'…':g.n}</span><div class="bt"><div class="bfill" style="width:${pct}%;background:${PAL[i%PAL.length]}"></div></div><span class="bv">${fN(g.tot)}</span></div>`;
+}).join('');
+new Chart($('ch-grp-comp'),{type:'bar',data:{
+  labels:D.grupos.nomes.map(n=>n.length>12?n.slice(0,12)+'…':n),
+  datasets:[{label:'Jan',data:D.grupos.jan,backgroundColor:'rgba(61,107,71,.5)',borderRadius:2},{label:'Fev',data:D.grupos.fev,backgroundColor:'rgba(106,158,120,.55)',borderRadius:2},{label:'Mar',data:D.grupos.mar,backgroundColor:'rgba(45,80,56,.72)',borderRadius:2},{label:'Abr',data:D.grupos.abr,backgroundColor:'rgba(154,107,26,.55)',borderRadius:2}]
+},options:{...cDef,scales:{...cDef.scales,x:{...cDef.scales.x,ticks:{maxRotation:35,color:'#8fa28a',font:{family:'Geist Mono',size:8}}}}}});
+new Chart($('ch-grp-pie'),{type:'doughnut',data:{
+  labels:gRaw.map(g=>g.n),datasets:[{data:gRaw.map(g=>g.mar),backgroundColor:PAL,borderWidth:2,borderColor:'#fff'}]
+},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{color:'#8fa28a',font:{family:'Geist Mono',size:9},boxWidth:9,padding:5}},tooltip:{...cDef.plugins.tooltip}}}});
+const top5g=gRaw.slice(0,5);
+new Chart($('ch-grp-line'),{type:'line',data:{
+  labels:['Jan','Fev','Mar'],
+  datasets:top5g.map((g,i)=>({label:g.n.split(' ')[0],data:[g.jan,g.fev,g.mar],borderColor:PAL[i],backgroundColor:'transparent',tension:.35,pointRadius:5,pointBackgroundColor:PAL[i]}))
+},options:{...cDef}});
+// Agente × Grupo heatmap
+const agGrpAgs=Object.keys(D.agGrp);const agGrpGrps=['Estoque Animais','Reprodução','Infraestrutura','Confinamento','SISBOV','Financeiro'];
+function hmcGrp(v,mx2){if(!v)return'#f6f8f3';const p=v/mx2;return p<.1?'#e4ead0':p<.3?'#9ec4a8':p<.6?'#4f8562':'#3d6b47';}
+const grpMx=Math.max(...agGrpAgs.flatMap(a=>agGrpGrps.map(g=>D.agGrp[a]?D.agGrp[a][g]||0:0)));
+let grpHmHtml=`<tr><th class="hm-ag">Agente ↓ / Grupo →</th>${agGrpGrps.map(g=>`<th>${g.length>10?g.slice(0,10)+'…':g}</th>`).join('')}</tr>`;
+agGrpAgs.forEach((a,i)=>{grpHmHtml+=`<tr style="background:${i%2===0?'transparent':'var(--s1)'}"><td class="hm-ag">${a.split(' ')[0]}</td>${agGrpGrps.map(g=>{const v=D.agGrp[a]?D.agGrp[a][g]||0:0;return`<td><div class="hmc" style="background:${hmcGrp(v,grpMx)};color:${v>grpMx*.5?'#fff':'#2d5038'};min-width:36px">${v||''}</div></td>`;}).join('')}</tr>`;});
+$('grp-ag-hm').innerHTML=grpHmHtml;
+$('grp-tbody').innerHTML=gRaw.map((g,i)=>{const rc=i===0?'r1':i===1?'r2':i===2?'r3':'rn';const vp=g.mar>0?((g.abr-g.mar)/g.mar*100).toFixed(1):'—';const vc=parseFloat(vp)>0?'color:var(--moss)':parseFloat(vp)<0?'color:var(--rust)':'color:var(--ghost)';return`<tr><td><span class="rb ${rc}">${i+1}</span></td><td style="font-weight:500">${g.n}</td><td class="tn">${g.jan}</td><td class="tn">${g.fev}</td><td class="tn">${g.mar}</td><td class="tn">${g.abr}</td><td class="th">${fN(g.tot)}</td><td class="tn" style="${vc}">${vp!=='—'?(parseFloat(vp)>0?'+':'')+vp+'%':vp}</td></tr>`;}).join('');
+
+// ════════ AVALIAÇÕES ════════
+new Chart($('ch-av-dist'),{type:'bar',data:{
+  labels:Object.keys(D.avDist).map(k=>k==0?'0 (erro)':k==10?'10 ★':k),
+  datasets:[{label:'Avaliações',data:Object.values(D.avDist),backgroundColor:Object.keys(D.avDist).map(k=>k>=10?'#3d6b47':k>=9?'#6a9e78':k>=8?'#9a6b1a':'#a83232'),borderRadius:5}]
+},options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}}}});
+const csatAgs=Object.entries(D.agantes||D.agentes).filter(([,d])=>d[2][0]>0&&d[2][2]>0).map(([nm,d])=>({nm:nm.split(' ')[0],csat:d[2][2]})).sort((a,b)=>b.csat-a.csat);
+new Chart($('ch-csat-ag'),{type:'bar',data:{
+  labels:csatAgs.map(a=>a.nm),
+  datasets:[{label:'CSAT Médio',data:csatAgs.map(a=>a.csat),backgroundColor:csatAgs.map(a=>a.csat>=9.95?'#3d6b47':a.csat>=9.8?'#6a9e78':'#a83232'),borderRadius:5},{label:'Meta 9,9',data:csatAgs.map(()=>9.9),type:'line',borderColor:'#9a6b1a',borderDash:[5,3],pointRadius:0,borderWidth:1.5}]
+},options:{...cDef,scales:{...cDef.scales,y:{...cDef.scales.y,min:9.7,max:10.05}},plugins:{...cDef.plugins,legend:{display:false}}}});
+const cobAgs=Object.entries(D.agentes).filter(([,d])=>d[2][0]>0).map(([nm,d])=>({nm:nm.split(' ')[0],cob:d[2][0]>0?d[2][1]/d[2][0]:0})).sort((a,b)=>b.cob-a.cob);
+new Chart($('ch-cob-ag'),{type:'bar',data:{
+  labels:cobAgs.map(a=>a.nm),
+  datasets:[{label:'Cobertura %',data:cobAgs.map(a=>+(a.cob*100).toFixed(1)),backgroundColor:cobAgs.map(a=>a.cob>.5?'#3d6b47':a.cob>.35?'#6a9e78':'#a83232'),borderRadius:5}]
+},options:{...cDef,scales:{...cDef.scales,y:{...cDef.scales.y,max:80}},plugins:{...cDef.plugins,legend:{display:false}}}});
+const baixaArr=Object.entries(D.avBaixa).sort((a,b)=>b[1]-a[1]);
+new Chart($('ch-baixa-ag'),{type:'bar',data:{
+  labels:baixaArr.map(([nm])=>nm.split(' ')[0]),
+  datasets:[{label:'Notas < 9',data:baixaArr.map(([,v])=>v),backgroundColor:baixaArr.map(([,v])=>v>=3?'#a83232':v>=2?'#9a6b1a':'#c8a048'),borderRadius:5}]
+},options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}}}});
+// CSAT por dia da semana (Mar)
+new Chart($('ch-csat-dow'),{type:'bar',data:{
+  labels:['Seg','Ter','Qua','Qui','Sex'],
+  datasets:[{label:'CSAT Médio',data:[9.91,9.93,9.89,9.92,9.94],backgroundColor:['#4f8562','#3d6b47','#6a9e78','#4f8562','#3d6b47'],borderRadius:6}]
+},options:{...cDef,scales:{...cDef.scales,y:{...cDef.scales.y,min:9.85,max:9.97}},plugins:{...cDef.plugins,legend:{display:false}}}});
+
+// ════════ FLUXO HORÁRIO ════════
+// Heatmap hora × dow
+const dowLabels=['Seg','Ter','Qua','Qui','Sex'];
+const hmHtml=$('hour-heatmap');const allHDV=D.hourDow.flatMap(r=>r);const hdMx=Math.max(...allHDV);
+function hchm(v){const p=v/hdMx;return p<.1?'#eef1e9':p<.25?'#c8dece':p<.5?'#9ec4a8':p<.75?'#4f8562':'#3d6b47';}
+let hhHtml=`<div class="hour-row">${['<div style="width:28px"></div>',...dowLabels.map(d=>`<div class="dow-lbl">${d}</div>`)].join('')}</div>`;
+D.hours.forEach((h,hi)=>{hhHtml+=`<div class="hour-row"><div class="hour-lbl">${h}h</div>${D.hourDow[hi].map((v,di)=>`<div class="hour-cell" style="background:${hchm(v)}" title="${dowLabels[di]} ${h}h: ${v} atend."><span style="font-family:'Geist Mono',monospace;font-size:.55rem;color:${v>hdMx*.5?'#fff':'#2d5038'};pointer-events:none">${v}</span></div>`).join('')}</div>`;});
+hmHtml.innerHTML=hhHtml;
+new Chart($('ch-hora-vol'),{type:'bar',data:{
+  labels:D.hours.map(h=>h+'h'),
+  datasets:[{label:'Total Atend.',data:D.hourDow.map(r=>r.reduce((s,v)=>s+v,0)),backgroundColor:D.hourDow.map(r=>{const t=r.reduce((s,v)=>s+v,0);return t>250?'#3d6b47':t>180?'#4f8562':t>120?'#6a9e78':t>60?'#9ec4a8':'#c8dece';}),borderRadius:5}]
+},options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}}}});
+new Chart($('ch-hora-tme'),{type:'line',data:{
+  labels:D.hours.map(h=>h+'h'),
+  datasets:[{label:'TME (segundos)',data:D.tmeHora,borderColor:'#a83232',backgroundColor:'rgba(168,50,50,.08)',tension:.4,pointRadius:5,pointBackgroundColor:D.tmeHora.map(v=>v>5?'#a83232':v>2?'#9a6b1a':'#3d6b47'),fill:true}]
+},options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}}}});
+const grpHoraNames=Object.keys(D.grpHora);
+new Chart($('ch-grp-hora'),{type:'bar',data:{
+  labels:D.hours.map(h=>h+'h'),
+  datasets:grpHoraNames.map((g,i)=>({label:g.split(' ')[0],data:D.grpHora[g],backgroundColor:PAL[i],borderRadius:3,stack:'s'}))
+},options:{...cDef,scales:{...cDef.scales,x:{...cDef.scales.x,stacked:true},y:{...cDef.scales.y,stacked:true}}}});
+$('per-tbody').innerHTML=D.periodos.map(p=>`<tr><td style="font-weight:500">${p.n}</td><td style="font-family:'Geist Mono',monospace;font-size:.67rem;color:var(--ghost)">${p.h}</td><td class="th">${p.at}</td><td class="tn">${fP(p.pct)}</td><td class="tn" style="${p.sat>=9.95?'color:var(--moss)':p.sat>=9.8?'color:var(--amber)':'color:var(--rust)'}">${p.sat.toFixed(2)}</td><td class="tn" style="${p.cob>.45?'color:var(--moss)':'color:var(--rust)'}">${fP(p.cob)}</td><td class="tn">${p.tma}</td></tr>`).join('');
+
+// ════════ DIÁRIO ════════
+const dAgs=[...new Set(D.diary.map(d=>d.ag))].sort();
+dAgs.forEach(a=>{const o=document.createElement('option');o.value=a;o.textContent=a;$('d-ag').appendChild(o);});
+// Diário por agente chart
+const diaryAg={};D.diary.forEach(d=>{diaryAg[d.ag]=(diaryAg[d.ag]||0)+1;});
+const daArr=Object.entries(diaryAg).sort((a,b)=>b[1]-a[1]);
+new Chart($('ch-diary-ag'),{type:'bar',data:{
+  labels:daArr.map(([n])=>n.split(' ')[0]+' '+(n.split(' ')[1]?.charAt(0)||'')+'.'),
+  datasets:[{label:'Ocorrências',data:daArr.map(([,v])=>v),backgroundColor:daArr.map(([,v])=>v>=3?'#a83232':v>=2?'#9a6b1a':'#4f8562'),borderRadius:5}]
+},options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}}}});
+new Chart($('ch-diary-type'),{type:'bar',data:{
+  labels:['Jan','Fev','Mar','Abr'],
+  datasets:[
+    {label:'Desc. Avaliação',data:[D.diary.filter(d=>d.mes===1&&d.ac.includes('avaliação')).length,D.diary.filter(d=>d.mes===2&&d.ac.includes('avaliação')).length,D.diary.filter(d=>d.mes===3&&d.ac.includes('avaliação')).length,D.diary.filter(d=>d.mes===4&&d.ac.includes('avaliação')).length],backgroundColor:'rgba(168,50,50,.7)',borderRadius:4},
+    {label:'Desc. Tempo',data:[D.diary.filter(d=>d.mes===1&&d.ac.includes('tempo')).length,D.diary.filter(d=>d.mes===2&&d.ac.includes('tempo')).length,D.diary.filter(d=>d.mes===3&&d.ac.includes('tempo')).length,D.diary.filter(d=>d.mes===4&&d.ac.includes('tempo')).length],backgroundColor:'rgba(154,107,26,.7)',borderRadius:4},
+    {label:'Ajustes',data:[D.diary.filter(d=>d.mes===1&&d.ac.includes('Ajustei')).length,D.diary.filter(d=>d.mes===2&&d.ac.includes('Ajustei')).length,D.diary.filter(d=>d.mes===3&&d.ac.includes('Ajustei')).length,D.diary.filter(d=>d.mes===4&&d.ac.includes('Ajustei')).length],backgroundColor:'rgba(61,107,71,.7)',borderRadius:4}
+  ]
+},options:{...cDef,scales:{...cDef.scales,x:{...cDef.scales.x,stacked:true},y:{...cDef.scales.y,stacked:true}}}});
+function renderDiary(){
+  const f=$('d-filter').value,ag=$('d-ag').value;
+  const fl=D.diary.filter(d=>(!f||d.ac.toLowerCase().includes(f.toLowerCase()))&&(!ag||d.ag===ag)).slice().reverse();
+  $('diary-list').innerHTML=fl.map(d=>`<div class="de"><div><div class="d-dt">${d.dt}</div><div class="d-ag">${d.ag}</div><div class="d-pr">${d.proto}</div><span class="d-act ${d.ac.startsWith('Ajustei')?'a-ok':'a-no'}">${d.ac}</span></div><div class="d-desc">${d.desc}</div></div>`).join('');
+  $('diary-count').textContent=`${fl.length} ocorrência(s) exibida(s)`;
+}
+renderDiary();
+
+// ════════ INIT ════════
+renderCal();
+const dt=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+$('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exportado em '+dt;
+</script>
+</body>
+</html>

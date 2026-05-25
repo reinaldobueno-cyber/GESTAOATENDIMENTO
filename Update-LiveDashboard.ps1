@@ -18,6 +18,16 @@ if ([string]::IsNullOrWhiteSpace($env:NEPPO_TOKEN) -and (Test-Path -LiteralPath 
   $env:NEPPO_TOKEN = [System.Net.NetworkCredential]::new('', $secureToken).Password
 }
 
+$credentialPath = Join-Path $scriptDir 'secrets\neppo-credentials.clixml'
+if (Test-Path -LiteralPath $credentialPath) {
+  $credentials = Import-Clixml -LiteralPath $credentialPath
+  foreach ($name in @('NEPPO_CLIENT_KEY', 'NEPPO_CLIENT_SECRET', 'NEPPO_USERNAME', 'NEPPO_PASSWORD')) {
+    if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name, 'Process')) -and $credentials.$name) {
+      [Environment]::SetEnvironmentVariable($name, [System.Net.NetworkCredential]::new('', $credentials.$name).Password, 'Process')
+    }
+  }
+}
+
 if ($EndMonth -le 0) {
   $EndMonth = [int](Get-Date).Month
 }

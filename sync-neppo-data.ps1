@@ -7,6 +7,7 @@ param(
   [int]$PageSize = 200,
   [string]$TreatmentsPath = '',
   [string]$ExportDir = '',
+  [switch]$ExportOnly,
   [switch]$NoMirrorRoot
 )
 
@@ -227,6 +228,9 @@ function Apply-Treatments($Records, [string]$Path) {
 
   $remove = New-Object System.Collections.Generic.HashSet[string]
   foreach ($t in @(Import-Csv -LiteralPath $Path)) {
+    if ($t.PSObject.Properties.Name -contains 'ano' -and ![string]::IsNullOrWhiteSpace([string]$t.ano) -and [int]$t.ano -ne $Year) {
+      continue
+    }
     $protocol = [string]$t.protocolo
     if ([string]::IsNullOrWhiteSpace($protocol) -or !$byProtocol.ContainsKey($protocol)) { continue }
 
@@ -285,6 +289,25 @@ function Apply-Treatments($Records, [string]$Path) {
 
   $kept = @($Records | Where-Object { !$remove.Contains($_.protocolo) })
   return @{ Records = $kept; Diary = $diary.ToArray() }
+}
+
+function Write-DiaryExport([array]$Diary, [string]$Path) {
+  if (!(Test-Path -LiteralPath $Path)) {
+    New-Item -ItemType Directory -Path $Path | Out-Null
+  }
+  $diaryPath = Join-Path $Path 'diario-tratamentos.csv'
+  @($Diary) | ForEach-Object {
+    [pscustomobject]@{
+      Ano = $Year
+      Mes = $_.mes
+      Data = $_.dt
+      Agente = $_.ag
+      Protocolo = $_.proto
+      Acao = $_.ac
+      Descricao = $_.desc
+    }
+  } | Export-Csv -LiteralPath $diaryPath -NoTypeInformation -Encoding UTF8
+  Write-Output "Exports written: $diaryPath"
 }
 
 function Write-Exports($Records, [string]$Path, [array]$Months) {
@@ -490,6 +513,11 @@ try {
 
   $months = $StartMonth..$EndMonth
   Write-Exports -Records @($records) -Path $exportDir -Months $months
+  Write-DiaryExport -Diary @($diary) -Path $exportDir
+  if ($ExportOnly) {
+    Write-Output "Export-only mode. records=$($records.Count) diary=$($diary.Count)"
+    return
+  }
   $focusMonth = [int](($records | Group-Object mes | Sort-Object { [int]$_.Name } -Descending | Select-Object -First 1).Name)
   $D = [ordered]@{
     meses = @('Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez')[($StartMonth - 1)..($EndMonth - 1)]

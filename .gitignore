@@ -2,3 +2,5 @@ exports/
 *.backup-*.html
 cliente-map-privado.csv
 cliente-map-privado.js
+tratamentos-neppo-historico.csv
+diario-historico.csv

@@ -327,6 +327,7 @@ canvas{cursor:pointer;}
     <button class="ntab" onclick="go('agentes',this)"><span class="ico">◉</span> Agentes</button>
     <button class="ntab" onclick="go('grupos',this)"><span class="ico">◧</span> Grupos</button>
     <button class="ntab" onclick="go('clientes',this)"><span class="ico">◎</span> Clientes</button>
+    <button class="ntab" onclick="go('historico',this)"><span class="ico">⌁</span> Histórico</button>
     <button class="ntab" onclick="go('avaliacoes',this)"><span class="ico">★</span> Avaliações</button>
     <button class="ntab" onclick="go('fluxo',this)"><span class="ico">◈</span> Fluxo Horário</button>
     <button class="ntab" onclick="go('atendimentos',this)"><span class="ico">▤</span> Atendimentos</button>
@@ -769,6 +770,53 @@ canvas{cursor:pointer;}
   </div>
 </div>
 
+<!-- ════════════════ HISTÓRICO ════════════════ -->
+<div id="pane-historico" class="pane">
+  <div class="sh"><span class="sh-title">Histórico NEPPO</span><span class="sh-sub">Anos anteriores tratados · visão no site</span><div class="sh-line"></div></div>
+
+  <div class="fbar">
+    <span class="fl">Ano:</span>
+    <select class="fs" id="hist-year" onchange="renderHistorico()"></select>
+    <span class="fl" style="margin-left:8px;">Marco:</span>
+    <span class="ctx-badge">Suporte assumido em Agosto/2024</span>
+  </div>
+
+  <div class="kstrip" style="grid-template-columns:repeat(auto-fit,minmax(145px,1fr))">
+    <div class="kpi" style="--kc:var(--moss)"><div class="kl">Atendimentos</div><div class="kv" id="hist-k1">—</div><div class="ks">Ano selecionado</div></div>
+    <div class="kpi" style="--kc:var(--sage)"><div class="kl">Avaliações</div><div class="kv" id="hist-k2">—</div><div class="ks">Respondidas</div></div>
+    <div class="kpi" style="--kc:var(--amber)"><div class="kl">CSAT</div><div class="kv" id="hist-k3">—</div><div class="ks">Média anual</div></div>
+    <div class="kpi" style="--kc:var(--moss2)"><div class="kl">TMA</div><div class="kv" id="hist-k4">—</div><div class="ks">Minutos</div></div>
+    <div class="kpi" style="--kc:var(--rust)"><div class="kl">SLA ≤ 2min</div><div class="kv" id="hist-k5">—</div><div class="ks">Espera</div></div>
+  </div>
+
+  <div class="g6040" style="margin-bottom:1rem;">
+    <div class="card">
+      <div class="ch"><div><div class="ct">Evolução Mensal do Ano</div><div class="cs">Atendimentos, avaliações e CSAT</div></div></div>
+      <div class="h300"><canvas id="ch-hist-month"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div><div class="ct">Comparativo Anual</div><div class="cs">Volume total por ano tratado</div></div></div>
+      <div class="h300"><canvas id="ch-hist-year"></canvas></div>
+    </div>
+  </div>
+
+  <div class="g2" style="margin-bottom:1rem;">
+    <div class="card">
+      <div class="ch"><div><div class="ct">Top Grupos do Ano</div><div class="cs">Grupos mais acionados</div></div></div>
+      <div class="h260"><canvas id="ch-hist-groups"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div><div class="ct">Top Agentes do Ano</div><div class="cs">Volume e CSAT por agente</div></div></div>
+      <div class="h260"><canvas id="ch-hist-agents"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ch"><div><div class="ct">Diário e Considerações</div><div class="cs">Registros trazidos das planilhas tratadas</div></div></div>
+    <div id="hist-diary" class="rel-list"></div>
+  </div>
+</div>
+
 <!-- ════════════════ DIÁRIO ════════════════ -->
 <div id="pane-diario" class="pane">
   <div class="sh"><span class="sh-title">Diário de Bordo</span><span class="sh-sub">124 ocorrências registradas · Jan–Abr 2026</span><div class="sh-line"></div></div>
@@ -828,6 +876,7 @@ canvas{cursor:pointer;}
   <span id="footer-date"></span>
 </footer>
 
+<script src="historico-dashboard.js"></script>
 <script src="cliente-map-privado.js"></script>
 <script>
 // ════════════════════ DATA ════════════════════
@@ -238995,6 +239044,7 @@ function go(id,el){
   if(id==='calendario')renderCal();
   if(id==='agentes')buildAgentes(agM);
   if(id==='clientes')renderClientsMonth(appM);
+  if(id==='historico')renderHistorico();
   if(id==='atendimentos')renderAtendimentos();
 }
 
@@ -239814,6 +239864,43 @@ function renderClientsMonth(m){
   $('cli-tbody').innerHTML=all.map((c,i)=>{const rc=i===0?'r1':i===1?'r2':i===2?'r3':'rn';return`<tr><td><span class="rb ${rc}">${i+1}</span></td><td><button class="rel-client" onclick="showClientPopup('${esc(c.code)}')">${esc(c.name)}</button><br><span class="op-mono">${esc(c.code)}</span></td>${c.months.map(v=>`<td class="tn">${fN(v)}</td>`).join('')}<td class="th">${fN(c.total)}</td><td>${esc(c.group)}</td><td class="tn">${c.csat!=null?fS(c.csat):'—'}</td></tr>`;}).join('');
 }
 
+function initHistorico(){
+  const sel=$('hist-year');
+  if(!sel||sel.options.length)return;
+  const anos=(window.HISTORICO?.anos||[]).slice().sort();
+  anos.forEach(y=>{const o=document.createElement('option');o.value=y;o.textContent=y;sel.appendChild(o);});
+  if(anos.includes('2025'))sel.value='2025';
+}
+function renderHistorico(){
+  initHistorico();
+  const H=window.HISTORICO;
+  if(!H||!H.anos?.length)return;
+  const year=$('hist-year')?.value||H.anos[H.anos.length-1];
+  const y=H.years[year];
+  if(!y)return;
+  $('hist-k1').textContent=fN(y.total||0);
+  $('hist-k2').textContent=fN(y.aval||0);
+  $('hist-k3').textContent=fS(y.csat||0);
+  $('hist-k4').textContent=(y.tmaMin||0).toFixed(1).replace('.',',');
+  $('hist-k5').textContent=(y.sla||0).toFixed(1).replace('.',',')+'%';
+
+  chart('ch-hist-month',{type:'bar',data:{labels:H.meses,datasets:[
+    {label:'Atendimentos',data:y.months.map(m=>m.atend),backgroundColor:'#3d6b47aa',borderRadius:4,yAxisID:'y'},
+    {label:'Avaliações',data:y.months.map(m=>m.aval),backgroundColor:'#9ec4a8aa',borderRadius:4,yAxisID:'y'},
+    {label:'CSAT',data:y.months.map(m=>m.csat),type:'line',borderColor:'#9a6b1a',pointRadius:4,tension:.35,yAxisID:'y1'}
+  ]},options:{...cDef,scales:{x:cDef.scales.x,y:cDef.scales.y,y1:{position:'right',min:8,max:10.2,grid:{drawOnChartArea:false},ticks:{color:'#9a6b1a',font:{family:'Geist Mono',size:9}}}}}});
+
+  const anos=H.anos.slice().sort(), totals=anos.map(a=>H.years[a].total||0);
+  chart('ch-hist-year',{type:'bar',data:{labels:anos,datasets:[{label:'Atendimentos',data:totals,backgroundColor:anos.map(a=>a==='2024'?'#9a6b1a':'#3d6b47'),borderRadius:5}]},options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}}}});
+
+  chart('ch-hist-groups',{type:'bar',data:{labels:(y.topGroups||[]).slice(0,10).map(g=>g.nome.length>18?g.nome.slice(0,18)+'...':g.nome),datasets:[{label:'Atendimentos',data:(y.topGroups||[]).slice(0,10).map(g=>g.total),backgroundColor:(y.topGroups||[]).slice(0,10).map((_,i)=>PAL[i%PAL.length]),borderRadius:5}]},options:{...cDef,indexAxis:'y',plugins:{...cDef.plugins,legend:{display:false}}}});
+
+  chart('ch-hist-agents',{type:'bar',data:{labels:(y.topAgents||[]).slice(0,10).map(a=>a.nome.split(' ')[0]),datasets:[{label:'Atendimentos',data:(y.topAgents||[]).slice(0,10).map(a=>a.total),backgroundColor:'#4f8562aa',borderRadius:5},{label:'CSAT',data:(y.topAgents||[]).slice(0,10).map(a=>a.csat),type:'line',borderColor:'#9a6b1a',pointRadius:4,yAxisID:'y1'}]},options:{...cDef,scales:{x:cDef.scales.x,y:cDef.scales.y,y1:{position:'right',min:8,max:10.2,grid:{drawOnChartArea:false},ticks:{color:'#9a6b1a',font:{family:'Geist Mono',size:9}}}}}});
+
+  const diary=(y.diary||[]).slice(0,80);
+  $('hist-diary').innerHTML=diary.length?diary.map(d=>`<div class="rel-item"><div class="rel-main"><b>${esc(d.data||year)}</b><br>${esc(d.motivo||'Registro histórico')}<br><span style="color:var(--sub)">${esc(d.impacto||'')}</span>${d.observacoes?`<br><span style="color:var(--ghost)">${esc(d.observacoes)}</span>`:''}</div><div class="rel-tags">${d.responsavel?`<span class="rel-tag">${esc(d.responsavel)}</span>`:''}${d.acao?`<span class="rel-tag">${esc(d.acao)}</span>`:''}</div></div>`).join(''):'<div class="op-empty">Sem registros de diário para este ano.</div>';
+}
+
 function renderAvalMonth(m){
   const pack=bm(m), avDist=pack.avDist||{};
   const avKeys=Object.keys(avDist);
@@ -239863,6 +239950,7 @@ function setGlobalMonth(m){
 
 // ════════ INIT ════════
 populateCalFilters();
+initHistorico();
 const urlMonth=parseInt(new URLSearchParams(location.search).get('mes')||'',10);
 setGlobalMonth(urlMonth>=1&&urlMonth<=D.meses.length?urlMonth-1:F);
 const dt=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});

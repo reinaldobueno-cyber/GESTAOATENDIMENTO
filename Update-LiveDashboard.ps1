@@ -12,6 +12,12 @@ $ErrorActionPreference = 'Stop'
 $scriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
 Set-Location -LiteralPath $scriptDir
 
+$secretPath = Join-Path $scriptDir 'secrets\neppo-token.clixml'
+if ([string]::IsNullOrWhiteSpace($env:NEPPO_TOKEN) -and (Test-Path -LiteralPath $secretPath)) {
+  $secureToken = Import-Clixml -LiteralPath $secretPath
+  $env:NEPPO_TOKEN = [System.Net.NetworkCredential]::new('', $secureToken).Password
+}
+
 if ($EndMonth -le 0) {
   $EndMonth = [int](Get-Date).Month
 }

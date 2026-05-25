@@ -1,4 +1,5 @@
 exports/
+secrets/
 *.backup-*.html
 cliente-map-privado.csv
 cliente-map-privado.js

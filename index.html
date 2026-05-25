@@ -297,9 +297,48 @@ canvas{cursor:pointer;}
 
 /* ——— PROTO ——— */
 .pid{font-family:'Geist Mono',monospace;font-size:.67rem;color:var(--moss);}
+.auth-locked .top,.auth-locked .nav,.auth-locked .page,.auth-locked .footer{display:none;}
+.auth-gate{position:fixed;inset:0;z-index:2000;background:linear-gradient(180deg,#f6f8f3,#e8f2eb);display:none;align-items:center;justify-content:center;padding:1.4rem;}
+.auth-locked .auth-gate{display:flex;}
+.auth-card{width:min(420px,94vw);background:var(--w);border:1px solid var(--border);border-radius:10px;box-shadow:0 20px 60px rgba(30,60,30,.16);padding:1.4rem;}
+.auth-brand{display:flex;align-items:center;gap:10px;margin-bottom:1rem;}
+.auth-logo{width:34px;height:34px;border-radius:8px;background:var(--moss);display:grid;place-items:center;color:#fff;font-size:1rem;}
+.auth-title{font-family:'Fraunces',serif;font-size:1.28rem;font-weight:800;color:var(--ink);}
+.auth-sub{font-family:'Geist Mono',monospace;font-size:.62rem;color:var(--ghost);line-height:1.55;margin-bottom:1rem;}
+.auth-field{display:grid;gap:5px;margin-bottom:.75rem;}
+.auth-field label{font-family:'Geist Mono',monospace;font-size:.58rem;color:var(--ghost);text-transform:uppercase;letter-spacing:.08em;}
+.auth-field input{border:1px solid var(--border);border-radius:8px;padding:.7rem .75rem;font-family:'Geist',sans-serif;font-size:.82rem;color:var(--ink);outline:none;background:var(--paper);}
+.auth-field input:focus{border-color:var(--moss);background:#fff;}
+.auth-btn{width:100%;border:1px solid var(--moss);background:var(--moss);color:#fff;border-radius:8px;padding:.75rem;font-weight:700;cursor:pointer;margin-top:.25rem;}
+.auth-error{min-height:18px;font-family:'Geist Mono',monospace;font-size:.58rem;color:var(--rust);margin-top:.55rem;}
+.auth-hint{font-family:'Geist Mono',monospace;font-size:.58rem;color:var(--ghost);background:var(--foam);border:1px solid var(--border);border-radius:8px;padding:.55rem .65rem;margin-top:.75rem;line-height:1.5;}
+.auth-out{border:1px solid var(--border);background:var(--w);color:var(--moss);border-radius:7px;padding:4px 9px;font-family:'Geist Mono',monospace;font-size:.58rem;cursor:pointer;}
 </style>
 </head>
-<body>
+<body class="auth-locked">
+
+<section class="auth-gate" aria-label="Acesso demonstrativo">
+  <form class="auth-card" onsubmit="return demoLogin(event)">
+    <div class="auth-brand">
+      <div class="auth-logo">G</div>
+      <div>
+        <div class="auth-title">Gestão de Atendimento</div>
+        <div class="auth-sub">Acesso demonstrativo ao dashboard mascarado.</div>
+      </div>
+    </div>
+    <div class="auth-field">
+      <label for="auth-user">Usuário</label>
+      <input id="auth-user" autocomplete="username" placeholder="empresa">
+    </div>
+    <div class="auth-field">
+      <label for="auth-pass">Senha</label>
+      <input id="auth-pass" type="password" autocomplete="current-password" placeholder="senha">
+    </div>
+    <button class="auth-btn" type="submit">Entrar</button>
+    <div class="auth-error" id="auth-error"></div>
+    <div class="auth-hint">Demo: usuário <b>empresa</b> · senha <b>demo2026</b>. Isto é apenas uma simulação visual, não substitui Cloudflare Access ou login real.</div>
+  </form>
+</section>
 
 <header class="top">
   <div class="top-in">
@@ -310,6 +349,7 @@ canvas{cursor:pointer;}
     <div class="top-meta">
       <span class="top-date" id="top-date"></span>
       <span class="live-dot">Ao vivo</span>
+      <button class="auth-out" onclick="demoLogout()">Sair</button>
     </div>
   </div>
 </header>
@@ -239714,6 +239754,30 @@ const urlMonth=parseInt(new URLSearchParams(location.search).get('mes')||'',10);
 setGlobalMonth(urlMonth>=1&&urlMonth<=D.meses.length?urlMonth-1:F);
 const dt=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
 $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exportado em '+dt;
+
+function demoLogin(event){
+  event.preventDefault();
+  const user=($('auth-user')?.value||'').trim().toLowerCase();
+  const pass=$('auth-pass')?.value||'';
+  if(user==='empresa'&&pass==='demo2026'){
+    sessionStorage.setItem('demo-dashboard-auth','ok');
+    document.body.classList.remove('auth-locked');
+    $('auth-error').textContent='';
+    return false;
+  }
+  $('auth-error').textContent='Usuário ou senha inválidos.';
+  return false;
+}
+function demoLogout(){
+  sessionStorage.removeItem('demo-dashboard-auth');
+  document.body.classList.add('auth-locked');
+  setTimeout(()=>$('auth-user')?.focus(),50);
+}
+if(sessionStorage.getItem('demo-dashboard-auth')==='ok'){
+  document.body.classList.remove('auth-locked');
+}else{
+  setTimeout(()=>$('auth-user')?.focus(),50);
+}
 </script>
 </body>
 </html>

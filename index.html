@@ -183,6 +183,7 @@ body{background:var(--paper);color:var(--text);font-family:'Geist',sans-serif;li
 .rel-tags{display:flex;gap:.35rem;flex-wrap:wrap;justify-content:flex-end;}
 .rel-tag{border-radius:999px;background:var(--foam);border:1px solid var(--border);padding:2px 7px;font-family:'Geist Mono',monospace;font-size:.56rem;color:var(--moss);}
 .click-note{font-family:'Geist Mono',monospace;font-size:.58rem;color:var(--ghost);margin-top:.4rem;}
+canvas{cursor:pointer;}
 
 /* ——— HEATMAP TABLE ——— */
 .hm-wrap{overflow-x:auto;}
@@ -238881,7 +238882,7 @@ const fmtDur=sec=>{if(sec==null)return'—';const s=Math.round(sec),h=Math.floor
 const monthMaxDay=m=>Math.max(...Object.keys(D.daily[m]||{}).map(Number));
 const monthIsPartial=m=>monthMaxDay(m)<new Date(2026,m,0).getDate();
 const bm=(m=appM)=>D.byMonth?.[mKey(m+1)]||{};
-const chart=(id,cfg)=>{const el=$(id);Chart.getChart(el)?.destroy();return new Chart(el,cfg);};
+const chart=(id,cfg)=>{const el=$(id);Chart.getChart(el)?.destroy();if(cfg?.options?.onClick){cfg.options.onHover=(evt,els)=>{evt.native.target.style.cursor=els.length?'pointer':'default';};}return new Chart(el,cfg);};
 const setText=(selector,starts,text)=>{const el=[...document.querySelectorAll(selector)].find(x=>x.textContent.trim().startsWith(starts));if(el)el.textContent=text;};
 const NUCLEOS=[
   {n:'Núcleo Engorda',a:['Beatriz Araujo','Ana Paula','Ana Pereira','Natalia Vieira','Wiviane Borges','Marcus Silva','Marcelo Santos','Lucas Pereira','Wanderley Cabral']},
@@ -239010,7 +239011,7 @@ function updateDailyChart(m){
     datasets:[{label:'Atendimentos',data:vs,backgroundColor:vs.map(v=>{
       const p=v/mx;return p>.8?'#3d6b47':p>.6?'#4f8562':p>.4?'#6a9e78':p>.25?'#9ec4a8':'#c8dece';
     }),borderRadius:4}]
-  },options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}}}});
+  },options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}},onClick:chartClick(el=>{const day=ks[el.index];chartDrill(`Dia ${day}/${m+1}`,`${D.mesNomes[m]} · volume diário`,drillRows(m,{day}));})}});
 }
 updateDailyChart(F);
 
@@ -239022,12 +239023,16 @@ new Chart($('ch-evolucao'),{type:'line',data:{
     {label:'Avaliações',data:D.aval,borderColor:'#9ec4a8',backgroundColor:'transparent',tension:.4,pointRadius:4,borderDash:[5,3],yAxisID:'y'}
   ]
 },options:{...cDef}});
+Chart.getChart($('ch-evolucao')).options.onClick=chartClick(el=>{const m=el.index;chartDrill(`${D.mesNomes[m]}`,`Evolução mensal · ${el.datasetIndex===0?'atendimentos':'avaliações'}`,drillRows(m,el.datasetIndex===1?{rated:true}:{}));});
+Chart.getChart($('ch-evolucao')).update();
 
 // DOW overview
 new Chart($('ch-dow'),{type:'bar',data:{
   labels:['Seg','Ter','Qua','Qui','Sex'],
   datasets:Object.entries(D.dow).map(([m,vals],i)=>({label:D.meses[+m-1],data:vals,backgroundColor:PAL[i]+'99',borderRadius:4}))
 },options:{...cDef}});
+Chart.getChart($('ch-dow')).options.onClick=chartClick(el=>{const m=el.datasetIndex;chartDrill(`${['Segunda','Terça','Quarta','Quinta','Sexta'][el.index]} · ${D.meses[m]}`,`Volume por dia da semana`,drillRows(m,{dow:el.index}));});
+Chart.getChart($('ch-dow')).update();
 
 // Donut Grupos mês foco
 const grpFocusVals=D.grupos[FK];
@@ -239185,28 +239190,32 @@ function renderCal(){
   chDl=new Chart($('ch-cal-line'),{type:'line',data:{
     labels:ks.map(d=>`${d}`),
     datasets:[{label:'Atendimentos',data:ks.map(d=>dias[d].v),borderColor:'#3d6b47',backgroundColor:'rgba(61,107,71,.07)',tension:.3,pointRadius:ks.map(d=>dias[d].v===pkD.v||dias[d].v===lkD.v?6:2),pointBackgroundColor:ks.map(d=>dias[d].v===pkD.v?'#9a6b1a':dias[d].v===lkD.v?'#a83232':'#3d6b47'),fill:true}]
-  },options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}}}});
+  },options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}},onClick:chartClick(el=>{const day=ks[el.index];chartDrill(`Calendário · dia ${day}/${m}`,`${D.mesNomes[m-1]} · volume diário`,calRows(m).filter(r=>r[1]===day));})}});
   if(chDcsat)chDcsat.destroy();
   chDcsat=new Chart($('ch-cal-csat'),{type:'bar',data:{
     labels:ks.map(d=>`${d}`),
     datasets:[{label:'CSAT',data:ks.map(d=>dias[d].av?dias[d].c:null),backgroundColor:ks.map(d=>{const c=dias[d].c;return c>=9.95?'#3d6b47':c>=9.8?'#6a9e78':'#a83232';}),borderRadius:3}]
-  },options:{...cDef,scales:{...cDef.scales,y:{...cDef.scales.y,min:9.5,max:10.1}},plugins:{...cDef.plugins,legend:{display:false}}}});
+  },options:{...cDef,scales:{...cDef.scales,y:{...cDef.scales.y,min:9.5,max:10.1}},plugins:{...cDef.plugins,legend:{display:false}},onClick:chartClick(el=>{const day=ks[el.index];chartDrill(`CSAT · dia ${day}/${m}`,`${D.mesNomes[m-1]} · avaliações do dia`,calRows(m).filter(r=>r[1]===day&&r[6]!=null));})}});
   const dc=[0,0,0,0,0,0,0];for(let d=1;d<=dim;d++){if(!dias[d])continue;const dow=new Date(2026,m-1,d).getDay();dc[dow]+=dias[d].v;}
   const dco=[dc[1],dc[2],dc[3],dc[4],dc[5],dc[6],dc[0]];
   if(chDowm)chDowm.destroy();
   chDowm=new Chart($('ch-cal-dow'),{type:'bar',data:{
     labels:['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'],
     datasets:[{label:'Atendimentos',data:dco,backgroundColor:['#3d6b47','#4f8562','#6a9e78','#3d6b47','#4f8562','#c8dece','#eef1e9'],borderRadius:5}]
-  },options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}}}});
+  },options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}},onClick:chartClick(el=>{chartDrill(`Calendário · ${['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'][el.index]}`,`${D.mesNomes[m-1]} · volume por dia da semana`,calRows(m).filter(r=>{const dt=parseBrDate(r[10]||'');if(!dt)return false;const js=new Date(dt).getDay();return (js===0?6:js-1)===el.index;}));})}});
 }
 new Chart($('ch-sems'),{type:'bar',data:{
   labels:Array.from({length:Math.max(...Object.values(D.semanas).map(v=>v.length))},(_,i)=>'Sem.'+(i+1)),
   datasets:Object.entries(D.semanas).map(([m,vals],i)=>({label:D.meses[+m-1],data:vals,backgroundColor:PAL[i]+'99',borderRadius:4}))
 },options:{...cDef}});
+Chart.getChart($('ch-sems')).options.onClick=chartClick(el=>{const m=el.datasetIndex,week=el.index+1;chartDrill(`${D.meses[m]} · Semana ${week}`,`Volume por semana`,drillRows(m,{week}));});
+Chart.getChart($('ch-sems')).update();
 new Chart($('ch-semxdow'),{type:'bar',data:{
   labels:['Seg','Ter','Qua','Qui','Sex'],
   datasets:Object.entries(D.semDow).filter(([,v])=>v.some(x=>x>0)).map(([sem,vals],i)=>({label:sem,data:vals,backgroundColor:PAL[i],borderRadius:3}))
 },options:{...cDef}});
+Chart.getChart($('ch-semxdow')).options.onClick=chartClick(el=>{const week=el.datasetIndex+1;chartDrill(`${D.mesNomes[appM]} · Semana ${week}`,`${['Segunda','Terça','Quarta','Quinta','Sexta'][el.index]}`,drillRows(appM,{week,dow:el.index}));});
+Chart.getChart($('ch-semxdow')).update();
 
 // ════════ AGENTES ════════
 let agM=F;
@@ -239253,10 +239262,10 @@ function buildAgentes(m){
   // Scatter vol vs csat
   if($('ch-ag-scatter')._ch)$('ch-ag-scatter')._ch.destroy();
   const sc2=new Chart($('ch-ag-scatter'),{type:'scatter',data:{
-    datasets:[{label:'Agentes',data:ags.filter(a=>a.sat>0).map(a=>({x:a.at,y:a.sat,nm:a.nm.split(' ')[0]})),
+    datasets:[{label:'Agentes',data:ags.filter(a=>a.sat>0).map(a=>({x:a.at,y:a.sat,nm:a.nm.split(' ')[0],agent:a.nm})),
       backgroundColor:ags.filter(a=>a.sat>0).map(a=>a.sat>=9.95?'#3d6b47':a.sat>=9.8?'#9a6b1a':'#a83232'),
       pointRadius:9,pointHoverRadius:12}]
-  },options:{...cDef,plugins:{...cDef.plugins,legend:{display:false},tooltip:{...cDef.plugins.tooltip,callbacks:{label:ctx=>`${ctx.raw.nm}: ${ctx.raw.x} atend · CSAT ${ctx.raw.y.toFixed(2)}`}}},scales:{...cDef.scales,x:{...cDef.scales.x,title:{display:true,text:'Volume',color:'#8fa28a',font:{family:'Geist Mono',size:9}}},y:{...cDef.scales.y,min:9.75,max:10.05,title:{display:true,text:'CSAT',color:'#8fa28a',font:{family:'Geist Mono',size:9}}}}}});
+  },options:{...cDef,plugins:{...cDef.plugins,legend:{display:false},tooltip:{...cDef.plugins.tooltip,callbacks:{label:ctx=>`${ctx.raw.nm}: ${ctx.raw.x} atend · CSAT ${ctx.raw.y.toFixed(2)}`}}},onClick:chartClick((el,ch)=>{const raw=ch.data.datasets[el.datasetIndex].data[el.index];if(raw?.agent)chartDrill(`${raw.agent}`,`${D.mesNomes[m]} · volume e CSAT`,drillRows(m,{agent:raw.agent}));}),scales:{...cDef.scales,x:{...cDef.scales.x,title:{display:true,text:'Volume',color:'#8fa28a',font:{family:'Geist Mono',size:9}}},y:{...cDef.scales.y,min:9.75,max:10.05,title:{display:true,text:'CSAT',color:'#8fa28a',font:{family:'Geist Mono',size:9}}}}}});
   $('ch-ag-scatter')._ch=sc2;
 
   // Agente × Grupo radar-like
@@ -239266,7 +239275,7 @@ function buildAgentes(m){
   const rk=new Chart($('ch-ag-grp'),{type:'bar',data:{
     labels:grpNames,
     datasets:topAgs5.map((nm,i)=>({label:nm.split(' ')[0],data:grpNames.map(g=>D.agGrp[nm]?D.agGrp[nm][g]||0:0),backgroundColor:APAL[i]+'bb',borderRadius:4}))
-  },options:{...cDef}});
+  },options:{...cDef,onClick:chartClick(el=>{const agent=topAgs5[el.datasetIndex],group=grpNames[el.index];if(agent&&group)chartDrill(`${agent} · ${group}`,`${D.mesNomes[m]} · especialização por grupo`,drillRows(m,{agent,group}));})}});
   $('ch-ag-grp')._ch=rk;
 }
 buildAgentes(agM);
@@ -239285,6 +239294,8 @@ new Chart($('ch-grp-comp'),{type:'bar',data:{
   labels:D.grupos.nomes.map(n=>n.length>12?n.slice(0,12)+'…':n),
   datasets:monthKeys.map((k,i)=>({label:D.meses[i],data:D.grupos[k],backgroundColor:PAL[i]+'99',borderRadius:2}))
 },options:{...cDef,scales:{...cDef.scales,x:{...cDef.scales.x,ticks:{maxRotation:35,color:'#8fa28a',font:{family:'Geist Mono',size:8}}}}}});
+Chart.getChart($('ch-grp-comp')).options.onClick=chartClick(el=>{const m=el.datasetIndex,group=D.grupos.nomes[el.index];if(group)chartDrill(`${group} · ${D.meses[m]}`,`Comparativo mensal por grupo`,drillRows(m,{group}));});
+Chart.getChart($('ch-grp-comp')).update();
 new Chart($('ch-grp-pie'),{type:'doughnut',data:{
   labels:gRaw.map(g=>g.n),datasets:[{data:gRaw.map(g=>g.focus),backgroundColor:PAL,borderWidth:2,borderColor:'#fff'}]
 },options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{color:'#8fa28a',font:{family:'Geist Mono',size:9},boxWidth:9,padding:5}},tooltip:{...cDef.plugins.tooltip}}}});
@@ -239293,6 +239304,8 @@ new Chart($('ch-grp-line'),{type:'line',data:{
   labels:D.meses,
   datasets:top5g.map((g,i)=>({label:g.n.split(' ')[0],data:monthKeys.map(k=>g[k]),borderColor:PAL[i],backgroundColor:'transparent',tension:.35,pointRadius:5,pointBackgroundColor:PAL[i]}))
 },options:{...cDef}});
+Chart.getChart($('ch-grp-line')).options.onClick=chartClick(el=>{const group=top5g[el.datasetIndex]?.n,m=el.index;if(group)chartDrill(`${group} · ${D.meses[m]}`,`Tendência do grupo`,drillRows(m,{group}));});
+Chart.getChart($('ch-grp-line')).update();
 // Agente × Grupo heatmap
 const agGrpAgs=Object.keys(D.agGrp);const agGrpGrps=['Estoque Animais','Reprodução','Infraestrutura','Confinamento','SISBOV','Financeiro'];
 function hmcGrp(v,mx2){if(!v)return'#f6f8f3';const p=v/mx2;return p<.1?'#e4ead0':p<.3?'#9ec4a8':p<.6?'#4f8562':'#3d6b47';}
@@ -239360,7 +239373,7 @@ const daArr=Object.entries(diaryAg).sort((a,b)=>b[1]-a[1]);
 new Chart($('ch-diary-ag'),{type:'bar',data:{
   labels:daArr.map(([n])=>n.split(' ')[0]+' '+(n.split(' ')[1]?.charAt(0)||'')+'.'),
   datasets:[{label:'Ocorrências',data:daArr.map(([,v])=>v),backgroundColor:daArr.map(([,v])=>v>=3?'#a83232':v>=2?'#9a6b1a':'#4f8562'),borderRadius:5}]
-},options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}}}});
+},options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}},onClick:chartClick(el=>{const agent=daArr[el.index]?.[0];diaryPopup(`Diário · ${agent||'Agente'}`,'Ocorrências filtradas por agente',D.diary.filter(d=>d.ag===agent));})}});
 new Chart($('ch-diary-type'),{type:'bar',data:{
   labels:D.meses,
   datasets:[
@@ -239368,7 +239381,7 @@ new Chart($('ch-diary-type'),{type:'bar',data:{
     {label:'Desc. Tempo',data:D.meses.map((_,i)=>D.diary.filter(d=>d.mes===i+1&&d.ac.toLowerCase().includes('tempo')).length),backgroundColor:'rgba(154,107,26,.7)',borderRadius:4},
     {label:'Ajustes',data:D.meses.map((_,i)=>D.diary.filter(d=>d.mes===i+1&&d.ac.includes('Ajustei')).length),backgroundColor:'rgba(61,107,71,.7)',borderRadius:4}
   ]
-},options:{...cDef,scales:{...cDef.scales,x:{...cDef.scales.x,stacked:true},y:{...cDef.scales.y,stacked:true}}}});
+},options:{...cDef,scales:{...cDef.scales,x:{...cDef.scales.x,stacked:true},y:{...cDef.scales.y,stacked:true}},onClick:chartClick(el=>{const m=el.index+1,kind=el.datasetIndex===0?'avaliação':el.datasetIndex===1?'tempo':'Ajustei';diaryPopup(`Diário · ${D.meses[el.index]}`,`Tipo: ${kind}`,D.diary.filter(d=>d.mes===m&&d.ac.toLowerCase().includes(kind.toLowerCase())));})}});
 function renderDiary(){
   const f=$('d-filter').value,ag=$('d-ag').value;
   const fl=D.diary.filter(d=>(!f||d.ac.toLowerCase().includes(f.toLowerCase()))&&(!ag||d.ag===ag)).slice().reverse();
@@ -239526,7 +239539,7 @@ function updateBandsForMonth(m){
 function renderOverviewMonth(m){
   const mk=mKey(m+1), vals=D.grupos[mk]||[];
   const sorted=D.grupos.nomes.map((n,i)=>({n,v:vals[i]||0})).filter(g=>g.v>0).sort((a,b)=>b.v-a.v);
-  chart('ch-grp-donut',{type:'doughnut',data:{labels:sorted.map(g=>g.n),datasets:[{data:sorted.map(g=>g.v),backgroundColor:sorted.map((_,i)=>PAL[i%PAL.length]),borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{color:'#8fa28a',font:{family:'Geist Mono',size:9},boxWidth:9,padding:5}},tooltip:{...cDef.plugins.tooltip}}}});
+  chart('ch-grp-donut',{type:'doughnut',data:{labels:sorted.map(g=>g.n),datasets:[{data:sorted.map(g=>g.v),backgroundColor:sorted.map((_,i)=>PAL[i%PAL.length]),borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{color:'#8fa28a',font:{family:'Geist Mono',size:9},boxWidth:9,padding:5}},tooltip:{...cDef.plugins.tooltip}},onClick:chartClick(el=>{const group=sorted[el.index]?.n;if(group)chartDrill(`${group}`,`${D.mesNomes[m]} · grupo`,drillRows(m,{group}));})}});
   const monthRows=(D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===m+1);
   const cards=NUCLEOS.map(n=>{
     const agents=nucAgentSet(n);
@@ -239541,7 +239554,7 @@ function renderOverviewMonth(m){
   }
   $('nuc-detail').innerHTML=cards.join('');
   const week=bm(m).csatWeek||{labels:[],data:[]};
-  chart('ch-csat-week',{type:'line',data:{labels:week.labels,datasets:[{label:'CSAT Médio por Semana',data:week.data,borderColor:'#9a6b1a',backgroundColor:'rgba(154,107,26,.08)',tension:.4,pointRadius:6,pointBackgroundColor:'#9a6b1a',fill:true}]},options:{...cDef,scales:{...cDef.scales,y:{...cDef.scales.y,min:9.75,max:10.05}},plugins:{...cDef.plugins,legend:{display:false}}}});
+  chart('ch-csat-week',{type:'line',data:{labels:week.labels,datasets:[{label:'CSAT Médio por Semana',data:week.data,borderColor:'#9a6b1a',backgroundColor:'rgba(154,107,26,.08)',tension:.4,pointRadius:6,pointBackgroundColor:'#9a6b1a',fill:true}]},options:{...cDef,scales:{...cDef.scales,y:{...cDef.scales.y,min:9.75,max:10.05}},plugins:{...cDef.plugins,legend:{display:false}},onClick:chartClick(el=>{chartDrill(`${week.labels[el.index]||'Semana'}`,`${D.mesNomes[m]} · avaliações da semana`,drillRows(m,{week:el.index+1,rated:true}));})}});
 }
 
 function tempoRows(m,{agent='',bin=null,period='' }={}){
@@ -239585,6 +239598,42 @@ function showTempoPopup(title,subtitle,rows){
   $('rel-modal').classList.add('open');
 }
 
+function drillRows(m,{day=null,agent='',group='',rating=null,low=false,rated=null,dow=null,hour=null,period='',week=null,unrated=false}={}){
+  return (D.rows||[]).filter(r=>{
+    if(!Array.isArray(r)||r[0]!==m+1)return false;
+    if(day!=null&&r[1]!==day)return false;
+    if(agent&&r[2]!==agent)return false;
+    if(group&&r[3]!==group)return false;
+    if(period&&r[8]!==period)return false;
+    if(hour!=null&&r[9]!==hour)return false;
+    if(week!=null&&Math.ceil((+r[1]||1)/7)!==week)return false;
+    if(dow!=null){
+      const dt=parseBrDate(r[10]||'');
+      if(!dt)return false;
+      const jsDow=new Date(dt).getDay();
+      const monFirst=jsDow===0?6:jsDow-1;
+      if(monFirst!==dow)return false;
+    }
+    if(unrated&&r[6]!=null)return false;
+    if(rated===true&&r[6]==null)return false;
+    if(low&&!(r[6]!=null&&r[6]<9))return false;
+    if(rating!=null&&Number(r[6])!==Number(rating))return false;
+    return true;
+  });
+}
+function chartDrill(title,subtitle,rows){
+  showTempoPopup(title,subtitle,rows);
+}
+function chartClick(handler){
+  return (evt,els,chartRef)=>{if(!els.length)return;handler(els[0],chartRef);};
+}
+function diaryPopup(title,subtitle,items){
+  $('rel-title').textContent=title;
+  $('rel-sub').textContent=subtitle;
+  $('rel-body').innerHTML=items.length?`<div class="rel-list">${items.map(d=>`<div class="rel-item"><div class="rel-main"><b>${esc(d.ag||'Sem agente')}</b><br>${esc(d.dt||'')} · ${esc(d.proto||'')}<br><span style="color:var(--sub)">${esc(d.ac||'')}</span></div><div class="rel-tags"><span class="rel-tag">${esc(d.mot||'Registro')}</span></div></div>`).join('')}</div>`:'<div class="op-empty">Nenhum registro encontrado.</div>';
+  $('rel-modal').classList.add('open');
+}
+
 function renderTempoMonth(m){
   const pack=bm(m), tmaAgs=Object.entries(pack.tmaAg||{}).sort((a,b)=>a[1][0]-b[1][0]);
   chart('ch-tma-ag',{type:'bar',data:{labels:tmaAgs.map(([n])=>n.split(' ')[0]),datasets:[{label:'TMA Médio (min)',data:tmaAgs.map(([,v])=>v[0]),backgroundColor:tmaAgs.map(([,v])=>v[0]<22?'#3d6b47':v[0]<27?'#6a9e78':v[0]<32?'#9a6b1a':'#a83232'),borderRadius:5},{label:'Mediana',data:tmaAgs.map(([,v])=>v[1]),type:'scatter',backgroundColor:'#2d5038',pointRadius:5,showLine:false}]},options:{...cDef,plugins:{...cDef.plugins},onClick:(evt,els)=>{if(!els.length)return;const agent=tmaAgs[els[0].index]?.[0];if(agent)showTempoPopup(`Atendimentos de ${agent}`,`${D.mesNomes[m]} · clique no agente`,tempoRows(m,{agent}));}}});
@@ -239604,7 +239653,7 @@ function renderGroupsMonth(m){
     const pct=(g.focus/Math.max(1,rows[0]?.focus||1)*100).toFixed(0);
     return `<div class="bi"><span class="bl" title="${g.n}">${g.n.length>14?g.n.slice(0,14)+'…':g.n}</span><div class="bt"><div class="bfill" style="width:${pct}%;background:${PAL[i%PAL.length]}"></div></div><span class="bv">${fN(g.focus)}</span></div>`;
   }).join('');
-  chart('ch-grp-pie',{type:'doughnut',data:{labels:rows.map(g=>g.n),datasets:[{data:rows.map(g=>g.focus),backgroundColor:PAL,borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{color:'#8fa28a',font:{family:'Geist Mono',size:9},boxWidth:9,padding:5}},tooltip:{...cDef.plugins.tooltip}}}});
+  chart('ch-grp-pie',{type:'doughnut',data:{labels:rows.map(g=>g.n),datasets:[{data:rows.map(g=>g.focus),backgroundColor:PAL,borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{color:'#8fa28a',font:{family:'Geist Mono',size:9},boxWidth:9,padding:5}},tooltip:{...cDef.plugins.tooltip}},onClick:chartClick(el=>{const group=rows[el.index]?.n;if(group)chartDrill(`${group}`,`${D.mesNomes[m]} · distribuição`,drillRows(m,{group}));})}});
   const agGrp=bm(m).agGrp||{}, ags=Object.keys(agGrp), grps=[...new Set(ags.flatMap(a=>Object.keys(agGrp[a]||{})))].slice(0,8);
   const mx=Math.max(1,...ags.flatMap(a=>grps.map(g=>agGrp[a]?.[g]||0)));
   let html=`<tr><th class="hm-ag">Agente ↓ / Grupo →</th>${grps.map(g=>`<th>${g.length>10?g.slice(0,10)+'…':g}</th>`).join('')}</tr>`;
@@ -239615,27 +239664,33 @@ function renderGroupsMonth(m){
 
 function renderAvalMonth(m){
   const pack=bm(m), avDist=pack.avDist||{};
-  chart('ch-av-dist',{type:'bar',data:{labels:Object.keys(avDist).map(k=>k==0?'0 (erro)':k==10?'10 ★':k),datasets:[{label:'Avaliações',data:Object.values(avDist),backgroundColor:Object.keys(avDist).map(k=>k>=10?'#3d6b47':k>=9?'#6a9e78':k>=8?'#9a6b1a':'#a83232'),borderRadius:5}]},options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}}}});
-  const csatAgs=Object.entries(D.agentes).filter(([,d])=>d[m][0]>0&&d[m][2]>0).map(([nm,d])=>({nm:nm.split(' ')[0],csat:d[m][2]})).sort((a,b)=>b.csat-a.csat);
+  const avKeys=Object.keys(avDist);
+  chart('ch-av-dist',{type:'bar',data:{labels:avKeys.map(k=>k==0?'0 (erro)':k==10?'10 ★':k),datasets:[{label:'Avaliações',data:Object.values(avDist),backgroundColor:avKeys.map(k=>k>=10?'#3d6b47':k>=9?'#6a9e78':k>=8?'#9a6b1a':'#a83232'),borderRadius:5}]},options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}},onClick:chartClick(el=>{const rating=Number(avKeys[el.index]);chartDrill(`Avaliação ${rating}`,`${D.mesNomes[m]} · atendimentos com esta nota`,drillRows(m,{rating}));})}});
+  const csatAgs=Object.entries(D.agentes).filter(([,d])=>d[m][0]>0&&d[m][2]>0).map(([nm,d])=>({agent:nm,nm:nm.split(' ')[0],csat:d[m][2]})).sort((a,b)=>b.csat-a.csat);
   chart('ch-csat-ag',{type:'bar',data:{labels:csatAgs.map(a=>a.nm),datasets:[{label:'CSAT Médio',data:csatAgs.map(a=>a.csat),backgroundColor:csatAgs.map(a=>a.csat>=9.95?'#3d6b47':a.csat>=9.8?'#6a9e78':'#a83232'),borderRadius:5},{label:'Meta 9,9',data:csatAgs.map(()=>9.9),type:'line',borderColor:'#9a6b1a',borderDash:[5,3],pointRadius:0,borderWidth:1.5}]},options:{...cDef,scales:{...cDef.scales,y:{...cDef.scales.y,min:9.7,max:10.05}},plugins:{...cDef.plugins,legend:{display:false}}}});
-  const cobAgs=Object.entries(D.agentes).filter(([,d])=>d[m][0]>0).map(([nm,d])=>({nm:nm.split(' ')[0],cob:d[m][0]>0?d[m][1]/d[m][0]:0})).sort((a,b)=>b.cob-a.cob);
+  Chart.getChart($('ch-csat-ag')).options.onClick=chartClick(el=>{if(el.datasetIndex!==0)return;const agent=csatAgs[el.index]?.agent;if(agent)chartDrill(`CSAT · ${agent}`,`${D.mesNomes[m]} · avaliações respondidas`,drillRows(m,{agent,rated:true}));});
+  Chart.getChart($('ch-csat-ag')).update();
+  const cobAgs=Object.entries(D.agentes).filter(([,d])=>d[m][0]>0).map(([nm,d])=>({agent:nm,nm:nm.split(' ')[0],cob:d[m][0]>0?d[m][1]/d[m][0]:0})).sort((a,b)=>b.cob-a.cob);
   chart('ch-cob-ag',{type:'bar',data:{labels:cobAgs.map(a=>a.nm),datasets:[{label:'Cobertura %',data:cobAgs.map(a=>+(a.cob*100).toFixed(1)),backgroundColor:cobAgs.map(a=>a.cob>.5?'#3d6b47':a.cob>.35?'#6a9e78':'#a83232'),borderRadius:5}]},options:{...cDef,scales:{...cDef.scales,y:{...cDef.scales.y,max:80}},plugins:{...cDef.plugins,legend:{display:false}}}});
+  Chart.getChart($('ch-cob-ag')).options.onClick=chartClick(el=>{const agent=cobAgs[el.index]?.agent;if(agent)chartDrill(`Cobertura · ${agent}`,`${D.mesNomes[m]} · atendimentos avaliados e sem avaliação`,drillRows(m,{agent}));});
+  Chart.getChart($('ch-cob-ag')).update();
   const baixa=Object.entries(pack.avBaixa||{}).sort((a,b)=>b[1]-a[1]);
   chart('ch-baixa-ag',{type:'bar',data:{labels:baixa.map(([nm])=>nm.split(' ')[0]),datasets:[{label:'Notas < 9',data:baixa.map(([,v])=>v),backgroundColor:baixa.map(([,v])=>v>=3?'#a83232':v>=2?'#9a6b1a':'#c8a048'),borderRadius:5}]},options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}},onClick:(evt,els)=>{if(!els.length)return;const agent=baixa[els[0].index]?.[0];if(!agent)return;const rows=(D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===m+1&&r[2]===agent&&r[6]!=null&&r[6]<9).sort((a,b)=>(a[6]??99)-(b[6]??99)||String(b[10]||'').localeCompare(String(a[10]||'')));showTempoPopup(`Notas abaixo de 9 · ${agent}`,`${D.mesNomes[m]} · ${fN(rows.length)} atendimento(s)`,rows);}}});
   const dow=pack.csatDow||[];
-  chart('ch-csat-dow',{type:'bar',data:{labels:['Seg','Ter','Qua','Qui','Sex'],datasets:[{label:'CSAT Médio',data:dow,backgroundColor:dow.map(v=>v>=9.95?'#3d6b47':v>=9.8?'#6a9e78':'#a83232'),borderRadius:6}]},options:{...cDef,scales:{...cDef.scales,y:{...cDef.scales.y,min:9.75,max:10.05}},plugins:{...cDef.plugins,legend:{display:false}}}});
+  chart('ch-csat-dow',{type:'bar',data:{labels:['Seg','Ter','Qua','Qui','Sex'],datasets:[{label:'CSAT Médio',data:dow,backgroundColor:dow.map(v=>v>=9.95?'#3d6b47':v>=9.8?'#6a9e78':'#a83232'),borderRadius:6}]},options:{...cDef,scales:{...cDef.scales,y:{...cDef.scales.y,min:9.75,max:10.05}},plugins:{...cDef.plugins,legend:{display:false}},onClick:chartClick(el=>{chartDrill(`CSAT · ${['Segunda','Terça','Quarta','Quinta','Sexta'][el.index]}`,`${D.mesNomes[m]} · avaliações por dia da semana`,drillRows(m,{dow:el.index,rated:true}));})}});
 }
 
 function renderFluxMonth(m){
   const pack=bm(m), dowLabels=['Seg','Ter','Qua','Qui','Sex'], hourDow=pack.hourDow||[], hdMx=Math.max(1,...hourDow.flatMap(r=>r));
   const heatColor=v=>{const p=v/hdMx;return p<.1?'#eef1e9':p<.25?'#c8dece':p<.5?'#9ec4a8':p<.75?'#4f8562':'#3d6b47';};
   let hh=`<div class="hour-row">${['<div style="width:28px"></div>',...dowLabels.map(d=>`<div class="dow-lbl">${d}</div>`)].join('')}</div>`;
-  hourDow.forEach((row,hi)=>{hh+=`<div class="hour-row"><div class="hour-lbl">${D.hours[hi]}h</div>${row.map((v,di)=>`<div class="hour-cell" style="background:${heatColor(v)}" title="${dowLabels[di]} ${D.hours[hi]}h: ${v} atend."><span style="font-family:'Geist Mono',monospace;font-size:.55rem;color:${v>hdMx*.5?'#fff':'#2d5038'};pointer-events:none">${v}</span></div>`).join('')}</div>`;});
+  hourDow.forEach((row,hi)=>{hh+=`<div class="hour-row"><div class="hour-lbl">${D.hours[hi]}h</div>${row.map((v,di)=>`<div class="hour-cell" data-hour="${D.hours[hi]}" data-dow="${di}" style="background:${heatColor(v)};cursor:pointer" title="${dowLabels[di]} ${D.hours[hi]}h: ${v} atend."><span style="font-family:'Geist Mono',monospace;font-size:.55rem;color:${v>hdMx*.5?'#fff':'#2d5038'};pointer-events:none">${v}</span></div>`).join('')}</div>`;});
   $('hour-heatmap').innerHTML=hh;
-  chart('ch-hora-vol',{type:'bar',data:{labels:D.hours.map(h=>h+'h'),datasets:[{label:'Total Atend.',data:hourDow.map(r=>r.reduce((s,v)=>s+v,0)),backgroundColor:hourDow.map(r=>{const t=r.reduce((s,v)=>s+v,0);return t>250?'#3d6b47':t>180?'#4f8562':t>120?'#6a9e78':t>60?'#9ec4a8':'#c8dece';}),borderRadius:5}]},options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}}}});
-  chart('ch-hora-tme',{type:'line',data:{labels:D.hours.map(h=>h+'h'),datasets:[{label:'TME (segundos)',data:pack.tmeHora||[],borderColor:'#a83232',backgroundColor:'rgba(168,50,50,.08)',tension:.4,pointRadius:5,pointBackgroundColor:(pack.tmeHora||[]).map(v=>v>5?'#a83232':v>2?'#9a6b1a':'#3d6b47'),fill:true}]},options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}}}});
+  $('hour-heatmap').querySelectorAll('.hour-cell').forEach(cell=>cell.onclick=()=>{const hour=Number(cell.dataset.hour),dow=Number(cell.dataset.dow);chartDrill(`${dowLabels[dow]} · ${hour}h`,`${D.mesNomes[m]} · heatmap horário`,drillRows(m,{hour,dow}));});
+  chart('ch-hora-vol',{type:'bar',data:{labels:D.hours.map(h=>h+'h'),datasets:[{label:'Total Atend.',data:hourDow.map(r=>r.reduce((s,v)=>s+v,0)),backgroundColor:hourDow.map(r=>{const t=r.reduce((s,v)=>s+v,0);return t>250?'#3d6b47':t>180?'#4f8562':t>120?'#6a9e78':t>60?'#9ec4a8':'#c8dece';}),borderRadius:5}]},options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}},onClick:chartClick(el=>{const hour=D.hours[el.index];chartDrill(`${hour}h`,`${D.mesNomes[m]} · volume por hora`,drillRows(m,{hour}));})}});
+  chart('ch-hora-tme',{type:'line',data:{labels:D.hours.map(h=>h+'h'),datasets:[{label:'TME (segundos)',data:pack.tmeHora||[],borderColor:'#a83232',backgroundColor:'rgba(168,50,50,.08)',tension:.4,pointRadius:5,pointBackgroundColor:(pack.tmeHora||[]).map(v=>v>5?'#a83232':v>2?'#9a6b1a':'#3d6b47'),fill:true}]},options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}},onClick:chartClick(el=>{const hour=D.hours[el.index];chartDrill(`TME · ${hour}h`,`${D.mesNomes[m]} · atendimentos neste horário`,drillRows(m,{hour}));})}});
   const grpNames=Object.keys(pack.grpHora||{});
-  chart('ch-grp-hora',{type:'bar',data:{labels:D.hours.map(h=>h+'h'),datasets:grpNames.map((g,i)=>({label:g.split(' ')[0],data:pack.grpHora[g],backgroundColor:PAL[i],borderRadius:3,stack:'s'}))},options:{...cDef,scales:{...cDef.scales,x:{...cDef.scales.x,stacked:true},y:{...cDef.scales.y,stacked:true}}}});
+  chart('ch-grp-hora',{type:'bar',data:{labels:D.hours.map(h=>h+'h'),datasets:grpNames.map((g,i)=>({label:g.split(' ')[0],data:pack.grpHora[g],backgroundColor:PAL[i],borderRadius:3,stack:'s'}))},options:{...cDef,scales:{...cDef.scales,x:{...cDef.scales.x,stacked:true},y:{...cDef.scales.y,stacked:true}},onClick:chartClick(el=>{const group=grpNames[el.datasetIndex],hour=D.hours[el.index];if(group)chartDrill(`${group} · ${hour}h`,`${D.mesNomes[m]} · grupo por período`,drillRows(m,{group,hour}));})}});
   $('per-tbody').innerHTML=(pack.periodos||[]).map(p=>`<tr><td style="font-weight:500">${p.n}</td><td style="font-family:'Geist Mono',monospace;font-size:.67rem;color:var(--ghost)">${p.h}</td><td class="th">${p.at}</td><td class="tn">${fP(p.pct)}</td><td class="tn" style="${p.sat>=9.95?'color:var(--moss)':p.sat>=9.8?'color:var(--amber)':'color:var(--rust)'}">${p.sat.toFixed(2)}</td><td class="tn" style="${p.cob>.45?'color:var(--moss)':'color:var(--rust)'}">${fP(p.cob)}</td><td class="tn">${p.tma}</td></tr>`).join('');
 }
 

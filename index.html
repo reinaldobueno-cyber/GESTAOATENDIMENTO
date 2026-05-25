@@ -238980,6 +238980,7 @@ const shortName=n=>n.split(' ')[0];
 const pct1=v=>(v*100).toFixed(1).replace('.',',')+'%';
 const avgArr=arr=>arr.length?arr.reduce((s,v)=>s+v,0)/arr.length:null;
 const fmtDur=sec=>{if(sec==null)return'—';const s=Math.round(sec),h=Math.floor(s/3600),m=Math.floor((s%3600)/60),r=s%60;return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(r).padStart(2,'0')}`;};
+const csatScale=vals=>{const clean=(vals||[]).filter(v=>typeof v==='number'&&v>0);const lo=clean.length?Math.min(...clean):9.5,hi=clean.length?Math.max(...clean):10;return {...cDef.scales.y,min:Math.max(0,Math.floor((lo-.08)*20)/20),max:Math.min(10.05,Math.ceil((hi+.08)*20)/20),ticks:{...cDef.scales.y.ticks,callback:v=>Number(v).toFixed(2).replace('.',',')}};};
 const monthMaxDay=m=>Math.max(...Object.keys(D.daily[m]||{}).map(Number));
 const monthIsPartial=m=>monthMaxDay(m)<new Date(2026,m,0).getDate();
 const bm=(m=appM)=>D.byMonth?.[mKey(m+1)]||{};
@@ -239154,7 +239155,7 @@ new Chart($('ch-csat-week'),{type:'line',data:{
     borderColor:'#9a6b1a',backgroundColor:'rgba(154,107,26,.08)',
     tension:.4,pointRadius:6,pointBackgroundColor:'#9a6b1a',fill:true
   }]
-},options:{...cDef,scales:{...cDef.scales,y:{...cDef.scales.y,min:9.85,max:9.98}},plugins:{...cDef.plugins,legend:{display:false}}}});
+},options:{...cDef,scales:{...cDef.scales,y:csatScale(D.csatWeek.data)},plugins:{...cDef.plugins,legend:{display:false}}}});
 
 // ════════ TEMPO ════════
 const tmaAgs=Object.entries(D.tmaAg).sort((a,b)=>a[1][0]-b[1][0]);
@@ -239657,7 +239658,7 @@ function renderOverviewMonth(m){
   }
   $('nuc-detail').innerHTML=cards.join('');
   const week=bm(m).csatWeek||{labels:[],data:[]};
-  chart('ch-csat-week',{type:'line',data:{labels:week.labels,datasets:[{label:'CSAT Médio por Semana',data:week.data,borderColor:'#9a6b1a',backgroundColor:'rgba(154,107,26,.08)',tension:.4,pointRadius:6,pointBackgroundColor:'#9a6b1a',fill:true}]},options:{...cDef,scales:{...cDef.scales,y:{...cDef.scales.y,min:9.75,max:10.05}},plugins:{...cDef.plugins,legend:{display:false}},onClick:chartClick(el=>{chartDrill(`${week.labels[el.index]||'Semana'}`,`${D.mesNomes[m]} · avaliações da semana`,drillRows(m,{week:el.index+1,rated:true}));})}});
+  chart('ch-csat-week',{type:'line',data:{labels:week.labels,datasets:[{label:'CSAT Médio por Semana',data:week.data,borderColor:'#9a6b1a',backgroundColor:'rgba(154,107,26,.08)',tension:.4,pointRadius:6,pointBackgroundColor:'#9a6b1a',fill:true}]},options:{...cDef,scales:{...cDef.scales,y:csatScale(week.data)},plugins:{...cDef.plugins,legend:{display:false}},onClick:chartClick(el=>{chartDrill(`${week.labels[el.index]||'Semana'}`,`${D.mesNomes[m]} · avaliações da semana`,drillRows(m,{week:el.index+1,rated:true}));})}});
 }
 
 function tempoRows(m,{agent='',bin=null,period='' }={}){

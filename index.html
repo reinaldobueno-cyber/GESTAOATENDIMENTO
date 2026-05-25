@@ -183,6 +183,11 @@ body{background:var(--paper);color:var(--text);font-family:'Geist',sans-serif;li
 .rel-tags{display:flex;gap:.35rem;flex-wrap:wrap;justify-content:flex-end;}
 .rel-tag{border-radius:999px;background:var(--foam);border:1px solid var(--border);padding:2px 7px;font-family:'Geist Mono',monospace;font-size:.56rem;color:var(--moss);}
 .click-note{font-family:'Geist Mono',monospace;font-size:.58rem;color:var(--ghost);margin-top:.4rem;}
+.rel-client{border:0;background:transparent;color:var(--moss);font:inherit;font-weight:700;text-decoration:underline;text-underline-offset:2px;cursor:pointer;padding:0;text-align:left;}
+.client-months{display:grid;grid-template-columns:repeat(auto-fit,minmax(82px,1fr));gap:.45rem;margin:.8rem 0;}
+.client-month{border:1px solid var(--border);border-radius:8px;background:var(--foam);padding:.55rem;text-align:center;}
+.client-month b{display:block;font-family:'Fraunces',serif;font-size:1rem;color:var(--ink);}
+.client-month span{font-family:'Geist Mono',monospace;font-size:.55rem;color:var(--ghost);text-transform:uppercase;}
 canvas{cursor:pointer;}
 
 /* ——— HEATMAP TABLE ——— */
@@ -817,6 +822,7 @@ canvas{cursor:pointer;}
   <span id="footer-date"></span>
 </footer>
 
+<script src="cliente-map-privado.js"></script>
 <script>
 // ════════════════════ DATA ════════════════════
 const D = {
@@ -239512,7 +239518,7 @@ function renderAtendimentos(){
       <td>${esc(r[3])}</td>
       <td class="op-mono">${esc(r[10]||'')}</td>
       <td class="op-mono">${esc(r[11]||'')}</td>
-      <td class="op-client" title="${esc(r[12]||'')}">${esc(r[12]||'')}</td>
+      <td class="op-client" title="${esc(r[12]||'')}">${clientButton(r)}</td>
       <td class="op-mono">${esc(r[13]||'')}</td>
       <td class="op-mono">${semanaFromDay(r[1])}</td>
       <td>${esc(r[8])}</td>
@@ -239616,6 +239622,37 @@ function tempoRows(m,{agent='',bin=null,period='' }={}){
 }
 
 function closeRelModal(){$('rel-modal').classList.remove('open');}
+function clientCode(r){return r?.[18]||String(r?.[12]||'').split(' · ')[0]||'';}
+function clientLabel(r){return r?.[12]||clientCode(r)||'Cliente não informado';}
+function clientButton(r){
+  const code=clientCode(r), label=clientLabel(r);
+  return code?`<button class="rel-client" onclick="showClientPopup('${esc(code)}')">${esc(label)}</button>`:esc(label);
+}
+function showClientPopup(code){
+  const rows=(D.rows||[]).filter(r=>Array.isArray(r)&&clientCode(r)===code);
+  const info=(window.CLIENTE_PRIVADO||{})[code]||null;
+  const rated=rows.filter(r=>r[6]!=null);
+  const byMonth=D.meses.map((m,i)=>({m,v:rows.filter(r=>r[0]===i+1).length}));
+  const byGroup=Object.entries(rows.reduce((a,r)=>{a[r[3]||'Sem grupo']=(a[r[3]||'Sem grupo']||0)+1;return a;},{})).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  $('rel-title').textContent=info?.nome||code;
+  $('rel-sub').textContent=info?'Ficha privada do cliente':'Ficha mascarada do cliente';
+  $('rel-body').innerHTML=`
+    <div class="rel-grid">
+      <div class="rel-k"><div class="rel-kv">${esc(code)}</div><div class="rel-kl">Código</div></div>
+      <div class="rel-k"><div class="rel-kv">${fN(rows.length)}</div><div class="rel-kl">Atendimentos</div></div>
+      <div class="rel-k"><div class="rel-kv">${rated.length?fS(avgArr(rated.map(r=>r[6]))):'—'}</div><div class="rel-kl">CSAT médio</div></div>
+      <div class="rel-k"><div class="rel-kv">${fmtDur(avgArr(rows.map(r=>r[4]||0)))}</div><div class="rel-kl">TMA médio</div></div>
+    </div>
+    <div class="click-note">${info?`Nome real: <b>${esc(info.nome)}</b>`:'Nome real não publicado. No computador local, ele aparece quando o arquivo privado está disponível.'}</div>
+    <div class="client-months">${byMonth.map(x=>`<div class="client-month"><b>${fN(x.v)}</b><span>${x.m}</span></div>`).join('')}</div>
+    ${byGroup.length?`<div class="click-note">Grupos: ${byGroup.map(([g,v])=>`${esc(g)} (${v})`).join(' · ')}</div>`:''}
+    <div class="rel-list" style="margin-top:.8rem;">
+      ${rows.slice().sort((a,b)=>parseBrDate(b[10])-parseBrDate(a[10])).slice(0,120).map(r=>`<div class="rel-item"><div class="rel-main"><b>${esc(r[7]||'sem protocolo')}</b><br>${String(r[1]).padStart(2,'0')}/${String(r[0]).padStart(2,'0')} · ${esc(r[2])} · ${esc(r[3])}<br><span style="color:var(--ghost)">Início ${esc(r[10]||'')}</span></div><div class="rel-tags"><span class="rel-tag">TMA ${fmtDur(r[4])}</span><span class="rel-tag">TME ${fmtDur(r[5])}</span><span class="rel-tag">CSAT ${r[6]!=null?fS(r[6]):'—'}</span></div></div>`).join('')}
+    </div>
+    ${rows.length>120?`<div class="click-note">Exibindo 120 de ${fN(rows.length)} atendimentos.</div>`:''}
+  `;
+  $('rel-modal').classList.add('open');
+}
 
 function showTempoPopup(title,subtitle,rows){
   const total=rows.length, av=rows.filter(r=>r[6]!=null), avgAt=avgArr(rows.map(r=>r[4]||0)), avgWait=avgArr(rows.map(r=>r[5]||0));
@@ -239631,7 +239668,7 @@ function showTempoPopup(title,subtitle,rows){
     </div>
     ${byAgent.length?`<div class="click-note">Agentes nesta relação: ${byAgent.map(([a,v])=>`${a} (${v})`).join(' · ')}</div>`:''}
     <div class="rel-list" style="margin-top:.8rem;">
-      ${rows.slice(0,160).map(r=>`<div class="rel-item"><div class="rel-main"><b>${r[2]}</b><br>${String(r[1]).padStart(2,'0')}/${String(r[0]).padStart(2,'0')} · ${r[3]} · ${r[7]||'sem protocolo'}<br><span style="color:var(--sub)">${r[12]||'Cliente não informado'}</span>${r[11]?`<br><span style="color:var(--ghost)">Encerrado em ${r[11]}</span>`:''}</div><div class="rel-tags"><span class="rel-tag">TMA ${fmtDur(r[4])}</span><span class="rel-tag">TME ${fmtDur(r[5])}</span><span class="rel-tag">CSAT ${r[6]!=null?fS(r[6]):'—'}</span></div></div>`).join('')}
+      ${rows.slice(0,160).map(r=>`<div class="rel-item"><div class="rel-main"><b>${r[2]}</b><br>${String(r[1]).padStart(2,'0')}/${String(r[0]).padStart(2,'0')} · ${r[3]} · ${r[7]||'sem protocolo'}<br>${clientButton(r)}${r[11]?`<br><span style="color:var(--ghost)">Encerrado em ${r[11]}</span>`:''}</div><div class="rel-tags"><span class="rel-tag">TMA ${fmtDur(r[4])}</span><span class="rel-tag">TME ${fmtDur(r[5])}</span><span class="rel-tag">CSAT ${r[6]!=null?fS(r[6]):'—'}</span></div></div>`).join('')}
     </div>
     ${rows.length>160?`<div class="click-note">Exibindo 160 de ${fN(rows.length)} atendimentos.</div>`:''}
   `;

@@ -777,6 +777,13 @@ canvas{cursor:pointer;}
   <div class="fbar">
     <span class="fl">Ano:</span>
     <select class="fs" id="hist-year" onchange="renderHistorico()"></select>
+    <span class="fl" style="margin-left:8px;">Visão:</span>
+    <select class="fs" id="hist-view" onchange="renderHistorico()">
+      <option value="agentes">Agentes</option>
+      <option value="grupos">Grupos</option>
+      <option value="periodos">Períodos</option>
+      <option value="meses">Meses</option>
+    </select>
     <span class="fl" style="margin-left:8px;">Marco:</span>
     <span class="ctx-badge">Suporte assumido em Agosto/2024</span>
   </div>
@@ -812,7 +819,17 @@ canvas{cursor:pointer;}
   </div>
 
   <div class="card">
-    <div class="ch"><div><div class="ct">Diário e Considerações</div><div class="cs">Registros trazidos das planilhas tratadas</div></div></div>
+    <div class="ch"><div><div class="ct" id="hist-table-title">Controle Histórico</div><div class="cs">Mesma lógica das guias de controle: volume, avaliação, tempos e SLA</div></div></div>
+    <div class="tsc">
+      <table class="dt">
+        <thead><tr><th>#</th><th id="hist-dim-head">Dimensão</th><th style="text-align:right">Atend.</th><th style="text-align:right">Aval.</th><th style="text-align:right">Cobert.</th><th style="text-align:right">CSAT</th><th style="text-align:right">TMA</th><th style="text-align:right">TME</th></tr></thead>
+        <tbody id="hist-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:1rem;">
+    <div class="ch"><div><div class="ct">Justificativas de Ajustes Manuais</div><div class="cs">Diário aparece aqui só quando explica ajuste/tratamento manual</div></div></div>
     <div id="hist-diary" class="rel-list"></div>
   </div>
 </div>
@@ -239898,8 +239915,15 @@ function renderHistorico(){
 
   chart('ch-hist-agents',{type:'bar',data:{labels:(y.topAgents||[]).slice(0,10).map(a=>a.nome.split(' ')[0]),datasets:[{label:'Atendimentos',data:(y.topAgents||[]).slice(0,10).map(a=>a.total),backgroundColor:'#4f8562aa',borderRadius:5},{label:'CSAT',data:(y.topAgents||[]).slice(0,10).map(a=>a.csat),type:'line',borderColor:'#9a6b1a',pointRadius:4,yAxisID:'y1'}]},options:{...cDef,scales:{x:cDef.scales.x,y:cDef.scales.y,y1:{position:'right',min:8,max:10.2,grid:{drawOnChartArea:false},ticks:{color:'#9a6b1a',font:{family:'Geist Mono',size:9}}}}}});
 
-  const diary=(y.diary||[]).slice(0,80);
-  $('hist-diary').innerHTML=diary.length?diary.map(d=>`<div class="rel-item"><div class="rel-main"><b>${esc(d.data||year)}</b><br>${esc(d.motivo||'Registro histórico')}<br><span style="color:var(--sub)">${esc(d.impacto||'')}</span>${d.observacoes?`<br><span style="color:var(--ghost)">${esc(d.observacoes)}</span>`:''}</div><div class="rel-tags">${d.responsavel?`<span class="rel-tag">${esc(d.responsavel)}</span>`:''}${d.acao?`<span class="rel-tag">${esc(d.acao)}</span>`:''}</div></div>`).join(''):'<div class="op-empty">Sem registros de diário para este ano.</div>';
+  const view=$('hist-view')?.value||'agentes';
+  const map={agentes:['Agente',y.agents||[]],grupos:['Grupo',y.groups||[]],periodos:['Período',y.periods||[]],meses:['Mês',(y.months||[]).map((m,i)=>({nome:H.meses[i],total:m.atend,aval:m.aval,csat:m.csat,tmaMin:m.tmaMin,tmeSec:m.tmeSec}))]};
+  const [head,rows]=map[view]||map.agentes;
+  $('hist-dim-head').textContent=head;
+  $('hist-table-title').textContent=`Controle Histórico por ${head}`;
+  $('hist-tbody').innerHTML=rows.map((r,i)=>{const rc=i===0?'r1':i===1?'r2':i===2?'r3':'rn';const cob=r.total?((r.aval||0)/r.total*100):0;return`<tr><td><span class="rb ${rc}">${i+1}</span></td><td style="font-weight:500">${esc(r.nome||'—')}</td><td class="th">${fN(r.total||0)}</td><td class="tn">${fN(r.aval||0)}</td><td class="tn">${cob.toFixed(1).replace('.',',')}%</td><td class="tn">${r.csat?fS(r.csat):'—'}</td><td class="tn">${r.tmaMin?String(r.tmaMin.toFixed?r.tmaMin.toFixed(1):r.tmaMin).replace('.',','):'—'} min</td><td class="tn">${r.tmeSec?fmtDur(r.tmeSec):'—'}</td></tr>`;}).join('');
+
+  const diary=(y.diary||[]).filter(d=>String(d.acao||d.motivo||d.observacoes||'').match(/ajust|zerei|desconsider|tempo|avalia/i)).slice(0,80);
+  $('hist-diary').innerHTML=diary.length?diary.map(d=>`<div class="rel-item"><div class="rel-main"><b>${esc(d.data||year)}</b><br>${esc(d.motivo||'Ajuste manual')}</br><span style="color:var(--sub)">${esc(d.impacto||'')}</span>${d.observacoes?`<br><span style="color:var(--ghost)">${esc(d.observacoes)}</span>`:''}</div><div class="rel-tags">${d.responsavel?`<span class="rel-tag">${esc(d.responsavel)}</span>`:''}${d.acao?`<span class="rel-tag">${esc(d.acao)}</span>`:''}</div></div>`).join(''):'<div class="op-empty">Não há justificativa de ajuste manual associada para este ano.</div>';
 }
 
 function renderAvalMonth(m){

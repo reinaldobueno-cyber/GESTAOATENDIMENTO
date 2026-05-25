@@ -240,6 +240,340 @@
                                                      "csat":  9.54
                                                  }
                                              ],
+                               "agents":  [
+                                              {
+                                                  "nome":  "Maria Eduarda",
+                                                  "total":  1699,
+                                                  "aval":  559,
+                                                  "csat":  9.42,
+                                                  "tmaMin":  27.81,
+                                                  "tmeSec":  372.22
+                                              },
+                                              {
+                                                  "nome":  "Evelyn GonÃ§alves",
+                                                  "total":  1547,
+                                                  "aval":  535,
+                                                  "csat":  9.6,
+                                                  "tmaMin":  35.83,
+                                                  "tmeSec":  550.29
+                                              },
+                                              {
+                                                  "nome":  "Raissa Ribeiro",
+                                                  "total":  1271,
+                                                  "aval":  346,
+                                                  "csat":  9.6,
+                                                  "tmaMin":  42.9,
+                                                  "tmeSec":  609.41
+                                              },
+                                              {
+                                                  "nome":  "Lucas Pereira",
+                                                  "total":  1265,
+                                                  "aval":  385,
+                                                  "csat":  8.86,
+                                                  "tmaMin":  30.77,
+                                                  "tmeSec":  235.14
+                                              },
+                                              {
+                                                  "nome":  "Gabriel Freire",
+                                                  "total":  910,
+                                                  "aval":  318,
+                                                  "csat":  9.32,
+                                                  "tmaMin":  38.98,
+                                                  "tmeSec":  748
+                                              },
+                                              {
+                                                  "nome":  "Dhon Freitas",
+                                                  "total":  490,
+                                                  "aval":  201,
+                                                  "csat":  9.58,
+                                                  "tmaMin":  47.99,
+                                                  "tmeSec":  1013.68
+                                              },
+                                              {
+                                                  "nome":  "Anita Cristina",
+                                                  "total":  398,
+                                                  "aval":  161,
+                                                  "csat":  9.25,
+                                                  "tmaMin":  48.04,
+                                                  "tmeSec":  852.24
+                                              },
+                                              {
+                                                  "nome":  "Lais Medeiros",
+                                                  "total":  343,
+                                                  "aval":  110,
+                                                  "csat":  9.63,
+                                                  "tmaMin":  40.48,
+                                                  "tmeSec":  566.87
+                                              },
+                                              {
+                                                  "nome":  "Rhuan Marques",
+                                                  "total":  214,
+                                                  "aval":  86,
+                                                  "csat":  9.66,
+                                                  "tmaMin":  41.26,
+                                                  "tmeSec":  516.13
+                                              },
+                                              {
+                                                  "nome":  "Guilherme Cruvinel",
+                                                  "total":  178,
+                                                  "aval":  84,
+                                                  "csat":  9.13,
+                                                  "tmaMin":  48.36,
+                                                  "tmeSec":  985.5
+                                              },
+                                              {
+                                                  "nome":  "Vanderleia Marques",
+                                                  "total":  122,
+                                                  "aval":  0,
+                                                  "csat":  0,
+                                                  "tmaMin":  1.18,
+                                                  "tmeSec":  44.6
+                                              },
+                                              {
+                                                  "nome":  "Wiviane Borges",
+                                                  "total":  93,
+                                                  "aval":  28,
+                                                  "csat":  9.54,
+                                                  "tmaMin":  38.91,
+                                                  "tmeSec":  354.24
+                                              },
+                                              {
+                                                  "nome":  "Fila de Atendimento",
+                                                  "total":  45,
+                                                  "aval":  0,
+                                                  "csat":  0,
+                                                  "tmaMin":  10.55,
+                                                  "tmeSec":  6309.38
+                                              },
+                                              {
+                                                  "nome":  "Fluxo Multsoft@botserver",
+                                                  "total":  37,
+                                                  "aval":  0,
+                                                  "csat":  0,
+                                                  "tmaMin":  3.9,
+                                                  "tmeSec":  0
+                                              },
+                                              {
+                                                  "nome":  "Deny Sulyvan",
+                                                  "total":  28,
+                                                  "aval":  4,
+                                                  "csat":  10,
+                                                  "tmaMin":  33.52,
+                                                  "tmeSec":  475.39
+                                              },
+                                              {
+                                                  "nome":  "Lucas Levi",
+                                                  "total":  7,
+                                                  "aval":  0,
+                                                  "csat":  0,
+                                                  "tmaMin":  24.86,
+                                                  "tmeSec":  0.43
+                                              },
+                                              {
+                                                  "nome":  "Adrielle Miranda",
+                                                  "total":  4,
+                                                  "aval":  0,
+                                                  "csat":  0,
+                                                  "tmaMin":  8.23,
+                                                  "tmeSec":  0.25
+                                              },
+                                              {
+                                                  "nome":  "Rodolfo Tassio",
+                                                  "total":  2,
+                                                  "aval":  1,
+                                                  "csat":  10,
+                                                  "tmaMin":  120.68,
+                                                  "tmeSec":  3281.5
+                                              },
+                                              {
+                                                  "nome":  "Multisoft_Pesquisa",
+                                                  "total":  1,
+                                                  "aval":  0,
+                                                  "csat":  0,
+                                                  "tmaMin":  33.12,
+                                                  "tmeSec":  376
+                                              },
+                                              {
+                                                  "nome":  "Gislayne Silva",
+                                                  "total":  1,
+                                                  "aval":  0,
+                                                  "csat":  0,
+                                                  "tmaMin":  28,
+                                                  "tmeSec":  91
+                                              }
+                                          ],
+                               "groups":  [
+                                              {
+                                                  "nome":  "Reproducao",
+                                                  "total":  2804,
+                                                  "aval":  983,
+                                                  "csat":  9.52,
+                                                  "tmaMin":  42.41,
+                                                  "tmeSec":  747.6
+                                              },
+                                              {
+                                                  "nome":  "Infraestrutura",
+                                                  "total":  1599,
+                                                  "aval":  605,
+                                                  "csat":  9.45,
+                                                  "tmaMin":  42.18,
+                                                  "tmeSec":  914.56
+                                              },
+                                              {
+                                                  "nome":  "Estoque Animais",
+                                                  "total":  1372,
+                                                  "aval":  439,
+                                                  "csat":  9.5,
+                                                  "tmaMin":  31.69,
+                                                  "tmeSec":  240.76
+                                              },
+                                              {
+                                                  "nome":  "Confinamento",
+                                                  "total":  1038,
+                                                  "aval":  405,
+                                                  "csat":  9.18,
+                                                  "tmaMin":  33.25,
+                                                  "tmeSec":  354.06
+                                              },
+                                              {
+                                                  "nome":  "Financeiro",
+                                                  "total":  833,
+                                                  "aval":  244,
+                                                  "csat":  8.91,
+                                                  "tmaMin":  32.16,
+                                                  "tmeSec":  541.71
+                                              },
+                                              {
+                                                  "nome":  "fila Suporte",
+                                                  "total":  422,
+                                                  "aval":  0,
+                                                  "csat":  0,
+                                                  "tmaMin":  4.9,
+                                                  "tmeSec":  40.63
+                                              },
+                                              {
+                                                  "nome":  "SISBOV",
+                                                  "total":  258,
+                                                  "aval":  102,
+                                                  "csat":  9.5,
+                                                  "tmaMin":  30.2,
+                                                  "tmeSec":  219.2
+                                              },
+                                              {
+                                                  "nome":  "PMG e Comunicacao para Associacao",
+                                                  "total":  157,
+                                                  "aval":  36,
+                                                  "csat":  9.5,
+                                                  "tmaMin":  37.26,
+                                                  "tmeSec":  493.06
+                                              },
+                                              {
+                                                  "nome":  "Retorno envio ativo",
+                                                  "total":  145,
+                                                  "aval":  0,
+                                                  "csat":  0,
+                                                  "tmaMin":  23.46,
+                                                  "tmeSec":  109.74
+                                              },
+                                              {
+                                                  "nome":  "Agricola",
+                                                  "total":  27,
+                                                  "aval":  4,
+                                                  "csat":  10,
+                                                  "tmaMin":  42.19,
+                                                  "tmeSec":  757.78
+                                              }
+                                          ],
+                               "periods":  [
+                                               {
+                                                   "nome":  "1º Periodo da manhã",
+                                                   "total":  1156,
+                                                   "aval":  410,
+                                                   "csat":  9.39,
+                                                   "tmaMin":  35.13,
+                                                   "tmeSec":  406.6
+                                               },
+                                               {
+                                                   "nome":  "3º Periodo da manhã",
+                                                   "total":  1149,
+                                                   "aval":  366,
+                                                   "csat":  9.34,
+                                                   "tmaMin":  34.66,
+                                                   "tmeSec":  427.63
+                                               },
+                                               {
+                                                   "nome":  "2º Periodo da manhã",
+                                                   "total":  1136,
+                                                   "aval":  403,
+                                                   "csat":  9.43,
+                                                   "tmaMin":  34.76,
+                                                   "tmeSec":  339.09
+                                               },
+                                               {
+                                                   "nome":  "1º Periodo da tarde",
+                                                   "total":  1079,
+                                                   "aval":  358,
+                                                   "csat":  9.43,
+                                                   "tmaMin":  35.07,
+                                                   "tmeSec":  358.09
+                                               },
+                                               {
+                                                   "nome":  "2º Periodo da tarde",
+                                                   "total":  1047,
+                                                   "aval":  322,
+                                                   "csat":  9.39,
+                                                   "tmaMin":  35.08,
+                                                   "tmeSec":  390.08
+                                               },
+                                               {
+                                                   "nome":  "3º Periodo da tarde",
+                                                   "total":  935,
+                                                   "aval":  307,
+                                                   "csat":  9.56,
+                                                   "tmaMin":  31.69,
+                                                   "tmeSec":  463.98
+                                               },
+                                               {
+                                                   "nome":  "4º Periodo da manhã",
+                                                   "total":  714,
+                                                   "aval":  200,
+                                                   "csat":  9.15,
+                                                   "tmaMin":  33.71,
+                                                   "tmeSec":  631.63
+                                               },
+                                               {
+                                                   "nome":  "Almoço 2",
+                                                   "total":  650,
+                                                   "aval":  222,
+                                                   "csat":  9.53,
+                                                   "tmaMin":  36.32,
+                                                   "tmeSec":  452.09
+                                               },
+                                               {
+                                                   "nome":  "4º Periodo da tarde",
+                                                   "total":  541,
+                                                   "aval":  174,
+                                                   "csat":  9.25,
+                                                   "tmaMin":  46.18,
+                                                   "tmeSec":  1944.6
+                                               },
+                                               {
+                                                   "nome":  "Almoço 1",
+                                                   "total":  247,
+                                                   "aval":  56,
+                                                   "csat":  9.41,
+                                                   "tmaMin":  55.85,
+                                                   "tmeSec":  1925.4
+                                               },
+                                               {
+                                                   "nome":  "False",
+                                                   "total":  1,
+                                                   "aval":  0,
+                                                   "csat":  0,
+                                                   "tmaMin":  807,
+                                                   "tmeSec":  47597
+                                               }
+                                           ],
                                "diary":  [
 
                                          ]
@@ -473,6 +807,348 @@
                                                      "csat":  9.81
                                                  }
                                              ],
+                               "agents":  [
+                                              {
+                                                  "nome":  "Maria Eduarda",
+                                                  "total":  3103,
+                                                  "aval":  1398,
+                                                  "csat":  9.64,
+                                                  "tmaMin":  21.48,
+                                                  "tmeSec":  64.8
+                                              },
+                                              {
+                                                  "nome":  "Evelyn GonÃ§alves",
+                                                  "total":  3055,
+                                                  "aval":  1303,
+                                                  "csat":  9.85,
+                                                  "tmaMin":  25.86,
+                                                  "tmeSec":  93.27
+                                              },
+                                              {
+                                                  "nome":  "Lais Medeiros",
+                                                  "total":  3013,
+                                                  "aval":  1228,
+                                                  "csat":  9.84,
+                                                  "tmaMin":  31.21,
+                                                  "tmeSec":  75.71
+                                              },
+                                              {
+                                                  "nome":  "Raissa Ribeiro",
+                                                  "total":  2872,
+                                                  "aval":  1119,
+                                                  "csat":  9.75,
+                                                  "tmaMin":  28.85,
+                                                  "tmeSec":  117.8
+                                              },
+                                              {
+                                                  "nome":  "Lucas Pereira",
+                                                  "total":  2710,
+                                                  "aval":  1004,
+                                                  "csat":  9.57,
+                                                  "tmaMin":  27.28,
+                                                  "tmeSec":  77.56
+                                              },
+                                              {
+                                                  "nome":  "Gabriel Freire",
+                                                  "total":  1591,
+                                                  "aval":  754,
+                                                  "csat":  9.62,
+                                                  "tmaMin":  26.3,
+                                                  "tmeSec":  180.44
+                                              },
+                                              {
+                                                  "nome":  "Dhon Freitas",
+                                                  "total":  1193,
+                                                  "aval":  586,
+                                                  "csat":  9.8,
+                                                  "tmaMin":  31.78,
+                                                  "tmeSec":  230.69
+                                              },
+                                              {
+                                                  "nome":  "Wiviane Borges",
+                                                  "total":  1170,
+                                                  "aval":  573,
+                                                  "csat":  9.74,
+                                                  "tmaMin":  29.75,
+                                                  "tmeSec":  49.95
+                                              },
+                                              {
+                                                  "nome":  "Anita Cristina",
+                                                  "total":  849,
+                                                  "aval":  350,
+                                                  "csat":  9.71,
+                                                  "tmaMin":  27.57,
+                                                  "tmeSec":  67.97
+                                              },
+                                              {
+                                                  "nome":  "Helder Andrade",
+                                                  "total":  765,
+                                                  "aval":  343,
+                                                  "csat":  9.8,
+                                                  "tmaMin":  28.83,
+                                                  "tmeSec":  14.13
+                                              },
+                                              {
+                                                  "nome":  "Rhuan Marques",
+                                                  "total":  488,
+                                                  "aval":  227,
+                                                  "csat":  9.72,
+                                                  "tmaMin":  31.02,
+                                                  "tmeSec":  333.2
+                                              },
+                                              {
+                                                  "nome":  "Reinaldo",
+                                                  "total":  106,
+                                                  "aval":  59,
+                                                  "csat":  9.81,
+                                                  "tmaMin":  23.88,
+                                                  "tmeSec":  31.86
+                                              },
+                                              {
+                                                  "nome":  "Ana Paula",
+                                                  "total":  96,
+                                                  "aval":  45,
+                                                  "csat":  9.78,
+                                                  "tmaMin":  34.89,
+                                                  "tmeSec":  5.38
+                                              },
+                                              {
+                                                  "nome":  "SÃ©rgio Castro",
+                                                  "total":  88,
+                                                  "aval":  50,
+                                                  "csat":  9.86,
+                                                  "tmaMin":  33.81,
+                                                  "tmeSec":  2.61
+                                              },
+                                              {
+                                                  "nome":  "Rodolfo Tassio",
+                                                  "total":  9,
+                                                  "aval":  5,
+                                                  "csat":  8.6,
+                                                  "tmaMin":  36.38,
+                                                  "tmeSec":  354.56
+                                              },
+                                              {
+                                                  "nome":  "Lucas Levi",
+                                                  "total":  3,
+                                                  "aval":  2,
+                                                  "csat":  10,
+                                                  "tmaMin":  19.53,
+                                                  "tmeSec":  16
+                                              },
+                                              {
+                                                  "nome":  "Douglas Agente",
+                                                  "total":  2,
+                                                  "aval":  0,
+                                                  "csat":  0,
+                                                  "tmaMin":  0.07,
+                                                  "tmeSec":  0
+                                              }
+                                          ],
+                               "groups":  [
+                                              {
+                                                  "nome":  "Reproducao",
+                                                  "total":  5737,
+                                                  "aval":  2502,
+                                                  "csat":  9.81,
+                                                  "tmaMin":  29.44,
+                                                  "tmeSec":  94.88
+                                              },
+                                              {
+                                                  "nome":  "Estoque Animais",
+                                                  "total":  5035,
+                                                  "aval":  1973,
+                                                  "csat":  9.71,
+                                                  "tmaMin":  26.03,
+                                                  "tmeSec":  73.64
+                                              },
+                                              {
+                                                  "nome":  "Infraestrutura",
+                                                  "total":  3371,
+                                                  "aval":  1643,
+                                                  "csat":  9.74,
+                                                  "tmaMin":  30.15,
+                                                  "tmeSec":  215.94
+                                              },
+                                              {
+                                                  "nome":  "Confinamento",
+                                                  "total":  1563,
+                                                  "aval":  774,
+                                                  "csat":  9.65,
+                                                  "tmaMin":  29.77,
+                                                  "tmeSec":  66.27
+                                              },
+                                              {
+                                                  "nome":  "Retorno envio ativo",
+                                                  "total":  1293,
+                                                  "aval":  485,
+                                                  "csat":  9.73,
+                                                  "tmaMin":  21.41,
+                                                  "tmeSec":  9.4
+                                              },
+                                              {
+                                                  "nome":  "Financeiro",
+                                                  "total":  1270,
+                                                  "aval":  533,
+                                                  "csat":  9.48,
+                                                  "tmaMin":  24.7,
+                                                  "tmeSec":  85.96
+                                              },
+                                              {
+                                                  "nome":  "SISBOV",
+                                                  "total":  813,
+                                                  "aval":  455,
+                                                  "csat":  9.76,
+                                                  "tmaMin":  30.41,
+                                                  "tmeSec":  62.96
+                                              },
+                                              {
+                                                  "nome":  "PMG e Comunicacao para Associacao",
+                                                  "total":  802,
+                                                  "aval":  332,
+                                                  "csat":  9.87,
+                                                  "tmaMin":  31.52,
+                                                  "tmeSec":  176.97
+                                              },
+                                              {
+                                                  "nome":  "Agricola",
+                                                  "total":  418,
+                                                  "aval":  189,
+                                                  "csat":  9.63,
+                                                  "tmaMin":  27.67,
+                                                  "tmeSec":  65.92
+                                              },
+                                              {
+                                                  "nome":  "fila Suporte",
+                                                  "total":  322,
+                                                  "aval":  0,
+                                                  "csat":  0,
+                                                  "tmaMin":  7.17,
+                                                  "tmeSec":  49.25
+                                              },
+                                              {
+                                                  "nome":  "Configuracao de balanca e bastao",
+                                                  "total":  292,
+                                                  "aval":  141,
+                                                  "csat":  9.73,
+                                                  "tmaMin":  26.13,
+                                                  "tmeSec":  21.54
+                                              },
+                                              {
+                                                  "nome":  "Neppo Voz",
+                                                  "total":  148,
+                                                  "aval":  0,
+                                                  "csat":  0,
+                                                  "tmaMin":  5.38,
+                                                  "tmeSec":  0
+                                              },
+                                              {
+                                                  "nome":  "Multsoft",
+                                                  "total":  45,
+                                                  "aval":  17,
+                                                  "csat":  9.24,
+                                                  "tmaMin":  29.34,
+                                                  "tmeSec":  245.71
+                                              },
+                                              {
+                                                  "nome":  "CSI",
+                                                  "total":  3,
+                                                  "aval":  2,
+                                                  "csat":  10,
+                                                  "tmaMin":  19.53,
+                                                  "tmeSec":  16
+                                              },
+                                              {
+                                                  "nome":  "Comercial",
+                                                  "total":  1,
+                                                  "aval":  0,
+                                                  "csat":  0,
+                                                  "tmaMin":  3.78,
+                                                  "tmeSec":  23
+                                              }
+                                          ],
+                               "periods":  [
+                                               {
+                                                   "nome":  "1º Periodo da manhã",
+                                                   "total":  2896,
+                                                   "aval":  1340,
+                                                   "csat":  9.73,
+                                                   "tmaMin":  29.24,
+                                                   "tmeSec":  69.71
+                                               },
+                                               {
+                                                   "nome":  "2º Periodo da manhã",
+                                                   "total":  2729,
+                                                   "aval":  1199,
+                                                   "csat":  9.78,
+                                                   "tmaMin":  28.32,
+                                                   "tmeSec":  91.4
+                                               },
+                                               {
+                                                   "nome":  "3º Periodo da manhã",
+                                                   "total":  2673,
+                                                   "aval":  1146,
+                                                   "csat":  9.68,
+                                                   "tmaMin":  26.85,
+                                                   "tmeSec":  79.11
+                                               },
+                                               {
+                                                   "nome":  "2º Periodo da tarde",
+                                                   "total":  2622,
+                                                   "aval":  1109,
+                                                   "csat":  9.74,
+                                                   "tmaMin":  28.17,
+                                                   "tmeSec":  67.23
+                                               },
+                                               {
+                                                   "nome":  "1º Periodo da tarde",
+                                                   "total":  2569,
+                                                   "aval":  1121,
+                                                   "csat":  9.73,
+                                                   "tmaMin":  28.83,
+                                                   "tmeSec":  61.64
+                                               },
+                                               {
+                                                   "nome":  "3º Periodo da tarde",
+                                                   "total":  2220,
+                                                   "aval":  970,
+                                                   "csat":  9.72,
+                                                   "tmaMin":  26.77,
+                                                   "tmeSec":  72.58
+                                               },
+                                               {
+                                                   "nome":  "4º Periodo da manhã",
+                                                   "total":  1784,
+                                                   "aval":  695,
+                                                   "csat":  9.79,
+                                                   "tmaMin":  23.67,
+                                                   "tmeSec":  81.66
+                                               },
+                                               {
+                                                   "nome":  "Almoço 2",
+                                                   "total":  1635,
+                                                   "aval":  684,
+                                                   "csat":  9.68,
+                                                   "tmaMin":  29.11,
+                                                   "tmeSec":  151.84
+                                               },
+                                               {
+                                                   "nome":  "4º Periodo da tarde",
+                                                   "total":  1213,
+                                                   "aval":  540,
+                                                   "csat":  9.75,
+                                                   "tmaMin":  21.96,
+                                                   "tmeSec":  125.75
+                                               },
+                                               {
+                                                   "nome":  "Almoço 1",
+                                                   "total":  772,
+                                                   "aval":  242,
+                                                   "csat":  9.67,
+                                                   "tmaMin":  30.28,
+                                                   "tmeSec":  540.01
+                                               }
+                                           ],
                                "diary":  [
                                              {
                                                  "data":  "45404",
@@ -1465,6 +2141,396 @@
                                                      "csat":  9.91
                                                  }
                                              ],
+                               "agents":  [
+                                              {
+                                                  "nome":  "Raissa Ribeiro",
+                                                  "total":  2732,
+                                                  "aval":  1180,
+                                                  "csat":  9.93,
+                                                  "tmaMin":  23.74,
+                                                  "tmeSec":  1.79
+                                              },
+                                              {
+                                                  "nome":  "Lais Medeiros",
+                                                  "total":  2644,
+                                                  "aval":  1218,
+                                                  "csat":  9.95,
+                                                  "tmaMin":  27.11,
+                                                  "tmeSec":  1.38
+                                              },
+                                              {
+                                                  "nome":  "Ana Paula",
+                                                  "total":  2644,
+                                                  "aval":  1329,
+                                                  "csat":  9.84,
+                                                  "tmaMin":  26.33,
+                                                  "tmeSec":  1.99
+                                              },
+                                              {
+                                                  "nome":  "Evelyn GonÃ§alves",
+                                                  "total":  2610,
+                                                  "aval":  1260,
+                                                  "csat":  9.96,
+                                                  "tmaMin":  21.84,
+                                                  "tmeSec":  1.78
+                                              },
+                                              {
+                                                  "nome":  "Gabriel Freire",
+                                                  "total":  1985,
+                                                  "aval":  911,
+                                                  "csat":  9.88,
+                                                  "tmaMin":  21.98,
+                                                  "tmeSec":  0.96
+                                              },
+                                              {
+                                                  "nome":  "JÃºlia Almeida",
+                                                  "total":  1615,
+                                                  "aval":  701,
+                                                  "csat":  9.74,
+                                                  "tmaMin":  30.87,
+                                                  "tmeSec":  23.09
+                                              },
+                                              {
+                                                  "nome":  "Natalia Vieira",
+                                                  "total":  1366,
+                                                  "aval":  725,
+                                                  "csat":  9.94,
+                                                  "tmaMin":  24.48,
+                                                  "tmeSec":  2.37
+                                              },
+                                              {
+                                                  "nome":  "Dhon Freitas",
+                                                  "total":  1285,
+                                                  "aval":  670,
+                                                  "csat":  9.9,
+                                                  "tmaMin":  25.15,
+                                                  "tmeSec":  3.8
+                                              },
+                                              {
+                                                  "nome":  "SÃ©rgio Castro",
+                                                  "total":  1182,
+                                                  "aval":  515,
+                                                  "csat":  9.92,
+                                                  "tmaMin":  28.75,
+                                                  "tmeSec":  2.33
+                                              },
+                                              {
+                                                  "nome":  "Wiviane Borges",
+                                                  "total":  1149,
+                                                  "aval":  519,
+                                                  "csat":  9.91,
+                                                  "tmaMin":  27.9,
+                                                  "tmeSec":  2.02
+                                              },
+                                              {
+                                                  "nome":  "Maria Fernandes",
+                                                  "total":  904,
+                                                  "aval":  503,
+                                                  "csat":  9.86,
+                                                  "tmaMin":  33.69,
+                                                  "tmeSec":  2.9
+                                              },
+                                              {
+                                                  "nome":  "Alexandre Lobo",
+                                                  "total":  813,
+                                                  "aval":  410,
+                                                  "csat":  9.91,
+                                                  "tmaMin":  24.67,
+                                                  "tmeSec":  1.49
+                                              },
+                                              {
+                                                  "nome":  "Lucas Pereira",
+                                                  "total":  511,
+                                                  "aval":  174,
+                                                  "csat":  9.8,
+                                                  "tmaMin":  26.21,
+                                                  "tmeSec":  4.34
+                                              },
+                                              {
+                                                  "nome":  "Wanderley Cabral",
+                                                  "total":  490,
+                                                  "aval":  228,
+                                                  "csat":  9.89,
+                                                  "tmaMin":  35.89,
+                                                  "tmeSec":  2.16
+                                              },
+                                              {
+                                                  "nome":  "Beatriz Araujo",
+                                                  "total":  292,
+                                                  "aval":  148,
+                                                  "csat":  9.86,
+                                                  "tmaMin":  24.86,
+                                                  "tmeSec":  0.79
+                                              },
+                                              {
+                                                  "nome":  "Gabriel Almeida",
+                                                  "total":  271,
+                                                  "aval":  138,
+                                                  "csat":  9.85,
+                                                  "tmaMin":  26.07,
+                                                  "tmeSec":  0.51
+                                              },
+                                              {
+                                                  "nome":  "Marcelo Costa",
+                                                  "total":  249,
+                                                  "aval":  117,
+                                                  "csat":  9.85,
+                                                  "tmaMin":  32.78,
+                                                  "tmeSec":  1.47
+                                              },
+                                              {
+                                                  "nome":  "Helder Andrade",
+                                                  "total":  145,
+                                                  "aval":  72,
+                                                  "csat":  9.85,
+                                                  "tmaMin":  29.65,
+                                                  "tmeSec":  1.23
+                                              },
+                                              {
+                                                  "nome":  "Reinaldo",
+                                                  "total":  62,
+                                                  "aval":  31,
+                                                  "csat":  9.97,
+                                                  "tmaMin":  20.53,
+                                                  "tmeSec":  32.35
+                                              },
+                                              {
+                                                  "nome":  "Maria Eduarda",
+                                                  "total":  49,
+                                                  "aval":  26,
+                                                  "csat":  9.85,
+                                                  "tmaMin":  17.41,
+                                                  "tmeSec":  1.8
+                                              },
+                                              {
+                                                  "nome":  "Giovana Borges",
+                                                  "total":  43,
+                                                  "aval":  19,
+                                                  "csat":  9.95,
+                                                  "tmaMin":  30.54,
+                                                  "tmeSec":  1.21
+                                              },
+                                              {
+                                                  "nome":  "Caio Anjos",
+                                                  "total":  5,
+                                                  "aval":  3,
+                                                  "csat":  10,
+                                                  "tmaMin":  43.54,
+                                                  "tmeSec":  2
+                                              }
+                                          ],
+                               "groups":  [
+                                              {
+                                                  "nome":  "Reproducao",
+                                                  "total":  5876,
+                                                  "aval":  2879,
+                                                  "csat":  9.91,
+                                                  "tmaMin":  26.42,
+                                                  "tmeSec":  1.33
+                                              },
+                                              {
+                                                  "nome":  "Estoque Animais",
+                                                  "total":  5853,
+                                                  "aval":  2408,
+                                                  "csat":  9.89,
+                                                  "tmaMin":  24.21,
+                                                  "tmeSec":  8.36
+                                              },
+                                              {
+                                                  "nome":  "Infraestrutura",
+                                                  "total":  3350,
+                                                  "aval":  1747,
+                                                  "csat":  9.9,
+                                                  "tmaMin":  25.78,
+                                                  "tmeSec":  2.76
+                                              },
+                                              {
+                                                  "nome":  "Confinamento",
+                                                  "total":  2115,
+                                                  "aval":  1078,
+                                                  "csat":  9.9,
+                                                  "tmaMin":  30.23,
+                                                  "tmeSec":  2.01
+                                              },
+                                              {
+                                                  "nome":  "Retorno envio ativo",
+                                                  "total":  1888,
+                                                  "aval":  857,
+                                                  "csat":  9.9,
+                                                  "tmaMin":  22.41,
+                                                  "tmeSec":  0.02
+                                              },
+                                              {
+                                                  "nome":  "SISBOV",
+                                                  "total":  1246,
+                                                  "aval":  790,
+                                                  "csat":  9.88,
+                                                  "tmaMin":  31.42,
+                                                  "tmeSec":  1.09
+                                              },
+                                              {
+                                                  "nome":  "PMG e Comunicacao para Associacao",
+                                                  "total":  817,
+                                                  "aval":  431,
+                                                  "csat":  9.95,
+                                                  "tmaMin":  28.83,
+                                                  "tmeSec":  2.43
+                                              },
+                                              {
+                                                  "nome":  "Financeiro",
+                                                  "total":  759,
+                                                  "aval":  334,
+                                                  "csat":  9.8,
+                                                  "tmaMin":  30.09,
+                                                  "tmeSec":  2.27
+                                              },
+                                              {
+                                                  "nome":  "Configuracao de balanca e bastao",
+                                                  "total":  571,
+                                                  "aval":  274,
+                                                  "csat":  9.91,
+                                                  "tmaMin":  28.36,
+                                                  "tmeSec":  1.37
+                                              },
+                                              {
+                                                  "nome":  "fila Suporte",
+                                                  "total":  230,
+                                                  "aval":  0,
+                                                  "csat":  0,
+                                                  "tmaMin":  4.66,
+                                                  "tmeSec":  14.93
+                                              },
+                                              {
+                                                  "nome":  "Agricola",
+                                                  "total":  194,
+                                                  "aval":  66,
+                                                  "csat":  9.89,
+                                                  "tmaMin":  30.95,
+                                                  "tmeSec":  1.4
+                                              },
+                                              {
+                                                  "nome":  "Multsoft",
+                                                  "total":  88,
+                                                  "aval":  30,
+                                                  "csat":  9.93,
+                                                  "tmaMin":  18.61,
+                                                  "tmeSec":  12.72
+                                              },
+                                              {
+                                                  "nome":  "Neppo Voz",
+                                                  "total":  54,
+                                                  "aval":  0,
+                                                  "csat":  0,
+                                                  "tmaMin":  5.5,
+                                                  "tmeSec":  0.28
+                                              },
+                                              {
+                                                  "nome":  "CSI",
+                                                  "total":  3,
+                                                  "aval":  3,
+                                                  "csat":  10,
+                                                  "tmaMin":  17.17,
+                                                  "tmeSec":  14
+                                              },
+                                              {
+                                                  "nome":  "fila Administrativo",
+                                                  "total":  1,
+                                                  "aval":  0,
+                                                  "csat":  0,
+                                                  "tmaMin":  2.15,
+                                                  "tmeSec":  0
+                                              },
+                                              {
+                                                  "nome":  "Administrativo",
+                                                  "total":  1,
+                                                  "aval":  0,
+                                                  "csat":  0,
+                                                  "tmaMin":  18.38,
+                                                  "tmeSec":  0
+                                              }
+                                          ],
+                               "periods":  [
+                                               {
+                                                   "nome":  "1º Periodo da manhã",
+                                                   "total":  3227,
+                                                   "aval":  1630,
+                                                   "csat":  9.91,
+                                                   "tmaMin":  28.04,
+                                                   "tmeSec":  2.08
+                                               },
+                                               {
+                                                   "nome":  "2º Periodo da manhã",
+                                                   "total":  2930,
+                                                   "aval":  1445,
+                                                   "csat":  9.91,
+                                                   "tmaMin":  27.29,
+                                                   "tmeSec":  13.21
+                                               },
+                                               {
+                                                   "nome":  "3º Periodo da manhã",
+                                                   "total":  2868,
+                                                   "aval":  1362,
+                                                   "csat":  9.91,
+                                                   "tmaMin":  25.55,
+                                                   "tmeSec":  1.32
+                                               },
+                                               {
+                                                   "nome":  "1º Periodo da tarde",
+                                                   "total":  2867,
+                                                   "aval":  1337,
+                                                   "csat":  9.9,
+                                                   "tmaMin":  27.86,
+                                                   "tmeSec":  1.33
+                                               },
+                                               {
+                                                   "nome":  "2º Periodo da tarde",
+                                                   "total":  2796,
+                                                   "aval":  1340,
+                                                   "csat":  9.9,
+                                                   "tmaMin":  27.04,
+                                                   "tmeSec":  1.41
+                                               },
+                                               {
+                                                   "nome":  "3º Periodo da tarde",
+                                                   "total":  2481,
+                                                   "aval":  1144,
+                                                   "csat":  9.88,
+                                                   "tmaMin":  25.07,
+                                                   "tmeSec":  1.19
+                                               },
+                                               {
+                                                   "nome":  "4º Periodo da manhã",
+                                                   "total":  1905,
+                                                   "aval":  820,
+                                                   "csat":  9.9,
+                                                   "tmaMin":  22.07,
+                                                   "tmeSec":  2.04
+                                               },
+                                               {
+                                                   "nome":  "Almoço 2",
+                                                   "total":  1886,
+                                                   "aval":  908,
+                                                   "csat":  9.9,
+                                                   "tmaMin":  27.96,
+                                                   "tmeSec":  3.73
+                                               },
+                                               {
+                                                   "nome":  "4º Periodo da tarde",
+                                                   "total":  1169,
+                                                   "aval":  520,
+                                                   "csat":  9.79,
+                                                   "tmaMin":  21.46,
+                                                   "tmeSec":  1.53
+                                               },
+                                               {
+                                                   "nome":  "Almoço 1",
+                                                   "total":  917,
+                                                   "aval":  391,
+                                                   "csat":  9.87,
+                                                   "tmaMin":  20.85,
+                                                   "tmeSec":  9.14
+                                               }
+                                           ],
                                "diary":  [
                                              {
                                                  "data":  "Ausências Equipe",

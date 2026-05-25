@@ -96,6 +96,7 @@ try {
           tma = MatrixSeconds $values $r $h['Tempo atend']
           tme = MatrixSeconds $values $r $h['Tempo de Espera']
           avaliacao = $rating
+          periodo = MatrixText $values $r $h['PERIODO']
         })
       }
 
@@ -121,6 +122,42 @@ try {
         $items = @($_.Group)
         $ev = @($items | Where-Object { $null -ne $_.avaliacao })
         [ordered]@{ nome = $_.Name; total = $_.Count; csat = if ($ev.Count) { Round2 (Avg @($ev | ForEach-Object avaliacao)) } else { 0 } }
+      })
+      $agentRows = @($rows | Group-Object agente | Sort-Object Count -Descending | ForEach-Object {
+        $items = @($_.Group)
+        $ev = @($items | Where-Object { $null -ne $_.avaliacao })
+        [ordered]@{
+          nome = $_.Name
+          total = $_.Count
+          aval = $ev.Count
+          csat = if ($ev.Count) { Round2 (Avg @($ev | ForEach-Object avaliacao)) } else { 0 }
+          tmaMin = Round2 ((Avg @($items | ForEach-Object tma)) / 60.0)
+          tmeSec = Round2 (Avg @($items | ForEach-Object tme))
+        }
+      })
+      $groupRows = @($rows | Group-Object grupo | Sort-Object Count -Descending | ForEach-Object {
+        $items = @($_.Group)
+        $ev = @($items | Where-Object { $null -ne $_.avaliacao })
+        [ordered]@{
+          nome = $_.Name
+          total = $_.Count
+          aval = $ev.Count
+          csat = if ($ev.Count) { Round2 (Avg @($ev | ForEach-Object avaliacao)) } else { 0 }
+          tmaMin = Round2 ((Avg @($items | ForEach-Object tma)) / 60.0)
+          tmeSec = Round2 (Avg @($items | ForEach-Object tme))
+        }
+      })
+      $periodRows = @($rows | Group-Object periodo | Sort-Object Count -Descending | ForEach-Object {
+        $items = @($_.Group)
+        $ev = @($items | Where-Object { $null -ne $_.avaliacao })
+        [ordered]@{
+          nome = $_.Name
+          total = $_.Count
+          aval = $ev.Count
+          csat = if ($ev.Count) { Round2 (Avg @($ev | ForEach-Object avaliacao)) } else { 0 }
+          tmaMin = Round2 ((Avg @($items | ForEach-Object tma)) / 60.0)
+          tmeSec = Round2 (Avg @($items | ForEach-Object tme))
+        }
       })
 
       $diarySheet = Get-Worksheet $workbook @('DIÁRIO', 'DIÁRIO DE BORDO')
@@ -151,6 +188,9 @@ try {
         months = $months
         topGroups = $topGroups
         topAgents = $topAgents
+        agents = $agentRows
+        groups = $groupRows
+        periods = $periodRows
         diary = $diary
       }
     }

@@ -1,14 +1,25 @@
+[CmdletBinding()]
+param(
+  [string]$XlsxPath = 'c:\Users\Suporte2\Desktop\Base Atendimentos 2026 - Reinaldo V11 oficial(Recuperado Automaticamente) (Recuperado) (8).xlsx',
+  [string]$HtmlPath = ''
+)
+
 $ErrorActionPreference = 'Stop'
 
-$xlsx = 'c:\Users\Suporte2\Downloads\Base Atendimentos 2026 - Reinaldo V11 oficial(Recuperado Automaticamente) (Recuperado) (6).xlsx'
-$htmlPath = Join-Path $PSScriptRoot 'index.html'
+$xlsx = $XlsxPath
+$scriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
+$htmlPath = if ([string]::IsNullOrWhiteSpace($HtmlPath)) { Join-Path $scriptDir 'index.html' } else { $HtmlPath }
 
 function Normalize-Agent([string]$s) {
   if ([string]::IsNullOrWhiteSpace($s)) { return '' }
   $s = $s.Trim()
+  if ($s -match '^Evelyn Gon.+alves$') { return 'Evelyn Gonçalves' }
+  if ($s -match '^J.+lia Almeida$') { return 'Julia Almeida' }
   $map = @{
     'Evelyn GonÃ§alves' = 'Evelyn Gonçalves'
+    'Evelyn Gon��alves' = 'Evelyn Gonçalves'
     'JÃºlia Almeida' = 'Julia Almeida'
+    'J��lia Almeida' = 'Julia Almeida'
     'Júlia Almeida' = 'Julia Almeida'
     'LAÍS' = 'LAIS'
     'GABRIEL' = 'GABRIEL FREIRE'
@@ -115,13 +126,13 @@ try {
   }
 
   $months = 1..5
-  $focusMonth = 4
+  $focusMonth = [int](($records | Group-Object mes | Sort-Object { [int]$_.Name } -Descending | Select-Object -First 1).Name)
   $D = [ordered]@{
     meses = @('Jan', 'Fev', 'Mar', 'Abr', 'Mai')
     mesNomes = @('Janeiro 2026', 'Fevereiro 2026', 'Março 2026', 'Abril 2026', 'Maio 2026')
     focusMonth = $focusMonth
     focusIndex = $focusMonth - 1
-    focusLabel = 'Abril 2026'
+    focusLabel = (@('', 'Janeiro 2026', 'Fevereiro 2026', 'Março 2026', 'Abril 2026', 'Maio 2026'))[$focusMonth]
   }
 
   $D.atend = @()

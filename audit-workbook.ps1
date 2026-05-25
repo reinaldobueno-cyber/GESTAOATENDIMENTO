@@ -1,11 +1,37 @@
+[CmdletBinding()]
+param(
+  [string]$XlsxPath = 'c:\Users\Suporte2\Desktop\Base Atendimentos 2026 - Reinaldo V11 oficial(Recuperado Automaticamente) (Recuperado) (8).xlsx',
+  [string]$HtmlPath = '',
+  [string]$OutPath = ''
+)
+
 $ErrorActionPreference = 'Stop'
 
-$xlsx = 'c:\Users\Suporte2\Downloads\Base Atendimentos 2026 - Reinaldo V11 oficial(Recuperado Automaticamente) (Recuperado) (6).xlsx'
-$htmlPath = Join-Path $PSScriptRoot 'index.html'
-$outPath = Join-Path $PSScriptRoot 'AUDITORIA_PLANILHA.md'
+$scriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
+$xlsx = $XlsxPath
+$htmlPath = if ([string]::IsNullOrWhiteSpace($HtmlPath)) { Join-Path $scriptDir 'index.html' } else { $HtmlPath }
+$outPath = if ([string]::IsNullOrWhiteSpace($OutPath)) { Join-Path $scriptDir 'AUDITORIA_PLANILHA.md' } else { $OutPath }
 
 function V($data, $r, $c) { $data.GetValue($r, $c) }
 function N([string]$s) { if ($null -eq $s) { return '' }; return ($s -replace '\s+', ' ').Trim() }
+function Normalize-Agent([string]$s) {
+  if ([string]::IsNullOrWhiteSpace($s)) { return '' }
+  $s = $s.Trim()
+  if ($s -match '^Evelyn Gon.+alves$') { return 'Evelyn Gonçalves' }
+  if ($s -match '^J.+lia Almeida$') { return 'Julia Almeida' }
+  $map = @{
+    'Evelyn GonÃ§alves' = 'Evelyn Gonçalves'
+    'Evelyn Gon��alves' = 'Evelyn Gonçalves'
+    'JÃºlia Almeida' = 'Julia Almeida'
+    'J��lia Almeida' = 'Julia Almeida'
+    'Júlia Almeida' = 'Julia Almeida'
+    'LAÍS' = 'LAIS'
+    'GABRIEL' = 'GABRIEL FREIRE'
+    'MARCUS' = 'MARCUS SILVA'
+  }
+  if ($map.ContainsKey($s)) { return $map[$s] }
+  return (Get-Culture).TextInfo.ToTitleCase($s.ToLower())
+}
 function ToSec($v) {
   if ($null -eq $v -or [string]$v -eq '') { return 0.0 }
   if ($v -is [double] -or $v -is [int]) { return [double]$v * 86400.0 }
@@ -73,7 +99,7 @@ try {
     $records.Add([pscustomobject]@{
       Mes = [int](V $data $r $h['MÊS'])
       Dia = [int](V $data $r $h['DIA'])
-      Agente = [string](V $data $r $h['Agente'])
+      Agente = Normalize-Agent ([string](V $data $r $h['Agente']))
       Grupo = [string](V $data $r $h['Nome do Grupo'])
       Periodo = [string](V $data $r $h['PERIODO'])
       TMA = ToSec (V $data $r $h['Tempo atend'])

@@ -326,6 +326,7 @@ canvas{cursor:pointer;}
     <button class="ntab" onclick="go('calendario',this)"><span class="ico">◫</span> Calendário</button>
     <button class="ntab" onclick="go('agentes',this)"><span class="ico">◉</span> Agentes</button>
     <button class="ntab" onclick="go('grupos',this)"><span class="ico">◧</span> Grupos</button>
+    <button class="ntab" onclick="go('clientes',this)"><span class="ico">◎</span> Clientes</button>
     <button class="ntab" onclick="go('avaliacoes',this)"><span class="ico">★</span> Avaliações</button>
     <button class="ntab" onclick="go('fluxo',this)"><span class="ico">◈</span> Fluxo Horário</button>
     <button class="ntab" onclick="go('atendimentos',this)"><span class="ico">▤</span> Atendimentos</button>
@@ -578,6 +579,51 @@ canvas{cursor:pointer;}
       <table class="dt">
         <thead><tr><th>#</th><th>Grupo</th><th style="text-align:right">Jan</th><th style="text-align:right">Fev</th><th style="text-align:right">Mar</th><th style="text-align:right">Abr</th><th style="text-align:right">Mai</th><th style="text-align:right">Total</th><th style="text-align:right" id="grp-var-head">Var Mar→Abr</th></tr></thead>
         <tbody id="grp-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ CLIENTES ════════════════ -->
+<div id="pane-clientes" class="pane">
+  <div class="sh"><span class="sh-title">Painel de Clientes</span><span class="sh-sub">Recorrência, evolução mensal e grupos acionados</span><div class="sh-line"></div></div>
+
+  <div class="kstrip" style="grid-template-columns:repeat(auto-fit,minmax(145px,1fr))">
+    <div class="kpi" style="--kc:var(--moss)"><div class="kl">Clientes Ativos</div><div class="kv" id="cli-k1">—</div><div class="ks">No mês selecionado</div></div>
+    <div class="kpi" style="--kc:var(--sage)"><div class="kl">Atend./Cliente</div><div class="kv" id="cli-k2">—</div><div class="ks">Média do mês</div></div>
+    <div class="kpi" style="--kc:var(--amber)"><div class="kl">Mais Recorrente</div><div class="kv" id="cli-k3">—</div><div class="ks" id="cli-k3n">—</div></div>
+    <div class="kpi" style="--kc:var(--moss2)"><div class="kl">Top 10</div><div class="kv" id="cli-k4">—</div><div class="ks">% dos atendimentos</div></div>
+    <div class="kpi" style="--kc:var(--rust)"><div class="kl">Alta Recorrência</div><div class="kv" id="cli-k5">—</div><div class="ks">Clientes com 10+ atend.</div></div>
+  </div>
+
+  <div class="g4060" style="margin-bottom:1rem;">
+    <div class="card">
+      <div class="ch"><div><div class="ct">Top Clientes do Mês</div><div class="cs" id="title-cli-top-sub">Ranking por quantidade de atendimentos</div></div></div>
+      <div class="blist" id="cli-blist"></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div><div class="ct">Evolução dos Clientes Recorrentes</div><div class="cs">Top 5 no acumulado · Jan → Mai</div></div></div>
+      <div class="h300"><canvas id="ch-cli-line"></canvas></div>
+    </div>
+  </div>
+
+  <div class="g2" style="margin-bottom:1rem;">
+    <div class="card">
+      <div class="ch"><div><div class="ct">Clientes × Grupo Principal</div><div class="cs">Onde os clientes recorrentes mais acionam</div></div></div>
+      <div class="h260"><canvas id="ch-cli-group"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div><div class="ct">Distribuição de Recorrência</div><div class="cs">Faixas de atendimentos por cliente no mês</div></div></div>
+      <div class="h260"><canvas id="ch-cli-dist"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ch"><div><div class="ct">Carteira de Clientes</div><div class="cs">Clique em um cliente para abrir a ficha com meses e atendimentos</div></div></div>
+    <div class="tsc">
+      <table class="dt">
+        <thead><tr><th>#</th><th>Cliente</th><th style="text-align:right">Jan</th><th style="text-align:right">Fev</th><th style="text-align:right">Mar</th><th style="text-align:right">Abr</th><th style="text-align:right">Mai</th><th style="text-align:right">Total</th><th>Grupo principal</th><th style="text-align:right">CSAT</th></tr></thead>
+        <tbody id="cli-tbody"></tbody>
       </table>
     </div>
   </div>
@@ -238948,6 +238994,7 @@ function go(id,el){
   el.classList.add('active');$('pane-'+id).classList.add('active');
   if(id==='calendario')renderCal();
   if(id==='agentes')buildAgentes(agM);
+  if(id==='clientes')renderClientsMonth(appM);
   if(id==='atendimentos')renderAtendimentos();
 }
 
@@ -239699,6 +239746,74 @@ function renderGroupsMonth(m){
   $('grp-tbody').innerHTML=rows.map((g,i)=>{const rc=i===0?'r1':i===1?'r2':i===2?'r3':'rn';const vp=g.prev>0?((g.focus-g.prev)/g.prev*100).toFixed(1):'—';const vc=parseFloat(vp)>0?'color:var(--moss)':parseFloat(vp)<0?'color:var(--rust)':'color:var(--ghost)';return`<tr><td><span class="rb ${rc}">${i+1}</span></td><td style="font-weight:500">${g.n}</td><td class="tn">${g.vals.jan}</td><td class="tn">${g.vals.fev}</td><td class="tn">${g.vals.mar}</td><td class="tn">${g.vals.abr}</td><td class="tn">${g.vals.mai}</td><td class="th">${fN(g.tot)}</td><td class="tn" style="${vc}">${vp!=='—'?(parseFloat(vp)>0?'+':'')+vp+'%':vp}</td></tr>`;}).join('');
 }
 
+function clientDisplayName(code){
+  const info=(window.CLIENTE_PRIVADO||{})[code];
+  return info?.nome||code;
+}
+function clientSummaries(){
+  const map={};
+  (D.rows||[]).forEach(r=>{
+    if(!Array.isArray(r))return;
+    const code=clientCode(r);
+    if(!code)return;
+    if(!map[code])map[code]={code,rows:[],months:[0,0,0,0,0],groups:{},ratings:[]};
+    const c=map[code];
+    c.rows.push(r);
+    if(r[0]>=1&&r[0]<=5)c.months[r[0]-1]++;
+    c.groups[r[3]||'Sem grupo']=(c.groups[r[3]||'Sem grupo']||0)+1;
+    if(r[6]!=null)c.ratings.push(r[6]);
+  });
+  return Object.values(map).map(c=>{
+    c.total=c.rows.length;
+    c.name=clientDisplayName(c.code);
+    c.group=Object.entries(c.groups).sort((a,b)=>b[1]-a[1])[0]?.[0]||'—';
+    c.csat=c.ratings.length?avgArr(c.ratings):null;
+    return c;
+  }).sort((a,b)=>b.total-a.total||a.code.localeCompare(b.code,'pt-BR',{numeric:true}));
+}
+function showClientList(title,subtitle,clients){
+  $('rel-title').textContent=title;
+  $('rel-sub').textContent=subtitle;
+  $('rel-body').innerHTML=clients.length?`
+    <div class="rel-list">
+      ${clients.map(c=>`<div class="rel-item"><div class="rel-main"><button class="rel-client" onclick="showClientPopup('${esc(c.code)}')">${esc(c.name)}</button><br>${esc(c.code)} · ${fN(c.total)} atendimentos · ${esc(c.group)}</div><div class="rel-tags">${c.months.map((v,i)=>`<span class="rel-tag">${D.meses[i]} ${v}</span>`).join('')}</div></div>`).join('')}
+    </div>
+  `:'<div class="op-empty">Nenhum cliente encontrado.</div>';
+  $('rel-modal').classList.add('open');
+}
+function renderClientsMonth(m){
+  const all=clientSummaries();
+  const active=all.map(c=>({...c,monthTotal:c.months[m]})).filter(c=>c.monthTotal>0).sort((a,b)=>b.monthTotal-a.monthTotal||b.total-a.total);
+  const totalMonth=active.reduce((s,c)=>s+c.monthTotal,0);
+  const top=active[0];
+  $('cli-k1').textContent=fN(active.length);
+  $('cli-k2').textContent=active.length?(totalMonth/active.length).toFixed(1).replace('.',','):'—';
+  $('cli-k3').textContent=top?fN(top.monthTotal):'—';
+  $('cli-k3n').textContent=top?top.name:'—';
+  $('cli-k4').textContent=totalMonth?fP(active.slice(0,10).reduce((s,c)=>s+c.monthTotal,0)/totalMonth):'—';
+  $('cli-k5').textContent=fN(active.filter(c=>c.monthTotal>=10).length);
+  $('title-cli-top-sub').textContent=`${D.mesNomes[m]} · clientes por volume`;
+  const max=Math.max(1,...active.slice(0,12).map(c=>c.monthTotal));
+  $('cli-blist').innerHTML=active.slice(0,12).map((c,i)=>`<div class="bi" style="cursor:pointer" onclick="showClientPopup('${esc(c.code)}')"><span class="bl" title="${esc(c.name)}">${esc(c.name.length>18?c.name.slice(0,18)+'...':c.name)}</span><div class="bt"><div class="bfill" style="width:${Math.max(5,c.monthTotal/max*100).toFixed(0)}%;background:${PAL[i%PAL.length]}"></div></div><span class="bv">${fN(c.monthTotal)}</span></div>`).join('');
+
+  const top5=all.slice(0,5);
+  chart('ch-cli-line',{type:'line',data:{labels:D.meses,datasets:top5.map((c,i)=>({label:c.name.length>14?c.name.slice(0,14)+'...':c.name,data:c.months,borderColor:PAL[i],backgroundColor:'transparent',tension:.35,pointRadius:5,pointBackgroundColor:PAL[i],clientCode:c.code}))},options:{...cDef,onClick:chartClick(el=>{const code=top5[el.datasetIndex]?.code;if(code)showClientPopup(code);})}});
+
+  const groupRows=Object.entries(active.reduce((a,c)=>{a[c.group]=(a[c.group]||0)+c.monthTotal;return a;},{})).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  chart('ch-cli-group',{type:'bar',data:{labels:groupRows.map(([g])=>g.length>18?g.slice(0,18)+'...':g),datasets:[{label:'Atendimentos de clientes',data:groupRows.map(([,v])=>v),backgroundColor:groupRows.map((_,i)=>PAL[i%PAL.length]),borderRadius:5}]},options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}},onClick:chartClick(el=>{const group=groupRows[el.index]?.[0];if(group)chartDrill(`Clientes · ${group}`,`${D.mesNomes[m]} · grupo principal`,drillRows(m,{group}));})}});
+
+  const bins=[
+    {l:'1',fn:c=>c.monthTotal===1},
+    {l:'2–3',fn:c=>c.monthTotal>=2&&c.monthTotal<=3},
+    {l:'4–9',fn:c=>c.monthTotal>=4&&c.monthTotal<=9},
+    {l:'10–19',fn:c=>c.monthTotal>=10&&c.monthTotal<=19},
+    {l:'20+',fn:c=>c.monthTotal>=20}
+  ];
+  chart('ch-cli-dist',{type:'bar',data:{labels:bins.map(b=>b.l),datasets:[{label:'Clientes',data:bins.map(b=>active.filter(b.fn).length),backgroundColor:['#c8dece','#9ec4a8','#6a9e78','#9a6b1a','#a83232'],borderRadius:5}]},options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}},onClick:chartClick(el=>{const b=bins[el.index];showClientList(`Clientes com ${b.l} atendimentos`,D.mesNomes[m],active.filter(b.fn));})}});
+
+  $('cli-tbody').innerHTML=all.map((c,i)=>{const rc=i===0?'r1':i===1?'r2':i===2?'r3':'rn';return`<tr><td><span class="rb ${rc}">${i+1}</span></td><td><button class="rel-client" onclick="showClientPopup('${esc(c.code)}')">${esc(c.name)}</button><br><span class="op-mono">${esc(c.code)}</span></td>${c.months.map(v=>`<td class="tn">${fN(v)}</td>`).join('')}<td class="th">${fN(c.total)}</td><td>${esc(c.group)}</td><td class="tn">${c.csat!=null?fS(c.csat):'—'}</td></tr>`;}).join('');
+}
+
 function renderAvalMonth(m){
   const pack=bm(m), avDist=pack.avDist||{};
   const avKeys=Object.keys(avDist);
@@ -239739,6 +239854,7 @@ function setGlobalMonth(m){
   renderTempoMonth(m);
   buildAgentes(m);
   renderGroupsMonth(m);
+  renderClientsMonth(m);
   renderAvalMonth(m);
   renderFluxMonth(m);
   updateBandsForMonth(m);

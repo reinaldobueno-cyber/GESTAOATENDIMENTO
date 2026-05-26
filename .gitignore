@@ -5,3 +5,10 @@ cliente-map-privado.csv
 cliente-map-privado.js
 tratamentos-neppo-historico.csv
 diario-historico.csv
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example

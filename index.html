@@ -188,6 +188,22 @@ body{background:var(--paper);color:var(--text);font-family:'Geist',sans-serif;li
 .client-month{border:1px solid var(--border);border-radius:8px;background:var(--foam);padding:.55rem;text-align:center;}
 .client-month b{display:block;font-family:'Fraunces',serif;font-size:1rem;color:var(--ink);}
 .client-month span{font-family:'Geist Mono',monospace;font-size:.55rem;color:var(--ghost);text-transform:uppercase;}
+.client-month,.client-group-box{cursor:pointer;transition:all .14s;}
+.client-month:hover,.client-month.active,.client-group-box:hover,.client-group-box.active{border-color:var(--moss);box-shadow:0 0 0 2px rgba(61,107,71,.08);transform:translateY(-1px);}
+.client-groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.45rem;margin:.75rem 0;}
+.client-group-box{border:1px solid var(--border);border-radius:8px;background:#fff;padding:.6rem .7rem;}
+.client-group-box b{display:block;font-family:'Fraunces',serif;font-size:1.08rem;color:var(--ink);}
+.client-group-box span{font-family:'Geist Mono',monospace;font-size:.56rem;color:var(--ghost);text-transform:uppercase;}
+.rel-actions{display:flex;gap:.4rem;flex-wrap:wrap;justify-content:flex-end;}
+.rel-action{border:1px solid var(--border);border-radius:999px;background:var(--foam);color:var(--moss);padding:4px 9px;font-family:'Geist Mono',monospace;font-size:.56rem;font-weight:700;cursor:pointer;}
+.rel-action:hover{border-color:var(--moss);background:#fff;}
+.rel-action.disabled{opacity:.5;cursor:not-allowed;}
+.attendance-detail{border:1px solid var(--border);border-radius:8px;background:var(--foam);padding:.75rem;margin:.75rem 0;}
+.attendance-detail-title{font-family:'Fraunces',serif;font-size:1rem;font-weight:800;color:var(--ink);}
+.attendance-detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.45rem;margin-top:.55rem;}
+.attendance-detail-k{border:1px solid rgba(61,107,71,.16);border-radius:7px;background:#fff;padding:.5rem;}
+.attendance-detail-k b{display:block;font-family:'Geist Mono',monospace;font-size:.55rem;color:var(--ghost);text-transform:uppercase;margin-bottom:.18rem;}
+.attendance-detail-k span{font-family:'Geist Mono',monospace;font-size:.68rem;color:var(--ink);word-break:break-word;}
 canvas{cursor:pointer;}
 
 /* ——— HEATMAP TABLE ——— */
@@ -247195,30 +247211,74 @@ function clientButton(r){
   const code=clientCode(r), label=clientLabel(r);
   return code?`<button class="rel-client" onclick="showClientPopup('${esc(code)}')">${esc(label)}</button>`:esc(label);
 }
-function showClientPopup(code){
+let clientPopupState={code:null,month:null,group:''};
+function attendancePdfUrl(r){return r?.[25]||r?.pdfUrl||'';}
+function attendanceText(r){return r?.[26]||r?.texto||r?.transcricao||'';}
+function copyProtocol(protocol){
+  if(!protocol)return;
+  navigator.clipboard?.writeText(protocol);
+}
+function showAttendanceDetail(code,protocol){
+  const rows=(D.rows||[]).filter(r=>Array.isArray(r)&&clientCode(r)===code);
+  const r=rows.find(x=>String(x[7]||'')===String(protocol||''))||null;
+  if(!r)return;
+  const pdf=attendancePdfUrl(r), text=attendanceText(r);
+  const host=$('client-att-detail');
+  if(!host)return;
+  host.innerHTML=`
+    <div class="attendance-detail">
+      <div class="attendance-detail-title">${esc(r[7]||'sem protocolo')}</div>
+      <div class="click-note">${String(r[1]).padStart(2,'0')}/${String(r[0]).padStart(2,'0')} · ${esc(r[2])} · ${esc(r[3])}</div>
+      <div class="attendance-detail-grid">
+        <div class="attendance-detail-k"><b>Início</b><span>${esc(r[10]||'—')}</span></div>
+        <div class="attendance-detail-k"><b>Encerramento</b><span>${esc(r[11]||'—')}</span></div>
+        <div class="attendance-detail-k"><b>TMA</b><span>${fmtDur(r[4]||0)}</span></div>
+        <div class="attendance-detail-k"><b>TME</b><span>${fmtDur(r[5]||0)}</span></div>
+        <div class="attendance-detail-k"><b>CSAT</b><span>${r[6]!=null?fS(r[6]):'—'}</span></div>
+        <div class="attendance-detail-k"><b>Session ID</b><span>${esc(r[16]||'—')}</span></div>
+      </div>
+      <div class="rel-actions" style="justify-content:flex-start;margin-top:.65rem;">
+        <button class="rel-action" onclick="copyProtocol('${esc(r[7]||'')}')">Copiar protocolo</button>
+        ${pdf?`<a class="rel-action" href="${esc(pdf)}" target="_blank" rel="noopener">Abrir PDF</a>`:`<button class="rel-action disabled" title="O link do PDF ainda não veio do NEPPO para o painel">PDF não carregado</button>`}
+      </div>
+      <div class="click-note" style="margin-top:.55rem;">${text?esc(text):'A leitura completa/PDF ainda precisa ser puxada do NEPPO pelo protocolo. O painel já está preparado para exibir quando o link ou transcrição vierem nos dados.'}</div>
+    </div>
+  `;
+}
+function renderClientPopup(code,month=appM+1,group=''){
   const rows=(D.rows||[]).filter(r=>Array.isArray(r)&&clientCode(r)===code);
   const info=(window.CLIENTE_PRIVADO||{})[code]||null;
   const rated=rows.filter(r=>r[6]!=null);
   const byMonth=D.meses.map((m,i)=>({m,v:rows.filter(r=>r[0]===i+1).length}));
-  const byGroup=Object.entries(rows.reduce((a,r)=>{a[r[3]||'Sem grupo']=(a[r[3]||'Sem grupo']||0)+1;return a;},{})).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const monthRows=rows.filter(r=>r[0]===month);
+  const filtered=monthRows.filter(r=>!group||(r[3]||'Sem grupo')===group).sort((a,b)=>parseBrDate(b[10])-parseBrDate(a[10]));
+  const byGroup=Object.entries(monthRows.reduce((a,r)=>{a[r[3]||'Sem grupo']=(a[r[3]||'Sem grupo']||0)+1;return a;},{})).sort((a,b)=>b[1]-a[1]).slice(0,12);
+  clientPopupState={code,month,group,groups:byGroup.map(([g])=>g)};
   $('rel-title').textContent=info?.nome||code;
-  $('rel-sub').textContent=info?'Ficha privada do cliente':'Ficha mascarada do cliente';
+  $('rel-sub').textContent=`${info?'Ficha privada do cliente':'Ficha mascarada do cliente'} · ${D.mesNomes[month-1]}${group?' · '+group:''}`;
   $('rel-body').innerHTML=`
     <div class="rel-grid">
       <div class="rel-k"><div class="rel-kv">${esc(code)}</div><div class="rel-kl">Código</div></div>
-      <div class="rel-k"><div class="rel-kv">${fN(rows.length)}</div><div class="rel-kl">Atendimentos</div></div>
-      <div class="rel-k"><div class="rel-kv">${rated.length?fS(avgArr(rated.map(r=>r[6]))):'—'}</div><div class="rel-kl">CSAT médio</div></div>
-      <div class="rel-k"><div class="rel-kv">${fmtDur(avgArr(rows.map(r=>r[4]||0)))}</div><div class="rel-kl">TMA médio</div></div>
+      <div class="rel-k"><div class="rel-kv">${fN(monthRows.length)}</div><div class="rel-kl">Atend. no mês</div></div>
+      <div class="rel-k"><div class="rel-kv">${filtered.length?fN(filtered.length):'—'}</div><div class="rel-kl">${group?'No grupo':'Selecionados'}</div></div>
+      <div class="rel-k"><div class="rel-kv">${rated.length?fS(avgArr(rated.map(r=>r[6]))):'—'}</div><div class="rel-kl">CSAT geral</div></div>
     </div>
     <div class="click-note">${info?`Nome real: <b>${esc(info.nome)}</b>`:'Nome real não publicado. No computador local, ele aparece quando o arquivo privado está disponível.'}</div>
-    <div class="client-months">${byMonth.map(x=>`<div class="client-month"><b>${fN(x.v)}</b><span>${x.m}</span></div>`).join('')}</div>
-    ${byGroup.length?`<div class="click-note">Grupos: ${byGroup.map(([g,v])=>`${esc(g)} (${v})`).join(' · ')}</div>`:''}
+    <div class="client-months">${byMonth.map((x,i)=>`<div class="client-month ${i+1===month?'active':''}" onclick="renderClientPopup(clientPopupState.code,${i+1},'')"><b>${fN(x.v)}</b><span>${x.m}</span></div>`).join('')}</div>
+    ${byGroup.length?`<div class="click-note">Grupos do mês selecionado</div><div class="client-groups">${byGroup.map(([g,v],gi)=>`<div class="client-group-box ${g===group?'active':''}" onclick="renderClientPopup(clientPopupState.code,${month},clientPopupState.groups[${gi}])"><b>${fN(v)}</b><span>${esc(g)}</span></div>`).join('')}</div>`:''}
+    ${group?`<div class="click-note"><button class="rel-client" onclick="renderClientPopup(clientPopupState.code,${month},'')">Limpar filtro de grupo</button></div>`:''}
+    <div id="client-att-detail"></div>
     <div class="rel-list" style="margin-top:.8rem;">
-      ${rows.slice().sort((a,b)=>parseBrDate(b[10])-parseBrDate(a[10])).slice(0,120).map(r=>`<div class="rel-item"><div class="rel-main"><b>${esc(r[7]||'sem protocolo')}</b><br>${String(r[1]).padStart(2,'0')}/${String(r[0]).padStart(2,'0')} · ${esc(r[2])} · ${esc(r[3])}<br><span style="color:var(--ghost)">Início ${esc(r[10]||'')}</span></div><div class="rel-tags"><span class="rel-tag">TMA ${fmtDur(r[4])}</span><span class="rel-tag">TME ${fmtDur(r[5])}</span><span class="rel-tag">CSAT ${r[6]!=null?fS(r[6]):'—'}</span></div></div>`).join('')}
+      ${filtered.slice(0,160).map(r=>`<div class="rel-item"><div class="rel-main"><b>${esc(r[7]||'sem protocolo')}</b><br>${String(r[1]).padStart(2,'0')}/${String(r[0]).padStart(2,'0')} · ${esc(r[2])} · ${esc(r[3])}<br><span style="color:var(--ghost)">Início ${esc(r[10]||'')}</span></div><div class="rel-actions"><button class="rel-action" onclick="showAttendanceDetail('${esc(code)}','${esc(r[7]||'')}')">Ler</button><button class="rel-action ${attendancePdfUrl(r)?'':'disabled'}" onclick="${attendancePdfUrl(r)?`window.open('${esc(attendancePdfUrl(r))}','_blank')`:''}">PDF</button><span class="rel-tag">TMA ${fmtDur(r[4])}</span><span class="rel-tag">TME ${fmtDur(r[5])}</span><span class="rel-tag">CSAT ${r[6]!=null?fS(r[6]):'—'}</span></div></div>`).join('')}
     </div>
-    ${rows.length>120?`<div class="click-note">Exibindo 120 de ${fN(rows.length)} atendimentos.</div>`:''}
+    ${!filtered.length?`<div class="op-empty">Nenhum atendimento neste recorte.</div>`:''}
+    ${filtered.length>160?`<div class="click-note">Exibindo 160 de ${fN(filtered.length)} atendimentos.</div>`:''}
   `;
   $('rel-modal').classList.add('open');
+}
+function showClientPopup(code){
+  clientPopupState={code,month:appM+1,group:''};
+  renderClientPopup(code,appM+1,'');
 }
 
 function showTempoPopup(title,subtitle,rows){

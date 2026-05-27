@@ -248435,7 +248435,11 @@ function openNeppoPdf(protocol){
   fetch(`https://multsoft.neppo.com.br/chat/api/reports/downloadIssuePDF/${encodeURIComponent(protocol)}`, {
     method: 'POST',
     credentials: 'include',
-    headers: { Accept: 'application/pdf' }
+    headers: {
+      Accept: 'application/json, text/plain, */*',
+      'Content-Type': 'application/json;charset=UTF-8'
+    },
+    body: 'null'
   }).then(response=>{
     if(!response.ok)throw new Error(`NEPPO retornou ${response.status}`);
     return response.blob();

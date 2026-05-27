@@ -64,6 +64,25 @@ function toBase64Utf8(value) {
   return btoa(binary);
 }
 
+function fromBase64UrlJson(value) {
+  if (!value) return null;
+  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function fromBase64(value) {
   const binary = atob(value);
   const bytes = new Uint8Array(binary.length);
@@ -141,6 +160,134 @@ async function decryptPrivateMap(request, env) {
   return `${new TextDecoder().decode(plain)}\nwindow.CLIENTE_PRIVADO_STATUS = "ok";`;
 }
 
+function reportErrorPage(title, message, detail = '') {
+  return new Response(
+    `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>${reportStyle()}</head><body><h1>${escapeHtml(title)}</h1><pre>${escapeHtml(message)}${detail ? `\n\n${escapeHtml(detail)}` : ''}</pre></body></html>`,
+    {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/html; charset=UTF-8',
+        'Cache-Control': 'private, no-store',
+        'X-Robots-Tag': 'noindex, nofollow',
+      },
+    },
+  );
+}
+
+function reportStyle() {
+  return `<style>
+    body{font-family:Arial,sans-serif;color:#102817;margin:32px;line-height:1.45}
+    h1{font-family:Georgia,serif;font-size:28px;margin:0 0 6px}
+    .muted{color:#2f6d45;font-size:13px;text-transform:uppercase;letter-spacing:.06em}
+    .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:22px 0}
+    .box{border:1px solid #bfd3c1;border-radius:8px;padding:12px;background:#f6faf5;min-width:0}
+    .label{font-size:10px;color:#5e7b64;text-transform:uppercase;font-weight:bold}
+    .value{font-size:20px;font-weight:bold;margin-top:4px;overflow-wrap:anywhere}
+    .section{border-top:1px solid #d6e2d2;margin-top:20px;padding-top:16px}
+    pre{white-space:pre-wrap;font-family:Arial,sans-serif;background:#f6faf5;border:1px solid #d6e2d2;border-radius:8px;padding:14px}
+    button{border:1px solid #2f6d45;background:#2f6d45;color:white;border-radius:7px;padding:8px 12px;font-weight:bold;cursor:pointer}
+    .msg{border:1px solid #d6e2d2;border-radius:8px;padding:12px;margin:10px 0;background:#fbfdfb;page-break-inside:avoid}
+    .msg-head{font-size:11px;color:#5e7b64;font-weight:bold;text-transform:uppercase;margin-bottom:6px}
+    .msg-body{white-space:pre-wrap}
+    @media print{button{display:none} body{margin:18mm}}
+  </style>`;
+}
+
+function formatDuration(sec) {
+  const total = Math.max(0, Math.round(Number(sec || 0)));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function formatCsat(value) {
+  return value == null ? 'SEM AVALIAÇÃO' : Number(value).toFixed(2).replace('.', ',');
+}
+
+function stripHtmlText(value) {
+  return String(value ?? '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|li|tr)>/gi, '\n')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function findMessageList(value, depth = 0) {
+  if (!value || depth > 5) return [];
+  if (Array.isArray(value)) {
+    const score = value.filter(
+      (item) =>
+        item &&
+        typeof item === 'object' &&
+        ('message' in item ||
+          'text' in item ||
+          'content' in item ||
+          'action' in item ||
+          'createdAt' in item ||
+          'sendBy' in item),
+    ).length;
+    if (score) return value;
+    for (const item of value) {
+      const found = findMessageList(item, depth + 1);
+      if (found.length) return found;
+    }
+    return [];
+  }
+  if (typeof value === 'object') {
+    for (const key of ['messages', 'data', 'content', 'results', 'history']) {
+      const found = findMessageList(value[key], depth + 1);
+      if (found.length) return found;
+    }
+    for (const item of Object.values(value)) {
+      const found = findMessageList(item, depth + 1);
+      if (found.length) return found;
+    }
+  }
+  return [];
+}
+
+function messageSender(message) {
+  const raw =
+    message.sendBy ||
+    message.sentBy ||
+    message.sender ||
+    message.author ||
+    message.userName ||
+    message.agentName ||
+    message.action ||
+    'MENSAGEM';
+  const upper = String(raw).toUpperCase();
+  if (upper.includes('USER')) return 'CLIENTE';
+  if (upper.includes('AGENT')) return 'ATENDENTE';
+  if (upper.includes('BOT')) return 'BOT';
+  if (upper.includes('SYSTEM')) return 'SISTEMA';
+  return String(raw);
+}
+
+function messageBody(message) {
+  return stripHtmlText(
+    message.message ?? message.text ?? message.content ?? message.data ?? message.body ?? message.action ?? '',
+  );
+}
+
+function renderConversation(payload) {
+  const list = findMessageList(payload);
+  if (!list.length) return '<pre>Nenhuma mensagem retornada pelo NEPPO para este protocolo.</pre>';
+  return `<div class="conversation">${list
+    .map((message) => {
+      const body = messageBody(message) || '(mensagem sem texto ou anexo)';
+      const when = message.createdAt || message.date || message.updatedAt || '';
+      return `<div class="msg"><div class="msg-head">${escapeHtml(messageSender(message))}${when ? ` · ${escapeHtml(when)}` : ''}</div><div class="msg-body">${escapeHtml(body)}</div></div>`;
+    })
+    .join('')}</div>`;
+}
+
 function cookieHeaderFrom(response) {
   const direct = response.headers.get('set-cookie');
   if (direct) {
@@ -194,21 +341,26 @@ async function getNeppoWebCookie(env) {
 }
 
 async function fetchAttendanceHistory(protocol, env) {
+  const result = await getAttendanceHistoryData(protocol, env);
+  return jsonResponse(result.body, result.status);
+}
+
+async function getAttendanceHistoryData(protocol, env) {
   const match = String(protocol || '').match(/^WA0*(\d+)$/i);
   if (!match) {
-    return jsonResponse({ ok: false, message: 'Protocolo inválido.' }, 400);
+    return { status: 400, body: { ok: false, message: 'Protocolo inválido.' } };
   }
 
   const cookie = await getNeppoWebCookie(env);
   if (!cookie) {
-    return jsonResponse(
-      {
+    return {
+      status: 424,
+      body: {
         ok: false,
         message:
           'Conversa não configurada: salve NEPPO_WEB_USERNAME e NEPPO_WEB_PASSWORD no Worker, ou NEPPO_WEB_COOKIE como alternativa.',
       },
-      424,
-    );
+    };
   }
 
   const sessionId = match[1];
@@ -225,22 +377,67 @@ async function fetchAttendanceHistory(protocol, env) {
 
   const text = await response.text();
   if (!response.ok) {
-    return jsonResponse(
-      {
+    return {
+      status: 502,
+      body: {
         ok: false,
         status: response.status,
         message: `NEPPO retornou ${response.status} ao buscar a conversa.`,
         detail: text.slice(0, 500),
       },
-      502,
-    );
+    };
   }
 
   try {
-    return jsonResponse({ ok: true, protocol, sessionId, messages: JSON.parse(text) });
+    return { status: 200, body: { ok: true, protocol, sessionId, messages: JSON.parse(text) } };
   } catch {
-    return jsonResponse({ ok: true, protocol, sessionId, text });
+    return { status: 200, body: { ok: true, protocol, sessionId, text } };
   }
+}
+
+async function renderPdfReport(request, env, protocol) {
+  const url = new URL(request.url);
+  let payload = null;
+  try {
+    payload = fromBase64UrlJson(url.searchParams.get('r'));
+  } catch {
+    return reportErrorPage('Atendimento', 'Não consegui abrir os dados deste atendimento.');
+  }
+
+  const row = Array.isArray(payload?.row) ? payload.row : [];
+  const code = payload?.code || row[18] || '';
+  const clientName = payload?.clientName || row[19] || row[12] || code || 'Cliente não informado';
+  const history = await getAttendanceHistoryData(protocol, env);
+  const conversationHtml = history.body?.ok
+    ? renderConversation(history.body)
+    : `<pre>${escapeHtml(history.body?.message || 'Não consegui buscar a conversa no NEPPO.')}${history.body?.detail ? `\n\n${escapeHtml(history.body.detail)}` : ''}</pre>`;
+
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Atendimento ${escapeHtml(protocol)}</title>${reportStyle()}</head><body>
+    <button onclick="window.print()">Salvar / imprimir PDF</button>
+    <h1>Atendimento ${escapeHtml(protocol)}</h1>
+    <div class="muted">Relatório gerado pelo painel Gestão de Atendimento</div>
+    <div class="grid">
+      <div class="box"><div class="label">Cliente</div><div class="value">${escapeHtml(clientName)}</div></div>
+      <div class="box"><div class="label">Código</div><div class="value">${escapeHtml(code || '—')}</div></div>
+      <div class="box"><div class="label">CSAT</div><div class="value">${escapeHtml(formatCsat(row[6]))}</div></div>
+      <div class="box"><div class="label">Agente</div><div class="value">${escapeHtml(row[2] || '—')}</div></div>
+      <div class="box"><div class="label">Grupo</div><div class="value">${escapeHtml(row[3] || '—')}</div></div>
+      <div class="box"><div class="label">Operação</div><div class="value">${escapeHtml(row[17] || '—')}</div></div>
+      <div class="box"><div class="label">Início</div><div class="value">${escapeHtml(row[10] || '—')}</div></div>
+      <div class="box"><div class="label">Encerramento</div><div class="value">${escapeHtml(row[11] || '—')}</div></div>
+      <div class="box"><div class="label">TMA / TME</div><div class="value">${formatDuration(row[4])} / ${formatDuration(row[5])}</div></div>
+    </div>
+    <div class="section"><b>Protocolo:</b> ${escapeHtml(row[7] || protocol)}<br><b>Session ID:</b> ${escapeHtml(row[16] || '—')}<br><b>Canal:</b> ${escapeHtml(row[14] || '—')}<br><b>Status:</b> ${escapeHtml(row[15] || '—')}</div>
+    <div class="section"><h2>Conversa do atendimento</h2>${conversationHtml}</div>
+  </body></html>`;
+
+  return new Response(html, {
+    headers: {
+      'Content-Type': 'text/html; charset=UTF-8',
+      'Cache-Control': 'private, no-store',
+      'X-Robots-Tag': 'noindex, nofollow',
+    },
+  });
 }
 
 function isAuthorized(request, env) {
@@ -279,6 +476,11 @@ export default {
     }
 
     const url = new URL(request.url);
+    const reportMatch = url.pathname.match(/^\/pdf-report\/([^/]+)$/);
+    if (reportMatch) {
+      return renderPdfReport(request, env, decodeURIComponent(reportMatch[1]));
+    }
+
     const attendanceMatch = url.pathname.match(/^\/api\/attendance\/([^/]+)$/);
     if (attendanceMatch) {
       return fetchAttendanceHistory(decodeURIComponent(attendanceMatch[1]), env);

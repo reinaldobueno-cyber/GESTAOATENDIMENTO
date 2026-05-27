@@ -248428,7 +248428,8 @@ function clientButton(r){
   return code?`<button class="rel-client" onclick="showClientPopup('${esc(code)}')">${esc(label)}</button>`:esc(label);
 }
 let clientPopupState={code:null,month:null,group:''};
-function attendancePdfUrl(r){const p=String(r?.[7]||'');return /^WA\d{8,}$/.test(p)?`pdf/${encodeURIComponent(p)}`:(r?.[25]||r?.pdfUrl||'');}
+function workerBaseUrl(){return location.protocol==='file:'?'https://gestaoatendimento.reinaldo-bueno.workers.dev':'';}
+function attendancePdfUrl(r){const p=String(r?.[7]||'');return /^WA\d{8,}$/.test(p)?`${workerBaseUrl()}/pdf/${encodeURIComponent(p)}`:(r?.[25]||r?.pdfUrl||'');}
 function attendanceText(r){return r?.[26]||r?.texto||r?.transcricao||'';}
 function copyProtocol(protocol){
   if(!protocol)return;

@@ -248431,14 +248431,21 @@ let clientPopupState={code:null,month:null,group:''};
 function attendanceProtocol(r){const p=String(r?.[7]||'');return /^WA\d{8,}$/.test(p)?p:'';}
 function openNeppoPdf(protocol){
   if(!/^WA\d{8,}$/.test(String(protocol||'')))return;
-  const form=document.createElement('form');
-  form.method='POST';
-  form.action=`https://multsoft.neppo.com.br/chat/api/reports/downloadIssuePDF/${encodeURIComponent(protocol)}`;
-  form.target='_blank';
-  form.style.display='none';
-  document.body.appendChild(form);
-  form.submit();
-  form.remove();
+  const win=window.open('', '_blank');
+  fetch(`https://multsoft.neppo.com.br/chat/api/reports/downloadIssuePDF/${encodeURIComponent(protocol)}`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { Accept: 'application/pdf' }
+  }).then(response=>{
+    if(!response.ok)throw new Error(`NEPPO retornou ${response.status}`);
+    return response.blob();
+  }).then(blob=>{
+    const url=URL.createObjectURL(blob);
+    if(win)win.location=url;else window.open(url,'_blank');
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
+  }).catch(err=>{
+    if(win)win.document.body.innerHTML=`<pre style="font:14px sans-serif;white-space:pre-wrap">Não consegui abrir o PDF. Entre no NEPPO neste navegador e tente novamente.\n\n${esc(err.message)}</pre>`;
+  });
 }
 function attendanceText(r){return r?.[26]||r?.texto||r?.transcricao||'';}
 function copyProtocol(protocol){

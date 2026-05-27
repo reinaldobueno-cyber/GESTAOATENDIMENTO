@@ -2,7 +2,7 @@
 param(
   [string]$PrivateMapPath = 'cliente-map-privado.js',
   [string]$OutputPath = 'private-client-map.enc.json',
-  [int]$Iterations = 150000,
+  [int]$Iterations = 100000,
   [switch]$SkipPush
 )
 

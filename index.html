@@ -251410,7 +251410,8 @@ function updateClientPrivateStatus(){
   }else if(status==='senha_incorreta_para_mapa_privado'){
     el.textContent=`Mapa privado não abriu: ${window.CLIENTE_PRIVADO_STATUS_DETAIL||'cadastre PRIVATE_MAP_PASSWORD no Cloudflare e rode Corrigir-Nomes-Clientes.cmd com a mesma senha'}`;
   }else if(status==='erro_ao_abrir_mapa_privado'){
-    el.textContent=`Erro ao abrir mapa privado: ${window.CLIENTE_PRIVADO_STATUS_DETAIL||'sem detalhe retornado'}`;
+    const detail=window.CLIENTE_PRIVADO_STATUS_DETAIL||'sem detalhe retornado';
+    el.textContent=detail.includes('iteration counts above 100000')?'Mapa privado precisa ser republicado: rode Corrigir-Nomes-Clientes.cmd novamente.':`Erro ao abrir mapa privado: ${detail}`;
   }else if(status==='arquivo_privado_nao_encontrado'){
     el.textContent='Mapa privado ainda não publicado';
   }else{

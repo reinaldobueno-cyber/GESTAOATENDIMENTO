@@ -158,27 +158,34 @@ async function decryptPrivateMap(request, env) {
   const data = fromBase64(pack.data);
   const mac = fromBase64(pack.mac);
   const iterations = Number(pack.iterations || 150000);
-  const privateMapPassword = env.PRIVATE_MAP_PASSWORD || env.AUTH_PASSWORD || env.APP_PASSWORD;
-  const keys = await derivePrivateMapKeys(privateMapPassword, salt, iterations);
+  const passwords = [
+    env.PRIVATE_MAP_PASSWORD,
+    env.AUTH_PASSWORD,
+    env.APP_PASSWORD,
+    ...parseAppUsers(env).map((item) => item.password),
+  ].filter(Boolean);
 
-  const macKey = await crypto.subtle.importKey(
-    'raw',
-    keys.mac,
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  );
-  const expectedMac = new Uint8Array(
-    await crypto.subtle.sign('HMAC', macKey, concatBytes(salt, iv, data)),
-  );
+  for (const password of [...new Set(passwords.map(String))]) {
+    const keys = await derivePrivateMapKeys(password, salt, iterations);
+    const macKey = await crypto.subtle.importKey(
+      'raw',
+      keys.mac,
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign'],
+    );
+    const expectedMac = new Uint8Array(
+      await crypto.subtle.sign('HMAC', macKey, concatBytes(salt, iv, data)),
+    );
 
-  if (!bytesEqual(mac, expectedMac)) {
-    return 'window.CLIENTE_PRIVADO = {}; window.CLIENTE_PRIVADO_STATUS = "senha_incorreta_para_mapa_privado"; console.warn("Mapa privado de clientes não pôde ser aberto.");';
+    if (bytesEqual(mac, expectedMac)) {
+      const aesKey = await crypto.subtle.importKey('raw', keys.aes, 'AES-CBC', false, ['decrypt']);
+      const plain = await crypto.subtle.decrypt({ name: 'AES-CBC', iv }, aesKey, data);
+      return `${new TextDecoder().decode(plain)}\nwindow.CLIENTE_PRIVADO_STATUS = "ok";`;
+    }
   }
 
-  const aesKey = await crypto.subtle.importKey('raw', keys.aes, 'AES-CBC', false, ['decrypt']);
-  const plain = await crypto.subtle.decrypt({ name: 'AES-CBC', iv }, aesKey, data);
-  return `${new TextDecoder().decode(plain)}\nwindow.CLIENTE_PRIVADO_STATUS = "ok";`;
+  return 'window.CLIENTE_PRIVADO = {}; window.CLIENTE_PRIVADO_STATUS = "senha_incorreta_para_mapa_privado"; console.warn("Mapa privado de clientes não pôde ser aberto.");';
 }
 
 function reportErrorPage(title, message, detail = '') {

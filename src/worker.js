@@ -189,6 +189,8 @@ function reportStyle() {
     .msg{border:1px solid #d6e2d2;border-radius:8px;padding:12px;margin:10px 0;background:#fbfdfb;page-break-inside:avoid}
     .msg-head{font-size:11px;color:#5e7b64;font-weight:bold;text-transform:uppercase;margin-bottom:6px}
     .msg-body{white-space:pre-wrap}
+    .msg-img{display:block;max-width:100%;max-height:520px;border:1px solid #d6e2d2;border-radius:8px;margin:.45rem 0}
+    a{color:#2f6d45;font-weight:bold}
     @media print{button{display:none} body{margin:18mm}}
   </style>`;
 }
@@ -253,22 +255,41 @@ function findMessageList(value, depth = 0) {
 }
 
 function messageSender(message) {
-  const raw =
-    message.sendBy ||
-    message.sentBy ||
-    message.sender ||
-    message.author ||
-    message.userName ||
-    message.agentName ||
-    message.action ||
-    'MENSAGEM';
+  const raw = message.sendBy || message.sentBy || message.sender || message.author || message.action || 'MENSAGEM';
   const upper = String(raw).toUpperCase();
-  if (upper.includes('USER')) return 'CLIENTE';
-  if (upper.includes('AGENT')) return 'ATENDENTE';
-  if (upper.includes('BOT')) return 'BOT';
-  if (upper.includes('SYSTEM')) return 'SISTEMA';
-  if (upper === 'NONE' || upper === 'TRANSFER' || upper === 'QUEUE') return 'SISTEMA';
+  const name = message.fromUser || message.userName || message.agentName || message.senderName || '';
+  let label = String(raw);
+  if (upper.includes('USER')) label = 'CLIENTE';
+  else if (upper.includes('AGENT')) label = 'ATENDENTE';
+  else if (upper.includes('BOT')) label = 'BOT';
+  else if (upper.includes('SYSTEM')) label = 'SISTEMA';
+  else if (upper === 'NONE' || upper === 'TRANSFER' || upper === 'QUEUE') label = 'SISTEMA';
+  return name ? `${label} - ${name}` : label;
+}
+
+function messageTime(message) {
+  if (message.formattedCreatedAt) return message.formattedCreatedAt;
+  const raw = message.createdAt || message.date || message.updatedAt || '';
+  if (!raw) return '';
+  if (typeof raw === 'number') {
+    return new Date(raw).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  }
   return String(raw);
+}
+
+function firstUrl(value) {
+  const text = String(value ?? '');
+  const match = text.match(/https?:\/\/[^\s"'<>]+/i);
+  return match ? match[0] : '';
+}
+
+function isImageMessage(message, url) {
+  const contentType = String(message.contentType || message.mimeType || message.type || '').toUpperCase();
+  return (
+    contentType.includes('IMAGE') ||
+    /\.(png|jpe?g|gif|webp|bmp|svg)(\?|#|$)/i.test(url || '') ||
+    String(message.message || '').startsWith('data:image/')
+  );
 }
 
 function messageBody(message) {
@@ -277,14 +298,53 @@ function messageBody(message) {
   );
 }
 
+function messageMediaUrl(message) {
+  const candidates = [
+    message.fileUrl,
+    message.mediaUrl,
+    message.url,
+    message.link,
+    message.path,
+    message.message,
+    message.content,
+    message.data,
+    message.body,
+  ];
+  for (const candidate of candidates) {
+    const url = firstUrl(candidate);
+    if (url) return url;
+    if (String(candidate || '').startsWith('data:image/')) return String(candidate);
+  }
+  return '';
+}
+
+function renderMessageBody(message) {
+  const body = messageBody(message);
+  const mediaUrl = messageMediaUrl(message);
+  const contentType = String(message.contentType || message.mimeType || message.type || '').toUpperCase();
+  if (mediaUrl && isImageMessage(message, mediaUrl)) {
+    return `<div class="msg-body">${body ? `${escapeHtml(body)}<br>` : ''}<img class="msg-img" src="${escapeHtml(mediaUrl)}" alt="Imagem do atendimento"><br><a href="${escapeHtml(mediaUrl)}" target="_blank" rel="noopener">Abrir imagem</a></div>`;
+  }
+  if (mediaUrl) {
+    const label = contentType.includes('AUDIO')
+      ? 'Áudio'
+      : contentType.includes('VIDEO')
+        ? 'Vídeo'
+        : contentType.includes('APPLICATION') || contentType.includes('DOC')
+          ? 'Anexo'
+          : 'Mídia';
+    return `<div class="msg-body">${body ? `${escapeHtml(body)}<br>` : ''}<a href="${escapeHtml(mediaUrl)}" target="_blank" rel="noopener">${escapeHtml(label)} do atendimento</a></div>`;
+  }
+  return `<div class="msg-body">${escapeHtml(body || '(mensagem sem texto ou anexo)')}</div>`;
+}
+
 function renderConversation(payload) {
   const list = findMessageList(payload);
   if (!list.length) return '<pre>Nenhuma mensagem retornada pelo NEPPO para este protocolo.</pre>';
   return `<div class="conversation">${list
     .map((message) => {
-      const body = messageBody(message) || '(mensagem sem texto ou anexo)';
-      const when = message.createdAt || message.date || message.updatedAt || '';
-      return `<div class="msg"><div class="msg-head">${escapeHtml(messageSender(message))}${when ? ` · ${escapeHtml(when)}` : ''}</div><div class="msg-body">${escapeHtml(body)}</div></div>`;
+      const when = messageTime(message);
+      return `<div class="msg"><div class="msg-head">${escapeHtml(messageSender(message))}${when ? ` · ${escapeHtml(when)}` : ''}</div>${renderMessageBody(message)}</div>`;
     })
     .join('')}</div>`;
 }

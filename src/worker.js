@@ -100,7 +100,8 @@ async function decryptPrivateMap(request, env) {
   const data = fromBase64(pack.data);
   const mac = fromBase64(pack.mac);
   const iterations = Number(pack.iterations || 150000);
-  const keys = await derivePrivateMapKeys(env.AUTH_PASSWORD, salt, iterations);
+  const privateMapPassword = env.AUTH_PASSWORD || env.APP_PASSWORD;
+  const keys = await derivePrivateMapKeys(privateMapPassword, salt, iterations);
 
   const macKey = await crypto.subtle.importKey(
     'raw',

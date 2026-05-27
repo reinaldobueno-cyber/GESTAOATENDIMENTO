@@ -248431,15 +248431,47 @@ let clientPopupState={code:null,month:null,group:''};
 function workerBaseUrl(){return location.protocol==='file:'?'https://gestaoatendimento.reinaldo-bueno.workers.dev':'';}
 function attendanceProtocol(r){const p=String(r?.[7]||'');return /^WA\d{8,}$/.test(p)?p:'';}
 function openNeppoPdf(protocol){
-  if(!/^WA\d{8,}$/.test(String(protocol||'')))return;
-  const form=document.createElement('form');
-  form.method='POST';
-  form.action=`https://multsoft.neppo.com.br/chat/api/reports/downloadIssuePDF/${encodeURIComponent(protocol)}`;
-  form.target='_blank';
-  form.style.display='none';
-  document.body.appendChild(form);
-  form.submit();
-  form.remove();
+  const r=(D.rows||[]).find(x=>Array.isArray(x)&&String(x[7]||'')===String(protocol||''))||null;
+  if(!r)return;
+  const code=clientCode(r), info=(window.CLIENTE_PRIVADO||{})[code]||null;
+  const title=`Atendimento ${r[7]||''}`;
+  const opened=window.open('','_blank');
+  if(!opened)return;
+  const text=attendanceText(r);
+  const html=`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title>
+    <style>
+      body{font-family:Arial,sans-serif;color:#102817;margin:32px;line-height:1.45}
+      h1{font-family:Georgia,serif;font-size:24px;margin:0 0 4px}
+      .muted{color:#5e7b64;font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+      .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:22px 0}
+      .box{border:1px solid #bfd3c1;border-radius:8px;padding:12px;background:#f6faf5}
+      .label{font-size:10px;color:#77917c;text-transform:uppercase;font-weight:bold}
+      .value{font-size:18px;font-weight:bold;margin-top:4px}
+      .section{border-top:1px solid #d6e2d2;margin-top:20px;padding-top:16px}
+      pre{white-space:pre-wrap;font-family:Arial,sans-serif;background:#f6faf5;border:1px solid #d6e2d2;border-radius:8px;padding:14px}
+      button{border:1px solid #2f6d45;background:#2f6d45;color:white;border-radius:7px;padding:8px 12px;font-weight:bold;cursor:pointer}
+      @media print{button{display:none} body{margin:18mm}}
+    </style></head><body>
+    <button onclick="window.print()">Salvar / imprimir PDF</button>
+    <h1>${esc(title)}</h1>
+    <div class="muted">Relatório gerado pelo painel Gestão de Atendimento</div>
+    <div class="grid">
+      <div class="box"><div class="label">Cliente</div><div class="value">${esc(info?.nome||r[19]||r[12]||code||'—')}</div></div>
+      <div class="box"><div class="label">Código</div><div class="value">${esc(code||'—')}</div></div>
+      <div class="box"><div class="label">CSAT</div><div class="value">${esc(fmtCsat(r[6]))}</div></div>
+      <div class="box"><div class="label">Agente</div><div class="value">${esc(r[2]||'—')}</div></div>
+      <div class="box"><div class="label">Grupo</div><div class="value">${esc(r[3]||'—')}</div></div>
+      <div class="box"><div class="label">Operação</div><div class="value">${esc(r[17]||'—')}</div></div>
+      <div class="box"><div class="label">Início</div><div class="value">${esc(r[10]||'—')}</div></div>
+      <div class="box"><div class="label">Encerramento</div><div class="value">${esc(r[11]||'—')}</div></div>
+      <div class="box"><div class="label">TMA / TME</div><div class="value">${fmtDur(r[4])} / ${fmtDur(r[5])}</div></div>
+    </div>
+    <div class="section"><b>Protocolo:</b> ${esc(r[7]||'—')}<br><b>Session ID:</b> ${esc(r[16]||'—')}<br><b>Canal:</b> ${esc(r[14]||'—')}<br><b>Status:</b> ${esc(r[15]||'—')}</div>
+    <div class="section"><h2>Leitura do atendimento</h2><pre>${text?esc(text):'O painel ainda não recebeu a transcrição completa deste atendimento. Este PDF usa os dados consolidados já importados do NEPPO.'}</pre></div>
+    </body></html>`;
+  opened.document.open();
+  opened.document.write(html);
+  opened.document.close();
 }
 function attendanceText(r){return r?.[26]||r?.texto||r?.transcricao||'';}
 function copyProtocol(protocol){
@@ -248469,7 +248501,7 @@ function showAttendanceDetail(code,protocol){
         <button class="rel-action" onclick="copyProtocol('${esc(r[7]||'')}')">Copiar protocolo</button>
         ${pdfProtocol?`<button class="rel-action" onclick="openNeppoPdf('${esc(pdfProtocol)}')">Abrir PDF</button>`:`<button class="rel-action disabled">PDF indisponível</button>`}
       </div>
-      <div class="click-note" style="margin-top:.55rem;">${text?esc(text):'Use Abrir PDF para ler o atendimento completo.'}</div>
+      <div class="click-note" style="margin-top:.55rem;">${text?esc(text):'O PDF será gerado com os dados consolidados já importados para o painel.'}</div>
     </div>
   `;
 }

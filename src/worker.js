@@ -91,7 +91,7 @@ async function decryptPrivateMap(request, env) {
   const assetUrl = new URL('/private-client-map.enc.json', request.url);
   const asset = await env.ASSETS.fetch(new Request(assetUrl, request));
   if (!asset.ok) {
-    return 'window.CLIENTE_PRIVADO = {};';
+    return 'window.CLIENTE_PRIVADO = {}; window.CLIENTE_PRIVADO_STATUS = "arquivo_privado_nao_encontrado";';
   }
 
   const pack = await asset.json();
@@ -114,12 +114,12 @@ async function decryptPrivateMap(request, env) {
   );
 
   if (!bytesEqual(mac, expectedMac)) {
-    return 'window.CLIENTE_PRIVADO = {}; console.warn("Mapa privado de clientes não pôde ser aberto.");';
+    return 'window.CLIENTE_PRIVADO = {}; window.CLIENTE_PRIVADO_STATUS = "senha_incorreta_para_mapa_privado"; console.warn("Mapa privado de clientes não pôde ser aberto.");';
   }
 
   const aesKey = await crypto.subtle.importKey('raw', keys.aes, 'AES-CBC', false, ['decrypt']);
   const plain = await crypto.subtle.decrypt({ name: 'AES-CBC', iv }, aesKey, data);
-  return new TextDecoder().decode(plain);
+  return `${new TextDecoder().decode(plain)}\nwindow.CLIENTE_PRIVADO_STATUS = "ok";`;
 }
 
 function isAuthorized(request, env) {

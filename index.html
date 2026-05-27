@@ -620,7 +620,7 @@ canvas{cursor:pointer;}
   </div>
 
   <div class="card">
-    <div class="ch"><div><div class="ct">Carteira de Clientes</div><div class="cs">Clique em um cliente para abrir a ficha com meses e atendimentos</div></div></div>
+    <div class="ch"><div><div class="ct">Carteira de Clientes</div><div class="cs" id="cli-private-status">Clique em um cliente para abrir a ficha com meses e atendimentos</div></div></div>
     <div class="tsc">
       <table class="dt">
         <thead><tr><th>#</th><th>Cliente</th><th style="text-align:right">Jan</th><th style="text-align:right">Fev</th><th style="text-align:right">Mar</th><th style="text-align:right">Abr</th><th style="text-align:right">Mai</th><th style="text-align:right">Total</th><th>Grupo principal</th><th style="text-align:right">CSAT</th></tr></thead>
@@ -248525,6 +248525,21 @@ function clientDisplayName(code){
   const info=(window.CLIENTE_PRIVADO||{})[code];
   return info?.nome||code;
 }
+function updateClientPrivateStatus(){
+  const el=$('cli-private-status');
+  if(!el)return;
+  const count=Object.keys(window.CLIENTE_PRIVADO||{}).length;
+  const status=window.CLIENTE_PRIVADO_STATUS||'pendente';
+  if(count>0){
+    el.textContent=`Mapa privado carregado · ${count} clientes identificados`;
+  }else if(status==='senha_incorreta_para_mapa_privado'){
+    el.textContent='Mapa privado não abriu: rode Publicar-Clientes-Privados.cmd com a senha atual da Cloudflare';
+  }else if(status==='arquivo_privado_nao_encontrado'){
+    el.textContent='Mapa privado ainda não publicado';
+  }else{
+    el.textContent='Mapa privado não carregado · usando clientes mascarados';
+  }
+}
 function clientSummaries(){
   const map={};
   (D.rows||[]).forEach(r=>{
@@ -248557,6 +248572,7 @@ function showClientList(title,subtitle,clients){
   $('rel-modal').classList.add('open');
 }
 function renderClientsMonth(m){
+  updateClientPrivateStatus();
   const all=clientSummaries();
   const active=all.map(c=>({...c,monthTotal:c.months[m]})).filter(c=>c.monthTotal>0).sort((a,b)=>b.monthTotal-a.monthTotal||b.total-a.total);
   const totalMonth=active.reduce((s,c)=>s+c.monthTotal,0);

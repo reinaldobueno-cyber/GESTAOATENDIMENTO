@@ -251611,7 +251611,30 @@ function renderClientsMonth(m){
     .slice(0,20);
   const csats=priority.map(c=>c.monthCsat);
   const minCsat=csats.length?Math.max(0,Math.floor((Math.min(...csats)-.15)*10)/10):9;
-  chart('ch-cli-line',{type:'scatter',data:{datasets:[{label:'Clientes prioritários',data:priority.map(c=>({x:c.monthTotal,y:+c.monthCsat.toFixed(2),label:c.name,code:c.code,total:c.monthTotal,csat:c.monthCsat,ratings:c.monthRatings.length})),backgroundColor:priority.map(c=>c.monthCsat<9?'#a83232':c.monthCsat<9.8?'#9a6b1a':'#3d6b47'),borderColor:'#fff',borderWidth:1.5,pointRadius:priority.map(c=>Math.min(12,Math.max(5,4+c.monthTotal/3))),pointHoverRadius:13}]},options:{...cDef,plugins:{...cDef.plugins,legend:{display:false},tooltip:{...cDef.plugins.tooltip,callbacks:{label:ctx=>`${ctx.raw.label}: ${ctx.raw.total} atend. · CSAT ${fS(ctx.raw.csat)} · ${ctx.raw.ratings} aval.`}}},scales:{...cDef.scales,x:{...cDef.scales.x,title:{display:true,text:'Atendimentos no mês',color:'#8fa28a',font:{family:'Geist Mono',size:9}},ticks:{...cDef.scales.x.ticks,precision:0}},y:{...cDef.scales.y,min:minCsat,max:10.05,title:{display:true,text:'CSAT médio do mês',color:'#8fa28a',font:{family:'Geist Mono',size:9}},ticks:{...cDef.scales.y.ticks,callback:v=>Number(v).toFixed(1).replace('.',',')}}}},onClick:chartClick((el,ch)=>{const raw=ch.data.datasets[el.datasetIndex].data[el.index];if(raw?.code)showClientPopup(raw.code);})}});
+  chart('ch-cli-line',{
+    type:'scatter',
+    data:{
+      datasets:[{
+        label:'Clientes prioritários',
+        data:priority.map(c=>({x:c.monthTotal,y:+c.monthCsat.toFixed(2),label:c.name,code:c.code,total:c.monthTotal,csat:c.monthCsat,ratings:c.monthRatings.length})),
+        backgroundColor:priority.map(c=>c.monthCsat<9?'#a83232':c.monthCsat<9.8?'#9a6b1a':'#3d6b47'),
+        borderColor:'#fff',
+        borderWidth:1.5,
+        pointRadius:priority.map(c=>Math.min(12,Math.max(5,4+c.monthTotal/3))),
+        pointHoverRadius:13
+      }]
+    },
+    options:{
+      ...cDef,
+      plugins:{...cDef.plugins,legend:{display:false},tooltip:{...cDef.plugins.tooltip,callbacks:{label:ctx=>`${ctx.raw.label}: ${ctx.raw.total} atend. · CSAT ${fS(ctx.raw.csat)} · ${ctx.raw.ratings} aval.`}}},
+      scales:{
+        ...cDef.scales,
+        x:{...cDef.scales.x,title:{display:true,text:'Atendimentos no mês',color:'#8fa28a',font:{family:'Geist Mono',size:9}},ticks:{...cDef.scales.x.ticks,precision:0}},
+        y:{...cDef.scales.y,min:minCsat,max:10.05,title:{display:true,text:'CSAT médio do mês',color:'#8fa28a',font:{family:'Geist Mono',size:9}},ticks:{...cDef.scales.y.ticks,callback:v=>Number(v).toFixed(1).replace('.',',')}}
+      },
+      onClick:chartClick((el,ch)=>{const raw=ch.data.datasets[el.datasetIndex].data[el.index];if(raw?.code)showClientPopup(raw.code);})
+    }
+  });
 
   const groupRows=Object.entries(active.reduce((a,c)=>{a[c.group]=(a[c.group]||0)+c.monthTotal;return a;},{})).sort((a,b)=>b[1]-a[1]).slice(0,10);
   chart('ch-cli-group',{type:'bar',data:{labels:groupRows.map(([g])=>g.length>18?g.slice(0,18)+'...':g),datasets:[{label:'Atendimentos de clientes',data:groupRows.map(([,v])=>v),backgroundColor:groupRows.map((_,i)=>PAL[i%PAL.length]),borderRadius:5}]},options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}},onClick:chartClick(el=>{const group=groupRows[el.index]?.[0];if(group)chartDrill(`Clientes · ${group}`,`${D.mesNomes[m]} · grupo principal`,drillRows(m,{group}));})}});

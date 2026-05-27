@@ -165,6 +165,13 @@ async function decryptPrivateMap(request, env) {
     ...parseAppUsers(env).map((item) => item.password),
   ].filter(Boolean);
 
+  const availableSources = [
+    env.PRIVATE_MAP_PASSWORD ? 'PRIVATE_MAP_PASSWORD' : '',
+    env.AUTH_PASSWORD ? 'AUTH_PASSWORD' : '',
+    env.APP_PASSWORD ? 'APP_PASSWORD' : '',
+    parseAppUsers(env).length ? 'APP_USERS' : '',
+  ].filter(Boolean);
+
   for (const password of [...new Set(passwords.map(String))]) {
     const keys = await derivePrivateMapKeys(password, salt, iterations);
     const macKey = await crypto.subtle.importKey(
@@ -181,11 +188,11 @@ async function decryptPrivateMap(request, env) {
     if (bytesEqual(mac, expectedMac)) {
       const aesKey = await crypto.subtle.importKey('raw', keys.aes, 'AES-CBC', false, ['decrypt']);
       const plain = await crypto.subtle.decrypt({ name: 'AES-CBC', iv }, aesKey, data);
-      return `${new TextDecoder().decode(plain)}\nwindow.CLIENTE_PRIVADO_STATUS = "ok";`;
+      return `${new TextDecoder().decode(plain)}\nwindow.CLIENTE_PRIVADO_STATUS = "ok"; window.CLIENTE_PRIVADO_STATUS_DETAIL = "mapa_aberto";`;
     }
   }
 
-  return 'window.CLIENTE_PRIVADO = {}; window.CLIENTE_PRIVADO_STATUS = "senha_incorreta_para_mapa_privado"; console.warn("Mapa privado de clientes não pôde ser aberto.");';
+  return `window.CLIENTE_PRIVADO = {}; window.CLIENTE_PRIVADO_STATUS = "senha_incorreta_para_mapa_privado"; window.CLIENTE_PRIVADO_STATUS_DETAIL = ${JSON.stringify(`fontes_testadas:${availableSources.join(',') || 'nenhuma'}; senhas_testadas:${passwords.length}`)}; console.warn("Mapa privado de clientes não pôde ser aberto.", window.CLIENTE_PRIVADO_STATUS_DETAIL);`;
 }
 
 function reportErrorPage(title, message, detail = '') {

@@ -180,13 +180,18 @@ async function fetchIssuePdf(protocol, env) {
   const headers = new Headers();
   if (env.NEPPO_WEB_AUTHORIZATION) headers.set('Authorization', env.NEPPO_WEB_AUTHORIZATION);
   if (env.NEPPO_WEB_COOKIE) headers.set('Cookie', env.NEPPO_WEB_COOKIE);
-  headers.set('Accept', 'application/pdf');
+  headers.set('Accept', 'application/pdf, application/octet-stream, */*');
+  headers.set('Content-Type', 'application/json;charset=UTF-8');
+  headers.set('Origin', 'https://multsoft.neppo.com.br');
+  headers.set('Referer', 'https://multsoft.neppo.com.br/');
+  headers.set('X-Requested-With', 'XMLHttpRequest');
 
   const neppoResponse = await fetch(
     `https://multsoft.neppo.com.br/chat/api/reports/downloadIssuePDF/${protocol}`,
     {
       method: 'POST',
       headers,
+      body: 'null',
     },
   );
 

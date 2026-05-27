@@ -248428,8 +248428,18 @@ function clientButton(r){
   return code?`<button class="rel-client" onclick="showClientPopup('${esc(code)}')">${esc(label)}</button>`:esc(label);
 }
 let clientPopupState={code:null,month:null,group:''};
-function workerBaseUrl(){return location.protocol==='file:'?'https://gestaoatendimento.reinaldo-bueno.workers.dev':'';}
-function attendancePdfUrl(r){const p=String(r?.[7]||'');return /^WA\d{8,}$/.test(p)?`${workerBaseUrl()}/pdf/${encodeURIComponent(p)}`:(r?.[25]||r?.pdfUrl||'');}
+function attendanceProtocol(r){const p=String(r?.[7]||'');return /^WA\d{8,}$/.test(p)?p:'';}
+function openNeppoPdf(protocol){
+  if(!/^WA\d{8,}$/.test(String(protocol||'')))return;
+  const form=document.createElement('form');
+  form.method='POST';
+  form.action=`https://multsoft.neppo.com.br/chat/api/reports/downloadIssuePDF/${encodeURIComponent(protocol)}`;
+  form.target='_blank';
+  form.style.display='none';
+  document.body.appendChild(form);
+  form.submit();
+  form.remove();
+}
 function attendanceText(r){return r?.[26]||r?.texto||r?.transcricao||'';}
 function copyProtocol(protocol){
   if(!protocol)return;
@@ -248439,7 +248449,7 @@ function showAttendanceDetail(code,protocol){
   const rows=(D.rows||[]).filter(r=>Array.isArray(r)&&clientCode(r)===code);
   const r=rows.find(x=>String(x[7]||'')===String(protocol||''))||null;
   if(!r)return;
-  const pdf=attendancePdfUrl(r), text=attendanceText(r);
+  const pdfProtocol=attendanceProtocol(r), text=attendanceText(r);
   const host=$('client-att-detail');
   if(!host)return;
   host.innerHTML=`
@@ -248456,9 +248466,9 @@ function showAttendanceDetail(code,protocol){
       </div>
       <div class="rel-actions" style="justify-content:flex-start;margin-top:.65rem;">
         <button class="rel-action" onclick="copyProtocol('${esc(r[7]||'')}')">Copiar protocolo</button>
-        ${pdf?`<a class="rel-action" href="${esc(pdf)}" target="_blank" rel="noopener">Abrir PDF</a>`:`<button class="rel-action disabled">PDF indisponível</button>`}
+        ${pdfProtocol?`<button class="rel-action" onclick="openNeppoPdf('${esc(pdfProtocol)}')">Abrir PDF</button>`:`<button class="rel-action disabled">PDF indisponível</button>`}
       </div>
-      <div class="click-note" style="margin-top:.55rem;">${text?esc(text):'Use Abrir PDF para ler o atendimento completo quando a autenticação web do NEPPO estiver configurada no Worker.'}</div>
+      <div class="click-note" style="margin-top:.55rem;">${text?esc(text):'Use Abrir PDF para ler o atendimento completo. Se o NEPPO pedir login, entre nele uma vez no mesmo navegador.'}</div>
     </div>
   `;
 }
@@ -248487,7 +248497,7 @@ function renderClientPopup(code,month=appM+1,group=''){
     ${group?`<div class="click-note"><button class="rel-client" onclick="renderClientPopup(clientPopupState.code,${month},'')">Limpar filtro de grupo</button></div>`:''}
     <div id="client-att-detail"></div>
     <div class="rel-list" style="margin-top:.8rem;">
-      ${filtered.slice(0,160).map(r=>`<div class="rel-item"><div class="rel-main"><b>${esc(r[7]||'sem protocolo')}</b><br>${String(r[1]).padStart(2,'0')}/${String(r[0]).padStart(2,'0')} · ${esc(r[2])} · ${esc(r[3])}<br><span style="color:var(--ghost)">Início ${esc(r[10]||'')}</span></div><div class="rel-actions"><button class="rel-action" onclick="showAttendanceDetail('${esc(code)}','${esc(r[7]||'')}')">Ler</button><button class="rel-action ${attendancePdfUrl(r)?'':'disabled'}" onclick="${attendancePdfUrl(r)?`window.open('${esc(attendancePdfUrl(r))}','_blank')`:''}">PDF</button><span class="rel-tag">TMA ${fmtDur(r[4])}</span><span class="rel-tag">TME ${fmtDur(r[5])}</span><span class="rel-tag">CSAT ${fmtCsat(r[6])}</span></div></div>`).join('')}
+      ${filtered.slice(0,160).map(r=>`<div class="rel-item"><div class="rel-main"><b>${esc(r[7]||'sem protocolo')}</b><br>${String(r[1]).padStart(2,'0')}/${String(r[0]).padStart(2,'0')} · ${esc(r[2])} · ${esc(r[3])}<br><span style="color:var(--ghost)">Início ${esc(r[10]||'')}</span></div><div class="rel-actions"><button class="rel-action" onclick="showAttendanceDetail('${esc(code)}','${esc(r[7]||'')}')">Ler</button><button class="rel-action ${attendanceProtocol(r)?'':'disabled'}" onclick="${attendanceProtocol(r)?`openNeppoPdf('${esc(attendanceProtocol(r))}')`:''}">PDF</button><span class="rel-tag">TMA ${fmtDur(r[4])}</span><span class="rel-tag">TME ${fmtDur(r[5])}</span><span class="rel-tag">CSAT ${fmtCsat(r[6])}</span></div></div>`).join('')}
     </div>
     ${!filtered.length?`<div class="op-empty">Nenhum atendimento neste recorte.</div>`:''}
     ${filtered.length>160?`<div class="click-note">Exibindo 160 de ${fN(filtered.length)} atendimentos.</div>`:''}

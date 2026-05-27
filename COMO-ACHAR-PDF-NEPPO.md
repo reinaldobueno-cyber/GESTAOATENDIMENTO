@@ -26,3 +26,20 @@ O que eu preciso para integrar no painel:
 - se o retorno é `application/pdf`.
 
 Não envie token, cookie ou senha.
+
+## Depois que a rota foi identificada
+
+O painel já usa esta rota:
+
+`/pdf/WA00000119294`
+
+Ela chama o NEPPO em:
+
+`https://multsoft.neppo.com.br/chat/api/reports/downloadIssuePDF/WA00000119294`
+
+Para funcionar no Cloudflare Worker, configure **uma** destas secrets em `Workers & Pages > gestaoatendimento > Settings > Variables and Secrets`:
+
+- `NEPPO_WEB_AUTHORIZATION`: valor completo do header `Authorization`, se existir.
+- `NEPPO_WEB_COOKIE`: valor completo do header `Cookie`, se o PDF usar cookie de sessão.
+
+Use `Secret`, não `Text`, e configure em `Production`.

@@ -248428,7 +248428,7 @@ function clientButton(r){
   return code?`<button class="rel-client" onclick="showClientPopup('${esc(code)}')">${esc(label)}</button>`:esc(label);
 }
 let clientPopupState={code:null,month:null,group:''};
-function attendancePdfUrl(r){return r?.[25]||r?.pdfUrl||'';}
+function attendancePdfUrl(r){const p=String(r?.[7]||'');return /^WA\d{8,}$/.test(p)?`pdf/${encodeURIComponent(p)}`:(r?.[25]||r?.pdfUrl||'');}
 function attendanceText(r){return r?.[26]||r?.texto||r?.transcricao||'';}
 function copyProtocol(protocol){
   if(!protocol)return;
@@ -248455,9 +248455,9 @@ function showAttendanceDetail(code,protocol){
       </div>
       <div class="rel-actions" style="justify-content:flex-start;margin-top:.65rem;">
         <button class="rel-action" onclick="copyProtocol('${esc(r[7]||'')}')">Copiar protocolo</button>
-        ${pdf?`<a class="rel-action" href="${esc(pdf)}" target="_blank" rel="noopener">Abrir PDF</a>`:`<button class="rel-action disabled" title="O link do PDF ainda não veio do NEPPO para o painel">PDF não carregado</button>`}
+        ${pdf?`<a class="rel-action" href="${esc(pdf)}" target="_blank" rel="noopener">Abrir PDF</a>`:`<button class="rel-action disabled">PDF indisponível</button>`}
       </div>
-      <div class="click-note" style="margin-top:.55rem;">${text?esc(text):'A leitura completa/PDF ainda precisa ser puxada do NEPPO pelo protocolo. O painel já está preparado para exibir quando o link ou transcrição vierem nos dados.'}</div>
+      <div class="click-note" style="margin-top:.55rem;">${text?esc(text):'Use Abrir PDF para ler o atendimento completo quando a autenticação web do NEPPO estiver configurada no Worker.'}</div>
     </div>
   `;
 }

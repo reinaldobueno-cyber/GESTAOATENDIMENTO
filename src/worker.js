@@ -145,6 +145,72 @@ function isAuthorized(request, env) {
   );
 }
 
+function pdfProxyRequired() {
+  return new Response(
+    'PDF pendente: configure NEPPO_WEB_AUTHORIZATION ou NEPPO_WEB_COOKIE nas variáveis secretas do Worker.',
+    {
+      status: 503,
+      headers: {
+        'Content-Type': 'text/plain; charset=UTF-8',
+        'Cache-Control': 'no-store',
+      },
+    },
+  );
+}
+
+function invalidProtocol() {
+  return new Response('Protocolo inválido.', {
+    status: 400,
+    headers: {
+      'Content-Type': 'text/plain; charset=UTF-8',
+      'Cache-Control': 'no-store',
+    },
+  });
+}
+
+async function fetchIssuePdf(protocol, env) {
+  if (!/^WA\d{8,}$/.test(protocol)) {
+    return invalidProtocol();
+  }
+
+  if (!env.NEPPO_WEB_AUTHORIZATION && !env.NEPPO_WEB_COOKIE) {
+    return pdfProxyRequired();
+  }
+
+  const headers = new Headers();
+  if (env.NEPPO_WEB_AUTHORIZATION) headers.set('Authorization', env.NEPPO_WEB_AUTHORIZATION);
+  if (env.NEPPO_WEB_COOKIE) headers.set('Cookie', env.NEPPO_WEB_COOKIE);
+  headers.set('Accept', 'application/pdf');
+
+  const neppoResponse = await fetch(
+    `https://multsoft.neppo.com.br/chat/api/reports/downloadIssuePDF/${protocol}`,
+    {
+      method: 'POST',
+      headers,
+    },
+  );
+
+  if (!neppoResponse.ok) {
+    return new Response(`Não consegui baixar o PDF no NEPPO. Status ${neppoResponse.status}.`, {
+      status: neppoResponse.status,
+      headers: {
+        'Content-Type': 'text/plain; charset=UTF-8',
+        'Cache-Control': 'no-store',
+      },
+    });
+  }
+
+  const responseHeaders = new Headers();
+  responseHeaders.set('Content-Type', 'application/pdf');
+  responseHeaders.set('Cache-Control', 'private, no-store');
+  responseHeaders.set('Content-Disposition', `inline; filename="Issue_${protocol}.pdf"`);
+
+  return new Response(neppoResponse.body, {
+    status: 200,
+    headers: responseHeaders,
+  });
+}
+
 export default {
   async fetch(request, env) {
     if (!env.AUTH_USER || !env.AUTH_PASSWORD) {
@@ -156,6 +222,11 @@ export default {
     }
 
     const url = new URL(request.url);
+    if (url.pathname.startsWith('/pdf/')) {
+      const protocol = decodeURIComponent(url.pathname.replace('/pdf/', '')).trim();
+      return fetchIssuePdf(protocol, env);
+    }
+
     if (url.pathname.endsWith('/cliente-map-privado.js')) {
       const script = await decryptPrivateMap(request, env);
       return new Response(script, {

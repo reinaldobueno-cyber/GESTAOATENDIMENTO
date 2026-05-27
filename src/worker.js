@@ -146,53 +146,57 @@ async function derivePrivateMapKeys(password, salt, iterations) {
 }
 
 async function decryptPrivateMap(request, env) {
-  const assetUrl = new URL('/private-client-map.enc.json', request.url);
-  const asset = await env.ASSETS.fetch(new Request(assetUrl, request));
-  if (!asset.ok) {
-    return 'window.CLIENTE_PRIVADO = {}; window.CLIENTE_PRIVADO_STATUS = "arquivo_privado_nao_encontrado";';
-  }
-
-  const pack = await asset.json();
-  const salt = fromBase64(pack.salt);
-  const iv = fromBase64(pack.iv);
-  const data = fromBase64(pack.data);
-  const mac = fromBase64(pack.mac);
-  const iterations = Number(pack.iterations || 150000);
-  const passwords = [
-    env.PRIVATE_MAP_PASSWORD,
-    env.AUTH_PASSWORD,
-    env.APP_PASSWORD,
-    ...parseAppUsers(env).map((item) => item.password),
-  ].filter(Boolean);
-
-  const availableSources = [
-    env.PRIVATE_MAP_PASSWORD ? 'PRIVATE_MAP_PASSWORD' : '',
-    env.AUTH_PASSWORD ? 'AUTH_PASSWORD' : '',
-    env.APP_PASSWORD ? 'APP_PASSWORD' : '',
-    parseAppUsers(env).length ? 'APP_USERS' : '',
-  ].filter(Boolean);
-
-  for (const password of [...new Set(passwords.map(String))]) {
-    const keys = await derivePrivateMapKeys(password, salt, iterations);
-    const macKey = await crypto.subtle.importKey(
-      'raw',
-      keys.mac,
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign'],
-    );
-    const expectedMac = new Uint8Array(
-      await crypto.subtle.sign('HMAC', macKey, concatBytes(salt, iv, data)),
-    );
-
-    if (bytesEqual(mac, expectedMac)) {
-      const aesKey = await crypto.subtle.importKey('raw', keys.aes, 'AES-CBC', false, ['decrypt']);
-      const plain = await crypto.subtle.decrypt({ name: 'AES-CBC', iv }, aesKey, data);
-      return `${new TextDecoder().decode(plain)}\nwindow.CLIENTE_PRIVADO_STATUS = "ok"; window.CLIENTE_PRIVADO_STATUS_DETAIL = "mapa_aberto";`;
+  try {
+    const assetUrl = new URL('/private-client-map.enc.json', request.url);
+    const asset = await env.ASSETS.fetch(new Request(assetUrl, request));
+    if (!asset.ok) {
+      return 'window.CLIENTE_PRIVADO = {}; window.CLIENTE_PRIVADO_STATUS = "arquivo_privado_nao_encontrado";';
     }
-  }
 
-  return `window.CLIENTE_PRIVADO = {}; window.CLIENTE_PRIVADO_STATUS = "senha_incorreta_para_mapa_privado"; window.CLIENTE_PRIVADO_STATUS_DETAIL = ${JSON.stringify(`fontes_testadas:${availableSources.join(',') || 'nenhuma'}; senhas_testadas:${passwords.length}`)}; console.warn("Mapa privado de clientes não pôde ser aberto.", window.CLIENTE_PRIVADO_STATUS_DETAIL);`;
+    const pack = await asset.json();
+    const salt = fromBase64(pack.salt);
+    const iv = fromBase64(pack.iv);
+    const data = fromBase64(pack.data);
+    const mac = fromBase64(pack.mac);
+    const iterations = Number(pack.iterations || 150000);
+    const passwords = [
+      env.PRIVATE_MAP_PASSWORD,
+      env.AUTH_PASSWORD,
+      env.APP_PASSWORD,
+      ...parseAppUsers(env).map((item) => item.password),
+    ].filter(Boolean);
+
+    const availableSources = [
+      env.PRIVATE_MAP_PASSWORD ? 'PRIVATE_MAP_PASSWORD' : '',
+      env.AUTH_PASSWORD ? 'AUTH_PASSWORD' : '',
+      env.APP_PASSWORD ? 'APP_PASSWORD' : '',
+      parseAppUsers(env).length ? 'APP_USERS' : '',
+    ].filter(Boolean);
+
+    for (const password of [...new Set(passwords.map(String))]) {
+      const keys = await derivePrivateMapKeys(password, salt, iterations);
+      const macKey = await crypto.subtle.importKey(
+        'raw',
+        keys.mac,
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign'],
+      );
+      const expectedMac = new Uint8Array(
+        await crypto.subtle.sign('HMAC', macKey, concatBytes(salt, iv, data)),
+      );
+
+      if (bytesEqual(mac, expectedMac)) {
+        const aesKey = await crypto.subtle.importKey('raw', keys.aes, 'AES-CBC', false, ['decrypt']);
+        const plain = await crypto.subtle.decrypt({ name: 'AES-CBC', iv }, aesKey, data);
+        return `${new TextDecoder().decode(plain)}\nwindow.CLIENTE_PRIVADO_STATUS = "ok"; window.CLIENTE_PRIVADO_STATUS_DETAIL = "mapa_aberto";`;
+      }
+    }
+
+    return `window.CLIENTE_PRIVADO = {}; window.CLIENTE_PRIVADO_STATUS = "senha_incorreta_para_mapa_privado"; window.CLIENTE_PRIVADO_STATUS_DETAIL = ${JSON.stringify(`fontes_testadas:${availableSources.join(',') || 'nenhuma'}; senhas_testadas:${passwords.length}`)}; console.warn("Mapa privado de clientes não pôde ser aberto.", window.CLIENTE_PRIVADO_STATUS_DETAIL);`;
+  } catch (error) {
+    return `window.CLIENTE_PRIVADO = {}; window.CLIENTE_PRIVADO_STATUS = "erro_ao_abrir_mapa_privado"; window.CLIENTE_PRIVADO_STATUS_DETAIL = ${JSON.stringify(String(error?.message || error || 'erro desconhecido'))}; console.warn("Erro ao abrir mapa privado.", window.CLIENTE_PRIVADO_STATUS_DETAIL);`;
+  }
 }
 
 function reportErrorPage(title, message, detail = '') {

@@ -393,6 +393,68 @@ function neppoCookieErrorResult(auth) {
   };
 }
 
+async function fetchNeppoIssueHistory(sessionId, cookie) {
+  const messages = [];
+  const seen = new Set();
+  let last = '';
+
+  for (let page = 0; page < 12; page += 1) {
+    const params = new URLSearchParams({ id: String(sessionId), size: '500' });
+    if (last) params.set('last', last);
+
+    const response = await fetch(
+      `https://multsoft.neppo.com.br/chat/api/sessions/issue/history?${params.toString()}`,
+      {
+        headers: {
+          Accept: 'application/json, text/plain, */*',
+          Cookie: cookie,
+          Referer: 'https://multsoft.neppo.com.br/chat/',
+        },
+      },
+    );
+
+    const text = await response.text();
+    if (!response.ok) {
+      return {
+        ok: false,
+        status: response.status,
+        detail: text.slice(0, 500),
+      };
+    }
+
+    let batch = [];
+    try {
+      batch = JSON.parse(text);
+    } catch {
+      return { ok: true, messages, text };
+    }
+
+    if (!Array.isArray(batch) || !batch.length) break;
+
+    let added = 0;
+    for (const message of batch) {
+      const key = [
+        message.id || '',
+        message.sessionId || '',
+        message.createdAt || '',
+        message.action || '',
+        message.message || '',
+      ].join('|');
+      if (seen.has(key)) continue;
+      seen.add(key);
+      messages.push(message);
+      added += 1;
+    }
+
+    const nextLast = batch[batch.length - 1]?.createdAt;
+    const hasMore = batch.some((message) => message?.lastChatMessage === true);
+    if (!hasMore || !nextLast || String(nextLast) === String(last) || added === 0) break;
+    last = String(nextLast);
+  }
+
+  return { ok: true, messages };
+}
+
 async function fetchAttendanceHistory(protocol, env) {
   const result = await getAttendanceHistoryData(protocol, env);
   return jsonResponse(result.body, result.status);
@@ -408,35 +470,29 @@ async function getAttendanceHistoryData(protocol, env) {
   if (!auth.ok) return neppoCookieErrorResult(auth);
 
   const sessionId = match[1];
-  const response = await fetch(
-    `https://multsoft.neppo.com.br/chat/api/sessions/issue/history?id=${encodeURIComponent(sessionId)}&size=500`,
-    {
-      headers: {
-        Accept: 'application/json, text/plain, */*',
-        Cookie: auth.cookie,
-        Referer: 'https://multsoft.neppo.com.br/chat/',
-      },
-    },
-  );
-
-  const text = await response.text();
-  if (!response.ok) {
+  const history = await fetchNeppoIssueHistory(sessionId, auth.cookie);
+  if (!history.ok) {
     return {
       status: 502,
       body: {
         ok: false,
-        status: response.status,
-        message: `NEPPO retornou ${response.status} ao buscar a conversa.`,
-        detail: text.slice(0, 500),
+        status: history.status,
+        message: `NEPPO retornou ${history.status} ao buscar a conversa.`,
+        detail: history.detail || '',
       },
     };
   }
 
-  try {
-    return { status: 200, body: { ok: true, protocol, sessionId, messages: JSON.parse(text) } };
-  } catch {
-    return { status: 200, body: { ok: true, protocol, sessionId, text } };
-  }
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      protocol,
+      sessionId,
+      messages: history.messages || [],
+      text: history.text || '',
+    },
+  };
 }
 
 async function getAttendanceHistoryBundle(protocol, env) {

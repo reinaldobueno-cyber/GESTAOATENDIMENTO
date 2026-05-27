@@ -42,9 +42,10 @@ if (!(Test-Path -LiteralPath $sourcePath)) {
 }
 
 Write-Host ''
-Write-Host 'Digite a mesma senha configurada em AUTH_PASSWORD na Cloudflare.'
+Write-Host 'Digite a mesma senha configurada em PRIVATE_MAP_PASSWORD na Cloudflare.'
 Write-Host 'Ela será usada só para criptografar o mapa privado localmente.'
-$securePassword = Read-Host 'AUTH_PASSWORD' -AsSecureString
+Write-Host 'Importante: essa senha deve ser fixa e não precisa ser a senha de login dos usuários.'
+$securePassword = Read-Host 'PRIVATE_MAP_PASSWORD' -AsSecureString
 if ($securePassword.Length -eq 0) { throw 'Senha vazia. Operação cancelada.' }
 $password = [System.Net.NetworkCredential]::new('', $securePassword).Password
 

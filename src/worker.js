@@ -320,34 +320,77 @@ function cookieHeaderFrom(response) {
 }
 
 async function getNeppoWebCookie(env) {
-  if (env.NEPPO_WEB_COOKIE) return env.NEPPO_WEB_COOKIE;
+  if (env.NEPPO_WEB_COOKIE) return { ok: true, cookie: env.NEPPO_WEB_COOKIE, source: 'cookie' };
 
   const username = env.NEPPO_WEB_USERNAME || env.NEPPO_USERNAME;
   const password = env.NEPPO_WEB_PASSWORD || env.NEPPO_PASSWORD;
-  if (!username || !password) return '';
-
-  const body = new URLSearchParams();
-  body.set('username', username);
-  body.set('password', toBase64Utf8(password));
-  body.set('verificationToken', '');
-
-  const response = await fetch('https://multsoft.neppo.com.br/chat/login', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      Accept: 'application/json, text/plain, */*',
-      Origin: 'https://multsoft.neppo.com.br',
-      Referer: 'https://multsoft.neppo.com.br/chat/',
-    },
-    body,
-    redirect: 'manual',
-  });
-
-  if (!response.ok && response.status !== 302) {
-    return '';
+  if (!username || !password) {
+    return {
+      ok: false,
+      reason: 'missing',
+      message: 'O Worker publicado não recebeu NEPPO_WEB_USERNAME e NEPPO_WEB_PASSWORD.',
+    };
   }
 
-  return cookieHeaderFrom(response);
+  const attempts = [
+    { password: toBase64Utf8(password), verificationToken: '' },
+    { password: toBase64Utf8(password), verificationToken: 'null' },
+    { password, verificationToken: '' },
+    { password, verificationToken: 'null' },
+  ];
+
+  let lastStatus = 0;
+  let lastDetail = '';
+
+  for (const attempt of attempts) {
+    const body = new URLSearchParams();
+    body.set('username', username);
+    body.set('password', attempt.password);
+    body.set('verificationToken', attempt.verificationToken);
+
+    const response = await fetch('https://multsoft.neppo.com.br/chat/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Accept: 'application/json, text/plain, */*',
+        Origin: 'https://multsoft.neppo.com.br',
+        Referer: 'https://multsoft.neppo.com.br/chat/',
+      },
+      body,
+      redirect: 'manual',
+    });
+
+    const cookie = cookieHeaderFrom(response);
+    if ((response.ok || response.status === 302) && cookie) {
+      return { ok: true, cookie, source: 'login' };
+    }
+
+    lastStatus = response.status;
+    lastDetail = (await response.text().catch(() => '')).slice(0, 300);
+  }
+
+  return {
+    ok: false,
+    reason: 'login_failed',
+    status: lastStatus,
+    detail: lastDetail,
+    message:
+      lastStatus === 401
+        ? 'O Worker recebeu NEPPO_WEB_USERNAME e NEPPO_WEB_PASSWORD, mas o NEPPO recusou esse login. Confira se é a senha do login web do NEPPO e redeploye o Worker.'
+        : `O Worker recebeu as variáveis do NEPPO, mas não conseguiu criar sessão web. Status ${lastStatus || 'desconhecido'}.`,
+  };
+}
+
+function neppoCookieErrorResult(auth) {
+  return {
+    status: auth.reason === 'missing' ? 424 : 502,
+    body: {
+      ok: false,
+      status: auth.status || null,
+      message: auth.message || 'Não consegui autenticar no NEPPO.',
+      detail: auth.detail || '',
+    },
+  };
 }
 
 async function fetchAttendanceHistory(protocol, env) {
@@ -361,17 +404,8 @@ async function getAttendanceHistoryData(protocol, env) {
     return { status: 400, body: { ok: false, message: 'Protocolo inválido.' } };
   }
 
-  const cookie = await getNeppoWebCookie(env);
-  if (!cookie) {
-    return {
-      status: 424,
-      body: {
-        ok: false,
-        message:
-          'Conversa não configurada: salve NEPPO_WEB_USERNAME e NEPPO_WEB_PASSWORD no Worker, ou NEPPO_WEB_COOKIE como alternativa.',
-      },
-    };
-  }
+  const auth = await getNeppoWebCookie(env);
+  if (!auth.ok) return neppoCookieErrorResult(auth);
 
   const sessionId = match[1];
   const response = await fetch(
@@ -379,7 +413,7 @@ async function getAttendanceHistoryData(protocol, env) {
     {
       headers: {
         Accept: 'application/json, text/plain, */*',
-        Cookie: cookie,
+        Cookie: auth.cookie,
         Referer: 'https://multsoft.neppo.com.br/chat/',
       },
     },

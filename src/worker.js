@@ -147,92 +147,6 @@ function isAuthorized(request, env) {
   );
 }
 
-function pdfAuthRequired() {
-  return new Response(
-    'PDF pendente: configure NEPPO_CLIENT_KEY, NEPPO_CLIENT_SECRET, NEPPO_USERNAME e NEPPO_PASSWORD no Worker.',
-    {
-      status: 503,
-      headers: {
-        'Content-Type': 'text/plain; charset=UTF-8',
-        'Cache-Control': 'no-store',
-      },
-    },
-  );
-}
-
-async function getNeppoAccessToken(env) {
-  if (!env.NEPPO_CLIENT_KEY || !env.NEPPO_CLIENT_SECRET || !env.NEPPO_USERNAME || !env.NEPPO_PASSWORD) {
-    return null;
-  }
-
-  const basic = btoa(`${env.NEPPO_CLIENT_KEY}:${env.NEPPO_CLIENT_SECRET}`);
-  const body = new URLSearchParams();
-  body.set('grant_type', 'password');
-  body.set('username', env.NEPPO_USERNAME);
-  body.set('password', env.NEPPO_PASSWORD);
-
-  const response = await fetch('https://api-auth.neppo.com.br/oauth2/token', {
-    method: 'POST',
-    headers: {
-      Authorization: `Basic ${basic}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body,
-  });
-
-  if (!response.ok) {
-    throw new Error(`auth ${response.status}`);
-  }
-
-  const data = await response.json();
-  return data.access_token || null;
-}
-
-async function fetchIssuePdf(protocol, env) {
-  if (!/^WA\d{8,}$/.test(protocol)) {
-    return new Response('Protocolo inválido.', {
-      status: 400,
-      headers: { 'Content-Type': 'text/plain; charset=UTF-8', 'Cache-Control': 'no-store' },
-    });
-  }
-
-  const token = await getNeppoAccessToken(env);
-  if (!token) return pdfAuthRequired();
-
-  const headers = new Headers();
-  headers.set('Authorization', `Bearer ${token}`);
-  headers.set('Accept', 'application/json, text/plain, */*');
-  headers.set('Content-Type', 'application/json;charset=UTF-8');
-  headers.set('Origin', 'https://multsoft.neppo.com.br');
-  headers.set('Referer', 'https://multsoft.neppo.com.br/');
-  headers.set('X-Requested-With', 'XMLHttpRequest');
-
-  const neppoResponse = await fetch(
-    `https://multsoft.neppo.com.br/chat/api/reports/downloadIssuePDF/${protocol}`,
-    {
-      method: 'POST',
-      headers,
-      body: 'null',
-    },
-  );
-
-  if (!neppoResponse.ok) {
-    return new Response(`Não consegui baixar o PDF no NEPPO. Status ${neppoResponse.status}.`, {
-      status: neppoResponse.status,
-      headers: {
-        'Content-Type': 'text/plain; charset=UTF-8',
-        'Cache-Control': 'no-store',
-      },
-    });
-  }
-
-  const responseHeaders = new Headers();
-  responseHeaders.set('Content-Type', 'application/pdf');
-  responseHeaders.set('Cache-Control', 'private, no-store');
-  responseHeaders.set('Content-Disposition', `inline; filename="Issue_${protocol}.pdf"`);
-  return new Response(neppoResponse.body, { status: 200, headers: responseHeaders });
-}
-
 export default {
   async fetch(request, env) {
     if (!(env.APP_USER || env.AUTH_USER) || !(env.APP_PASSWORD || env.AUTH_PASSWORD)) {
@@ -244,11 +158,6 @@ export default {
     }
 
     const url = new URL(request.url);
-    if (url.pathname.startsWith('/pdf/')) {
-      const protocol = decodeURIComponent(url.pathname.replace('/pdf/', '')).trim();
-      return fetchIssuePdf(protocol, env);
-    }
-
     if (url.pathname.endsWith('/cliente-map-privado.js')) {
       const script = await decryptPrivateMap(request, env);
       return new Response(script, {

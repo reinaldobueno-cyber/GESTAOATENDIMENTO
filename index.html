@@ -248819,6 +248819,7 @@ async function openNeppoPdf(protocol){
     opened.document.write(writeReport(fallback));
     opened.document.close();
   }
+}
 function attendanceText(r){return r?.[26]||r?.texto||r?.transcricao||'';}
 function copyProtocol(protocol){
   if(!protocol)return;

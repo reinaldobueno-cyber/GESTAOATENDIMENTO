@@ -267,6 +267,7 @@ function messageSender(message) {
   if (upper.includes('AGENT')) return 'ATENDENTE';
   if (upper.includes('BOT')) return 'BOT';
   if (upper.includes('SYSTEM')) return 'SISTEMA';
+  if (upper === 'NONE' || upper === 'TRANSFER' || upper === 'QUEUE') return 'SISTEMA';
   return String(raw);
 }
 
@@ -286,6 +287,15 @@ function renderConversation(payload) {
       return `<div class="msg"><div class="msg-head">${escapeHtml(messageSender(message))}${when ? ` · ${escapeHtml(when)}` : ''}</div><div class="msg-body">${escapeHtml(body)}</div></div>`;
     })
     .join('')}</div>`;
+}
+
+function extractLinkedProtocols(payload, currentProtocol) {
+  const text = JSON.stringify(payload || {});
+  const current = String(currentProtocol || '').toUpperCase();
+  return [...new Set(text.match(/WA\d{8,}/gi) || [])]
+    .map((protocol) => protocol.toUpperCase())
+    .filter((protocol) => protocol !== current)
+    .slice(0, 5);
 }
 
 function cookieHeaderFrom(response) {
@@ -395,6 +405,35 @@ async function getAttendanceHistoryData(protocol, env) {
   }
 }
 
+async function getAttendanceHistoryBundle(protocol, env) {
+  const primary = await getAttendanceHistoryData(protocol, env);
+  const histories = [{ protocol, history: primary }];
+  if (!primary.body?.ok) return histories;
+
+  const linkedProtocols = extractLinkedProtocols(primary.body, protocol);
+  for (const linkedProtocol of linkedProtocols) {
+    const linkedHistory = await getAttendanceHistoryData(linkedProtocol, env);
+    histories.push({ protocol: linkedProtocol, history: linkedHistory });
+  }
+
+  return histories;
+}
+
+function renderConversationBundle(histories) {
+  return histories
+    .map(({ protocol, history }, index) => {
+      const heading =
+        histories.length > 1
+          ? `<h3>${index === 0 ? 'Protocolo inicial' : 'Protocolo transferido'}: ${escapeHtml(protocol)}</h3>`
+          : '';
+      if (!history.body?.ok) {
+        return `${heading}<pre>${escapeHtml(history.body?.message || 'Não consegui buscar esta parte da conversa no NEPPO.')}${history.body?.detail ? `\n\n${escapeHtml(history.body.detail)}` : ''}</pre>`;
+      }
+      return `${heading}${renderConversation(history.body)}`;
+    })
+    .join('');
+}
+
 async function renderPdfReport(request, env, protocol) {
   const url = new URL(request.url);
   let payload = null;
@@ -407,10 +446,8 @@ async function renderPdfReport(request, env, protocol) {
   const row = Array.isArray(payload?.row) ? payload.row : [];
   const code = payload?.code || row[18] || '';
   const clientName = payload?.clientName || row[19] || row[12] || code || 'Cliente não informado';
-  const history = await getAttendanceHistoryData(protocol, env);
-  const conversationHtml = history.body?.ok
-    ? renderConversation(history.body)
-    : `<pre>${escapeHtml(history.body?.message || 'Não consegui buscar a conversa no NEPPO.')}${history.body?.detail ? `\n\n${escapeHtml(history.body.detail)}` : ''}</pre>`;
+  const histories = await getAttendanceHistoryBundle(protocol, env);
+  const conversationHtml = renderConversationBundle(histories);
 
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>Atendimento ${escapeHtml(protocol)}</title>${reportStyle()}</head><body>
     <button onclick="window.print()">Salvar / imprimir PDF</button>

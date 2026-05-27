@@ -1,6 +1,6 @@
 function setupRequired() {
   return new Response(
-    'Proteção pendente: configure APP_USER e APP_PASSWORD nas variáveis do Worker na Cloudflare.',
+    'Proteção pendente: configure APP_USERS ou APP_USER e APP_PASSWORD nas variáveis do Worker na Cloudflare.',
     {
       status: 503,
       headers: {
@@ -722,6 +722,61 @@ function parseCookies(request) {
   return cookies;
 }
 
+function appSessionSecret(env) {
+  return env.APP_SESSION_SECRET || env.APP_PASSWORD || env.AUTH_PASSWORD || env.APP_USERS || env.AUTH_USERS || '';
+}
+
+function parseAppUsers(env) {
+  const users = [];
+  const source = env.APP_USERS || env.AUTH_USERS || '';
+
+  if (source.trim()) {
+    try {
+      const parsed = JSON.parse(source);
+      if (Array.isArray(parsed)) {
+        for (const item of parsed) {
+          if (item?.user && item?.password) {
+            users.push({ user: String(item.user), password: String(item.password) });
+          }
+        }
+      } else if (parsed && typeof parsed === 'object') {
+        for (const [user, password] of Object.entries(parsed)) {
+          users.push({ user: String(user), password: String(password) });
+        }
+      }
+    } catch {
+      for (const line of source.split(/\r?\n|;/)) {
+        const clean = line.trim();
+        if (!clean || clean.startsWith('#')) continue;
+        const separator = clean.includes('=') ? clean.indexOf('=') : clean.indexOf(':');
+        if (separator < 0) continue;
+        users.push({
+          user: clean.slice(0, separator).trim(),
+          password: clean.slice(separator + 1).trim(),
+        });
+      }
+    }
+  }
+
+  if ((env.APP_USER || env.AUTH_USER) && (env.APP_PASSWORD || env.AUTH_PASSWORD)) {
+    users.push({
+      user: String(env.APP_USER || env.AUTH_USER),
+      password: String(env.APP_PASSWORD || env.AUTH_PASSWORD),
+    });
+  }
+
+  return users.filter((item) => item.user && item.password);
+}
+
+function findAppUser(env, user, password = null) {
+  const wantedUser = String(user || '').trim();
+  for (const item of parseAppUsers(env)) {
+    if (!timingSafeEqual(wantedUser, String(item.user).trim())) continue;
+    if (password === null || timingSafeEqual(String(password), String(item.password))) return item;
+  }
+  return null;
+}
+
 async function signText(value, secret) {
   const key = await crypto.subtle.importKey(
     'raw',
@@ -737,7 +792,7 @@ async function signText(value, secret) {
 async function createSessionCookie(user, env) {
   const expires = Date.now() + 12 * 60 * 60 * 1000;
   const payload = toBase64UrlUtf8(JSON.stringify({ user, expires }));
-  const signature = await signText(payload, env.APP_PASSWORD || env.AUTH_PASSWORD);
+  const signature = await signText(payload, appSessionSecret(env));
   return `gestao_session=${payload}.${signature}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=43200`;
 }
 
@@ -748,14 +803,13 @@ async function hasValidSession(request, env) {
 
   const payload = token.slice(0, separator);
   const signature = token.slice(separator + 1);
-  const expected = await signText(payload, env.APP_PASSWORD || env.AUTH_PASSWORD);
+  const expected = await signText(payload, appSessionSecret(env));
   if (!timingSafeEqual(signature, expected)) return false;
 
   try {
     const session = JSON.parse(fromBase64UrlUtf8(payload));
-    const expectedUser = env.APP_USER || env.AUTH_USER || '';
     return (
-      timingSafeEqual(String(session.user || '').trim(), String(expectedUser).trim()) &&
+      Boolean(findAppUser(env, session.user)) &&
       Number(session.expires || 0) > Date.now()
     );
   } catch {
@@ -820,18 +874,14 @@ async function handleLogin(request, env) {
 
   const user = String(form.get('user') || '');
   const password = String(form.get('password') || '');
-  const expectedUser = env.APP_USER || env.AUTH_USER || '';
-  const expectedPassword = env.APP_PASSWORD || env.AUTH_PASSWORD || '';
+  const matched = findAppUser(env, user, password);
 
-  if (
-    !timingSafeEqual(user.trim(), String(expectedUser).trim()) ||
-    !timingSafeEqual(password, String(expectedPassword))
-  ) {
+  if (!matched) {
     return loginPage('Usuário ou senha inválidos.');
   }
 
   return redirectTo('/', {
-    'Set-Cookie': await createSessionCookie(expectedUser, env),
+    'Set-Cookie': await createSessionCookie(matched.user, env),
   });
 }
 
@@ -853,18 +903,13 @@ async function isAuthorized(request, env) {
 
   const user = decoded.slice(0, separator);
   const password = decoded.slice(separator + 1);
-  const expectedUser = env.APP_USER || env.AUTH_USER || '';
-  const expectedPassword = env.APP_PASSWORD || env.AUTH_PASSWORD || '';
 
-  return (
-    timingSafeEqual(user.trim(), String(expectedUser).trim()) &&
-    timingSafeEqual(password, String(expectedPassword))
-  );
+  return Boolean(findAppUser(env, user, password));
 }
 
 export default {
   async fetch(request, env) {
-    if (!(env.APP_USER || env.AUTH_USER) || !(env.APP_PASSWORD || env.AUTH_PASSWORD)) {
+    if (!parseAppUsers(env).length) {
       return setupRequired();
     }
 

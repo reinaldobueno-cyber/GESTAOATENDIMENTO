@@ -247720,6 +247720,7 @@ const shortName=n=>n.split(' ')[0];
 const pct1=v=>(v*100).toFixed(1).replace('.',',')+'%';
 const avgArr=arr=>arr.length?arr.reduce((s,v)=>s+v,0)/arr.length:null;
 const fmtDur=sec=>{if(sec==null)return'—';const s=Math.round(sec),h=Math.floor(s/3600),m=Math.floor((s%3600)/60),r=s%60;return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(r).padStart(2,'0')}`;};
+const fmtCsat=v=>v!=null?fS(v):'SEM AVALIAÇÃO';
 const csatScale=vals=>{const clean=(vals||[]).filter(v=>typeof v==='number'&&v>0);const lo=clean.length?Math.min(...clean):9.5,hi=clean.length?Math.max(...clean):10;return {...cDef.scales.y,min:Math.max(0,Math.floor((lo-.08)*20)/20),max:Math.min(10.05,Math.ceil((hi+.08)*20)/20),ticks:{...cDef.scales.y.ticks,callback:v=>Number(v).toFixed(2).replace('.',',')}};};
 const monthMaxDay=m=>Math.max(...Object.keys(D.daily[m]||{}).map(Number));
 const monthIsPartial=m=>monthMaxDay(m)<new Date(2026,m,0).getDate();
@@ -248449,7 +248450,7 @@ function showAttendanceDetail(code,protocol){
         <div class="attendance-detail-k"><b>Encerramento</b><span>${esc(r[11]||'—')}</span></div>
         <div class="attendance-detail-k"><b>TMA</b><span>${fmtDur(r[4]||0)}</span></div>
         <div class="attendance-detail-k"><b>TME</b><span>${fmtDur(r[5]||0)}</span></div>
-        <div class="attendance-detail-k"><b>CSAT</b><span>${r[6]!=null?fS(r[6]):'—'}</span></div>
+        <div class="attendance-detail-k"><b>CSAT</b><span>${fmtCsat(r[6])}</span></div>
         <div class="attendance-detail-k"><b>Session ID</b><span>${esc(r[16]||'—')}</span></div>
       </div>
       <div class="rel-actions" style="justify-content:flex-start;margin-top:.65rem;">
@@ -248485,7 +248486,7 @@ function renderClientPopup(code,month=appM+1,group=''){
     ${group?`<div class="click-note"><button class="rel-client" onclick="renderClientPopup(clientPopupState.code,${month},'')">Limpar filtro de grupo</button></div>`:''}
     <div id="client-att-detail"></div>
     <div class="rel-list" style="margin-top:.8rem;">
-      ${filtered.slice(0,160).map(r=>`<div class="rel-item"><div class="rel-main"><b>${esc(r[7]||'sem protocolo')}</b><br>${String(r[1]).padStart(2,'0')}/${String(r[0]).padStart(2,'0')} · ${esc(r[2])} · ${esc(r[3])}<br><span style="color:var(--ghost)">Início ${esc(r[10]||'')}</span></div><div class="rel-actions"><button class="rel-action" onclick="showAttendanceDetail('${esc(code)}','${esc(r[7]||'')}')">Ler</button><button class="rel-action ${attendancePdfUrl(r)?'':'disabled'}" onclick="${attendancePdfUrl(r)?`window.open('${esc(attendancePdfUrl(r))}','_blank')`:''}">PDF</button><span class="rel-tag">TMA ${fmtDur(r[4])}</span><span class="rel-tag">TME ${fmtDur(r[5])}</span><span class="rel-tag">CSAT ${r[6]!=null?fS(r[6]):'—'}</span></div></div>`).join('')}
+      ${filtered.slice(0,160).map(r=>`<div class="rel-item"><div class="rel-main"><b>${esc(r[7]||'sem protocolo')}</b><br>${String(r[1]).padStart(2,'0')}/${String(r[0]).padStart(2,'0')} · ${esc(r[2])} · ${esc(r[3])}<br><span style="color:var(--ghost)">Início ${esc(r[10]||'')}</span></div><div class="rel-actions"><button class="rel-action" onclick="showAttendanceDetail('${esc(code)}','${esc(r[7]||'')}')">Ler</button><button class="rel-action ${attendancePdfUrl(r)?'':'disabled'}" onclick="${attendancePdfUrl(r)?`window.open('${esc(attendancePdfUrl(r))}','_blank')`:''}">PDF</button><span class="rel-tag">TMA ${fmtDur(r[4])}</span><span class="rel-tag">TME ${fmtDur(r[5])}</span><span class="rel-tag">CSAT ${fmtCsat(r[6])}</span></div></div>`).join('')}
     </div>
     ${!filtered.length?`<div class="op-empty">Nenhum atendimento neste recorte.</div>`:''}
     ${filtered.length>160?`<div class="click-note">Exibindo 160 de ${fN(filtered.length)} atendimentos.</div>`:''}
@@ -248511,7 +248512,7 @@ function showTempoPopup(title,subtitle,rows){
     </div>
     ${byAgent.length?`<div class="click-note">Agentes nesta relação: ${byAgent.map(([a,v])=>`${a} (${v})`).join(' · ')}</div>`:''}
     <div class="rel-list" style="margin-top:.8rem;">
-      ${rows.slice(0,160).map(r=>`<div class="rel-item"><div class="rel-main"><b>${r[2]}</b><br>${String(r[1]).padStart(2,'0')}/${String(r[0]).padStart(2,'0')} · ${r[3]} · ${r[7]||'sem protocolo'}<br>${clientButton(r)}${r[11]?`<br><span style="color:var(--ghost)">Encerrado em ${r[11]}</span>`:''}</div><div class="rel-tags"><span class="rel-tag">TMA ${fmtDur(r[4])}</span><span class="rel-tag">TME ${fmtDur(r[5])}</span><span class="rel-tag">CSAT ${r[6]!=null?fS(r[6]):'—'}</span></div></div>`).join('')}
+      ${rows.slice(0,160).map(r=>`<div class="rel-item"><div class="rel-main"><b>${r[2]}</b><br>${String(r[1]).padStart(2,'0')}/${String(r[0]).padStart(2,'0')} · ${r[3]} · ${r[7]||'sem protocolo'}<br>${clientButton(r)}${r[11]?`<br><span style="color:var(--ghost)">Encerrado em ${r[11]}</span>`:''}</div><div class="rel-tags"><span class="rel-tag">TMA ${fmtDur(r[4])}</span><span class="rel-tag">TME ${fmtDur(r[5])}</span><span class="rel-tag">CSAT ${fmtCsat(r[6])}</span></div></div>`).join('')}
     </div>
     ${rows.length>160?`<div class="click-note">Exibindo 160 de ${fN(rows.length)} atendimentos.</div>`:''}
   `;

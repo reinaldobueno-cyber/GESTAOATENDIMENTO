@@ -64,6 +64,20 @@ function toBase64Utf8(value) {
   return btoa(binary);
 }
 
+function toBase64UrlUtf8(value) {
+  return toBase64Utf8(value).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function fromBase64UrlUtf8(value) {
+  if (!value) return '';
+  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+
 function fromBase64UrlJson(value) {
   if (!value) return null;
   const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
@@ -318,12 +332,18 @@ function messageMediaUrl(message) {
   return '';
 }
 
+function mediaProxyUrl(url) {
+  return `/media?u=${toBase64UrlUtf8(url)}`;
+}
+
 function renderMessageBody(message) {
   const body = messageBody(message);
   const mediaUrl = messageMediaUrl(message);
   const contentType = String(message.contentType || message.mimeType || message.type || '').toUpperCase();
   if (mediaUrl && isImageMessage(message, mediaUrl)) {
-    return `<div class="msg-body">${body ? `${escapeHtml(body)}<br>` : ''}<img class="msg-img" src="${escapeHtml(mediaUrl)}" alt="Imagem do atendimento"><br><a href="${escapeHtml(mediaUrl)}" target="_blank" rel="noopener">Abrir imagem</a></div>`;
+    const visibleBody = body && body !== mediaUrl ? body : '';
+    const proxiedUrl = mediaProxyUrl(mediaUrl);
+    return `<div class="msg-body">${visibleBody ? `${escapeHtml(visibleBody)}<br>` : ''}<img class="msg-img" src="${escapeHtml(proxiedUrl)}" alt="Imagem do atendimento"><br><a href="${escapeHtml(mediaUrl)}" target="_blank" rel="noopener">Abrir imagem</a></div>`;
   }
   if (mediaUrl) {
     const label = contentType.includes('AUDIO')
@@ -627,6 +647,63 @@ async function renderPdfReport(request, env, protocol) {
   });
 }
 
+async function fetchMediaProxy(request, env) {
+  const url = new URL(request.url);
+  let target = '';
+  try {
+    target = fromBase64UrlUtf8(url.searchParams.get('u'));
+  } catch {
+    return new Response('Imagem inválida.', { status: 400 });
+  }
+
+  let mediaUrl = null;
+  try {
+    mediaUrl = new URL(target);
+  } catch {
+    return new Response('Imagem inválida.', { status: 400 });
+  }
+
+  if (mediaUrl.protocol !== 'https:' || !/(\.|^)neppo\.com\.br$/i.test(mediaUrl.hostname)) {
+    return new Response('Imagem fora do NEPPO não permitida.', { status: 403 });
+  }
+
+  const headers = {
+    Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+    Referer: 'https://multsoft.neppo.com.br/',
+  };
+
+  let response = await fetch(mediaUrl.toString(), { headers });
+  if (!response.ok && (env.NEPPO_WEB_COOKIE || env.NEPPO_WEB_USERNAME || env.NEPPO_USERNAME)) {
+    const auth = await getNeppoWebCookie(env);
+    if (auth.ok) {
+      response = await fetch(mediaUrl.toString(), {
+        headers: {
+          ...headers,
+          Cookie: auth.cookie,
+        },
+      });
+    }
+  }
+
+  if (!response.ok) {
+    return new Response(`Não consegui carregar a imagem do atendimento. NEPPO retornou ${response.status}.`, {
+      status: response.status,
+      headers: { 'Content-Type': 'text/plain; charset=UTF-8', 'Cache-Control': 'private, no-store' },
+    });
+  }
+
+  const responseHeaders = new Headers(response.headers);
+  responseHeaders.set('Cache-Control', 'private, no-store');
+  responseHeaders.set('X-Robots-Tag', 'noindex, nofollow');
+  if (!responseHeaders.get('Content-Type')) responseHeaders.set('Content-Type', 'application/octet-stream');
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: responseHeaders,
+  });
+}
+
 function isAuthorized(request, env) {
   const header = request.headers.get('Authorization') || '';
   if (!header.startsWith('Basic ')) return false;
@@ -663,6 +740,10 @@ export default {
     }
 
     const url = new URL(request.url);
+    if (url.pathname === '/media') {
+      return fetchMediaProxy(request, env);
+    }
+
     const reportMatch = url.pathname.match(/^\/pdf-report\/([^/]+)$/);
     if (reportMatch) {
       return renderPdfReport(request, env, decodeURIComponent(reportMatch[1]));

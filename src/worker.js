@@ -1,13 +1,3 @@
-function unauthorized() {
-  return new Response('Login necessário para acessar o painel.', {
-    status: 401,
-    headers: {
-      'WWW-Authenticate': 'Basic realm="Gestao de Atendimento", charset="UTF-8"',
-      'Cache-Control': 'no-store',
-    },
-  });
-}
-
 function setupRequired() {
   return new Response(
     'Proteção pendente: configure APP_USER e APP_PASSWORD nas variáveis do Worker na Cloudflare.',
@@ -28,6 +18,17 @@ function jsonResponse(body, status = 200) {
       'Content-Type': 'application/json; charset=UTF-8',
       'Cache-Control': 'private, no-store',
       'X-Robots-Tag': 'noindex, nofollow',
+    },
+  });
+}
+
+function redirectTo(location, headers = {}) {
+  return new Response(null, {
+    status: 302,
+    headers: {
+      Location: location,
+      'Cache-Control': 'private, no-store',
+      ...headers,
     },
   });
 }
@@ -62,6 +63,12 @@ function toBase64Utf8(value) {
   const bytes = new TextEncoder().encode(value);
   for (const byte of bytes) binary += String.fromCharCode(byte);
   return btoa(binary);
+}
+
+function toBase64UrlBytes(bytes) {
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
 function toBase64UrlUtf8(value) {
@@ -151,7 +158,7 @@ async function decryptPrivateMap(request, env) {
   const data = fromBase64(pack.data);
   const mac = fromBase64(pack.mac);
   const iterations = Number(pack.iterations || 150000);
-  const privateMapPassword = env.AUTH_PASSWORD || env.APP_PASSWORD;
+  const privateMapPassword = env.PRIVATE_MAP_PASSWORD || env.AUTH_PASSWORD || env.APP_PASSWORD;
   const keys = await derivePrivateMapKeys(privateMapPassword, salt, iterations);
 
   const macKey = await crypto.subtle.importKey(
@@ -704,7 +711,133 @@ async function fetchMediaProxy(request, env) {
   });
 }
 
-function isAuthorized(request, env) {
+function parseCookies(request) {
+  const header = request.headers.get('Cookie') || '';
+  const cookies = {};
+  for (const part of header.split(';')) {
+    const separator = part.indexOf('=');
+    if (separator < 0) continue;
+    cookies[part.slice(0, separator).trim()] = part.slice(separator + 1).trim();
+  }
+  return cookies;
+}
+
+async function signText(value, secret) {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(value));
+  return toBase64UrlBytes(new Uint8Array(signature));
+}
+
+async function createSessionCookie(user, env) {
+  const expires = Date.now() + 12 * 60 * 60 * 1000;
+  const payload = toBase64UrlUtf8(JSON.stringify({ user, expires }));
+  const signature = await signText(payload, env.APP_PASSWORD || env.AUTH_PASSWORD);
+  return `gestao_session=${payload}.${signature}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=43200`;
+}
+
+async function hasValidSession(request, env) {
+  const token = parseCookies(request).gestao_session || '';
+  const separator = token.indexOf('.');
+  if (separator < 0) return false;
+
+  const payload = token.slice(0, separator);
+  const signature = token.slice(separator + 1);
+  const expected = await signText(payload, env.APP_PASSWORD || env.AUTH_PASSWORD);
+  if (!timingSafeEqual(signature, expected)) return false;
+
+  try {
+    const session = JSON.parse(fromBase64UrlUtf8(payload));
+    const expectedUser = env.APP_USER || env.AUTH_USER || '';
+    return (
+      timingSafeEqual(String(session.user || '').trim(), String(expectedUser).trim()) &&
+      Number(session.expires || 0) > Date.now()
+    );
+  } catch {
+    return false;
+  }
+}
+
+function loginPage(error = '') {
+  return new Response(
+    `<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Entrar no painel</title>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;display:grid;place-items:center;background:#edf5ef;font-family:Arial,sans-serif;color:#102817}
+    .card{width:min(472px,calc(100vw - 32px));background:#fff;border:1px solid #d6e2d2;border-radius:12px;padding:32px 28px;box-shadow:0 28px 80px rgba(31,61,42,.18)}
+    h1{font-size:26px;line-height:1.1;margin:0 0 10px;font-weight:800}
+    p{margin:0 0 24px;color:#5b6e62;line-height:1.45}
+    label{display:block;margin:16px 0 7px;color:#809183;font-size:12px;letter-spacing:.04em;text-transform:uppercase;font-weight:800}
+    input{width:100%;height:46px;border:1px solid #c7d6c9;border-radius:8px;background:#edf3ff;padding:0 14px;font-size:15px;color:#102817}
+    input:focus{outline:2px solid #2f6d45;outline-offset:1px}
+    button{width:100%;height:46px;margin-top:28px;border:0;border-radius:8px;background:#6f8874;color:#fff;font-size:15px;font-weight:800;cursor:pointer}
+    button:hover{background:#2f6d45}
+    .error{margin:0 0 16px;padding:10px 12px;border:1px solid #e4b9b9;border-radius:8px;background:#fff4f4;color:#8a1f1f;font-weight:700}
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Entrar no painel</h1>
+    <p>Use seu usuário para acessar os dados protegidos do atendimento.</p>
+    ${error ? `<div class="error">${escapeHtml(error)}</div>` : ''}
+    <form method="post" action="/login">
+      <label for="user">Usuário</label>
+      <input id="user" name="user" autocomplete="username" autofocus>
+      <label for="password">Senha</label>
+      <input id="password" name="password" type="password" autocomplete="current-password">
+      <button type="submit">Entrar</button>
+    </form>
+  </main>
+</body>
+</html>`,
+    {
+      headers: {
+        'Content-Type': 'text/html; charset=UTF-8',
+        'Cache-Control': 'private, no-store',
+        'X-Robots-Tag': 'noindex, nofollow',
+      },
+    },
+  );
+}
+
+async function handleLogin(request, env) {
+  let form = null;
+  try {
+    form = await request.formData();
+  } catch {
+    return loginPage('Não consegui ler o login enviado.');
+  }
+
+  const user = String(form.get('user') || '');
+  const password = String(form.get('password') || '');
+  const expectedUser = env.APP_USER || env.AUTH_USER || '';
+  const expectedPassword = env.APP_PASSWORD || env.AUTH_PASSWORD || '';
+
+  if (
+    !timingSafeEqual(user.trim(), String(expectedUser).trim()) ||
+    !timingSafeEqual(password, String(expectedPassword))
+  ) {
+    return loginPage('Usuário ou senha inválidos.');
+  }
+
+  return redirectTo('/', {
+    'Set-Cookie': await createSessionCookie(expectedUser, env),
+  });
+}
+
+async function isAuthorized(request, env) {
+  if (await hasValidSession(request, env)) return true;
+
   const header = request.headers.get('Authorization') || '';
   if (!header.startsWith('Basic ')) return false;
 
@@ -735,11 +868,22 @@ export default {
       return setupRequired();
     }
 
-    if (!isAuthorized(request, env)) {
-      return unauthorized();
+    const url = new URL(request.url);
+    if (url.pathname === '/login') {
+      if (request.method === 'POST') return handleLogin(request, env);
+      return loginPage();
     }
 
-    const url = new URL(request.url);
+    if (url.pathname === '/logout') {
+      return redirectTo('/login', {
+        'Set-Cookie': 'gestao_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0',
+      });
+    }
+
+    if (!(await isAuthorized(request, env))) {
+      return redirectTo('/login');
+    }
+
     if (url.pathname === '/media') {
       return fetchMediaProxy(request, env);
     }

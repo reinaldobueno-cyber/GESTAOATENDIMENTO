@@ -10,7 +10,7 @@ function unauthorized() {
 
 function setupRequired() {
   return new Response(
-    'Proteção pendente: configure AUTH_USER e AUTH_PASSWORD nas variáveis do Worker na Cloudflare.',
+    'Proteção pendente: configure APP_USER e APP_PASSWORD nas variáveis do Worker na Cloudflare.',
     {
       status: 503,
       headers: {
@@ -138,10 +138,12 @@ function isAuthorized(request, env) {
 
   const user = decoded.slice(0, separator);
   const password = decoded.slice(separator + 1);
+  const expectedUser = env.APP_USER || env.AUTH_USER || '';
+  const expectedPassword = env.APP_PASSWORD || env.AUTH_PASSWORD || '';
 
   return (
-    timingSafeEqual(user, env.AUTH_USER || '') &&
-    timingSafeEqual(password, env.AUTH_PASSWORD || '')
+    timingSafeEqual(user.trim(), String(expectedUser).trim()) &&
+    timingSafeEqual(password, String(expectedPassword))
   );
 }
 
@@ -233,7 +235,7 @@ async function fetchIssuePdf(protocol, env) {
 
 export default {
   async fetch(request, env) {
-    if (!env.AUTH_USER || !env.AUTH_PASSWORD) {
+    if (!(env.APP_USER || env.AUTH_USER) || !(env.APP_PASSWORD || env.AUTH_PASSWORD)) {
       return setupRequired();
     }
 

@@ -21,6 +21,17 @@ function setupRequired() {
   );
 }
 
+function jsonResponse(body, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      'Content-Type': 'application/json; charset=UTF-8',
+      'Cache-Control': 'private, no-store',
+      'X-Robots-Tag': 'noindex, nofollow',
+    },
+  });
+}
+
 function timingSafeEqual(a, b) {
   const encoder = new TextEncoder();
   const left = encoder.encode(a);
@@ -44,6 +55,13 @@ function bytesEqual(left, right) {
   }
 
   return diff === 0;
+}
+
+function toBase64Utf8(value) {
+  let binary = '';
+  const bytes = new TextEncoder().encode(value);
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
 }
 
 function fromBase64(value) {
@@ -123,6 +141,108 @@ async function decryptPrivateMap(request, env) {
   return `${new TextDecoder().decode(plain)}\nwindow.CLIENTE_PRIVADO_STATUS = "ok";`;
 }
 
+function cookieHeaderFrom(response) {
+  const direct = response.headers.get('set-cookie');
+  if (direct) {
+    return direct
+      .split(/,(?=[^;,]+=)/)
+      .map((cookie) => cookie.split(';')[0].trim())
+      .filter(Boolean)
+      .join('; ');
+  }
+
+  const getter = response.headers.getAll?.bind(response.headers);
+  if (getter) {
+    return getter('set-cookie')
+      .map((cookie) => cookie.split(';')[0].trim())
+      .filter(Boolean)
+      .join('; ');
+  }
+
+  return '';
+}
+
+async function getNeppoWebCookie(env) {
+  if (env.NEPPO_WEB_COOKIE) return env.NEPPO_WEB_COOKIE;
+
+  const username = env.NEPPO_WEB_USERNAME || env.NEPPO_USERNAME;
+  const password = env.NEPPO_WEB_PASSWORD || env.NEPPO_PASSWORD;
+  if (!username || !password) return '';
+
+  const body = new URLSearchParams();
+  body.set('username', username);
+  body.set('password', toBase64Utf8(password));
+  body.set('verificationToken', '');
+
+  const response = await fetch('https://multsoft.neppo.com.br/chat/login', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Accept: 'application/json, text/plain, */*',
+      Origin: 'https://multsoft.neppo.com.br',
+      Referer: 'https://multsoft.neppo.com.br/chat/',
+    },
+    body,
+    redirect: 'manual',
+  });
+
+  if (!response.ok && response.status !== 302) {
+    return '';
+  }
+
+  return cookieHeaderFrom(response);
+}
+
+async function fetchAttendanceHistory(protocol, env) {
+  const match = String(protocol || '').match(/^WA0*(\d+)$/i);
+  if (!match) {
+    return jsonResponse({ ok: false, message: 'Protocolo inválido.' }, 400);
+  }
+
+  const cookie = await getNeppoWebCookie(env);
+  if (!cookie) {
+    return jsonResponse(
+      {
+        ok: false,
+        message:
+          'Conversa não configurada: salve NEPPO_WEB_USERNAME e NEPPO_WEB_PASSWORD no Worker, ou NEPPO_WEB_COOKIE como alternativa.',
+      },
+      424,
+    );
+  }
+
+  const sessionId = match[1];
+  const response = await fetch(
+    `https://multsoft.neppo.com.br/chat/api/sessions/issue/history?id=${encodeURIComponent(sessionId)}&size=500`,
+    {
+      headers: {
+        Accept: 'application/json, text/plain, */*',
+        Cookie: cookie,
+        Referer: 'https://multsoft.neppo.com.br/chat/',
+      },
+    },
+  );
+
+  const text = await response.text();
+  if (!response.ok) {
+    return jsonResponse(
+      {
+        ok: false,
+        status: response.status,
+        message: `NEPPO retornou ${response.status} ao buscar a conversa.`,
+        detail: text.slice(0, 500),
+      },
+      502,
+    );
+  }
+
+  try {
+    return jsonResponse({ ok: true, protocol, sessionId, messages: JSON.parse(text) });
+  } catch {
+    return jsonResponse({ ok: true, protocol, sessionId, text });
+  }
+}
+
 function isAuthorized(request, env) {
   const header = request.headers.get('Authorization') || '';
   if (!header.startsWith('Basic ')) return false;
@@ -159,6 +279,11 @@ export default {
     }
 
     const url = new URL(request.url);
+    const attendanceMatch = url.pathname.match(/^\/api\/attendance\/([^/]+)$/);
+    if (attendanceMatch) {
+      return fetchAttendanceHistory(decodeURIComponent(attendanceMatch[1]), env);
+    }
+
     if (url.pathname.endsWith('/cliente-map-privado.js')) {
       const script = await decryptPrivateMap(request, env);
       return new Response(script, {

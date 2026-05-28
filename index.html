@@ -338,6 +338,7 @@ canvas{cursor:pointer;}
 <nav class="nav">
   <div class="nav-in">
     <button class="ntab active" onclick="go('overview',this)"><span class="ico">◈</span> Visão Geral</button>
+    <button class="ntab" onclick="go('gestor',this)"><span class="ico">◆</span> Central do Gestor</button>
     <button class="ntab" onclick="go('tempo',this)"><span class="ico">⏱</span> Análise de Tempo</button>
     <button class="ntab" onclick="go('calendario',this)"><span class="ico">◫</span> Calendário</button>
     <button class="ntab" onclick="go('agentes',this)"><span class="ico">◉</span> Agentes</button>
@@ -432,6 +433,68 @@ canvas{cursor:pointer;}
     <div class="card">
       <div class="ch"><div><div class="ct">CSAT por Semana do Mês</div><div class="cs">Variação de satisfação semanal</div></div></div>
       <div class="h220"><canvas id="ch-csat-week"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ CENTRAL DO GESTOR ════════════════ -->
+<div id="pane-gestor" class="pane">
+  <div class="ctx">
+    <div>
+      <div class="ctx-title">Central do Gestor</div>
+      <div class="ctx-sub">Prioridades do mês para suporte e CS · leitura para ação</div>
+    </div>
+    <div class="ctx-actions">
+      <span class="ctx-badge" id="mgr-month">—</span>
+      <span class="ctx-badge" id="mgr-status">Dados tratados em análise</span>
+    </div>
+  </div>
+
+  <div class="kstrip">
+    <div class="kpi" style="--kc:var(--rust)"><div class="kl">Prioridade Alta</div><div class="kv" id="mgr-k1">—</div><div class="ks">Itens para agir primeiro</div></div>
+    <div class="kpi" style="--kc:var(--amber)"><div class="kl">Clientes em Risco</div><div class="kv" id="mgr-k2">—</div><div class="ks">Volume alto e/ou CSAT baixo</div></div>
+    <div class="kpi" style="--kc:var(--moss2)"><div class="kl">Gargalos de Grupo</div><div class="kv" id="mgr-k3">—</div><div class="ks">Alta vs mês anterior</div></div>
+    <div class="kpi" style="--kc:var(--sage)"><div class="kl">Agentes Atenção</div><div class="kv" id="mgr-k4">—</div><div class="ks">CSAT, cobertura ou tempo</div></div>
+    <div class="kpi" style="--kc:var(--moss3)"><div class="kl">Sem Avaliação</div><div class="kv" id="mgr-k5">—</div><div class="ks">Atendimentos sem CSAT</div></div>
+  </div>
+
+  <div class="card" style="margin-bottom:1rem;">
+    <div class="ch"><div><div class="ct">Fila de Prioridades</div><div class="cs">Clique em qualquer item para abrir os atendimentos relacionados</div></div></div>
+    <div class="tsc">
+      <table class="dt">
+        <thead><tr><th>Prioridade</th><th>Tipo</th><th>Leitura</th><th style="text-align:right">Impacto</th><th>Ação sugerida</th></tr></thead>
+        <tbody id="mgr-priority-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="g3" style="margin-bottom:1rem;">
+    <div class="card">
+      <div class="ch"><div><div class="ct">Clientes para Acompanhamento</div><div class="cs">Recorrência, baixa satisfação e concentração de demanda</div></div></div>
+      <div class="tsc"><table class="dt"><thead><tr><th>Cliente</th><th style="text-align:right">Atend.</th><th style="text-align:right">CSAT</th><th>Risco</th></tr></thead><tbody id="mgr-clients-tbody"></tbody></table></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div><div class="ct">Capacidade do Time</div><div class="cs">Agentes que precisam de apoio ou calibração</div></div></div>
+      <div class="tsc"><table class="dt"><thead><tr><th>Agente</th><th style="text-align:right">Atend.</th><th style="text-align:right">CSAT</th><th>Status</th></tr></thead><tbody id="mgr-agents-tbody"></tbody></table></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div><div class="ct">Núcleos e Gargalos</div><div class="cs">Grupos com maior pressão operacional</div></div></div>
+      <div class="tsc"><table class="dt"><thead><tr><th>Grupo</th><th style="text-align:right">Mês</th><th style="text-align:right">Variação</th><th>Leitura</th></tr></thead><tbody id="mgr-groups-tbody"></tbody></table></div>
+    </div>
+  </div>
+
+  <div class="g2">
+    <div class="card">
+      <div class="ch"><div><div class="ct">Narrativa do Fechamento</div><div class="cs">Resumo pronto para reunião</div></div></div>
+      <div id="mgr-narrative" class="insight-list"></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div><div class="ct">Tratamentos Manuais Pendentes</div><div class="cs">Amanhã entra regra de CSAT, TMA, TE e justificativa</div></div></div>
+      <div class="insight-list">
+        <div class="insight"><b>CSAT fora do escopo</b><br>Exemplo: nota dada ao produto, não ao atendimento. Deve ser desconsiderada com justificativa no diário.</div>
+        <div class="insight"><b>Ajuste de tempo</b><br>TMA ou TE contaminado por erro de plataforma, espera externa ou atendimento travado precisa de tratamento auditável.</div>
+        <div class="insight"><b>Problema de plataforma</b><br>Atendimento com instabilidade deve manter protocolo, evidência, impacto e motivo do ajuste.</div>
+      </div>
     </div>
   </div>
 </div>
@@ -250863,6 +250926,7 @@ function go(id,el){
   document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
   el.classList.add('active');$('pane-'+id).classList.add('active');
+  if(id==='gestor')renderManager(appM);
   if(id==='calendario')renderCal();
   if(id==='agentes')buildAgentes(agM);
   if(id==='clientes')renderClientsMonth(appM);
@@ -251901,6 +251965,77 @@ function renderClientsMonth(m){
   $('cli-tbody').innerHTML=all.map((c,i)=>{const rc=i===0?'r1':i===1?'r2':i===2?'r3':'rn';return`<tr><td><span class="rb ${rc}">${i+1}</span></td><td><button class="rel-client" onclick="showClientPopup('${esc(c.code)}')">${esc(c.name)}</button><br><span class="op-mono">${esc(c.code)}</span></td>${c.months.map(v=>`<td class="tn">${fN(v)}</td>`).join('')}<td class="th">${fN(c.total)}</td><td>${esc(c.group)}</td><td class="tn">${c.csat!=null?fS(c.csat):'—'}</td></tr>`;}).join('');
 }
 
+function managerAgentRows(m){
+  const map={};
+  (D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===m+1).forEach(r=>{
+    const agent=r[2]||'Sem agente';
+    if(!map[agent])map[agent]={agent,total:0,ratings:[],tma:[],tme:[],slow:0,unrated:0};
+    const a=map[agent];a.total++;
+    if(r[6]!=null)a.ratings.push(r[6]);else a.unrated++;
+    if(r[4]!=null)a.tma.push(r[4]);
+    if(r[5]!=null){a.tme.push(r[5]);if(r[5]>120)a.slow++;}
+  });
+  return Object.values(map).map(a=>{
+    a.csat=a.ratings.length?avgArr(a.ratings):null;
+    a.cov=a.total?a.ratings.length/a.total:0;
+    a.avgTma=avgArr(a.tma);
+    a.avgTme=avgArr(a.tme);
+    a.score=(a.csat!=null&&a.csat<9.8?35:0)+(a.cov<.45?25:0)+(a.avgTma&&a.avgTma>2100?20:0)+(a.slow>0?10:0)+Math.min(20,a.total/8);
+    a.status=a.csat!=null&&a.csat<9.8?'Atenção CSAT':a.cov<.45?'Baixa cobertura':a.avgTma&&a.avgTma>2100?'TMA alto':a.slow>0?'Espera fora':'Ok';
+    return a;
+  }).sort((a,b)=>b.score-a.score||b.total-a.total);
+}
+function managerClientRows(m){
+  return clientSummaries().map(c=>{
+    const monthRows=c.rows.filter(r=>r[0]===m+1), ratings=monthRows.filter(r=>r[6]!=null).map(r=>r[6]);
+    const monthTotal=monthRows.length, csat=ratings.length?avgArr(ratings):null;
+    const prev=c.months[m-1]||0, delta=monthTotal-prev;
+    const score=monthTotal*2+Math.max(0,delta)*3+(csat!=null?Math.max(0,9.8-csat)*20:4)+(monthTotal>=10?20:0);
+    const risk=csat!=null&&csat<9.5?'Crítico':monthTotal>=10||delta>=5||csat<9.8?'Atenção':'Monitorar';
+    return {...c,monthRows,monthTotal,monthCsat:csat,delta,score,risk};
+  }).filter(c=>c.monthTotal>0).sort((a,b)=>b.score-a.score||b.monthTotal-a.monthTotal);
+}
+function managerGroupRows(m){
+  return D.grupos.nomes.map((n,i)=>{
+    const cur=D.grupos[monthKeys[m]]?.[i]||0, prev=m>0?(D.grupos[monthKeys[m-1]]?.[i]||0):0;
+    const delta=cur-prev, pct=prev?delta/prev:null;
+    const status=delta>=20||pct>=.25?'Pressão subindo':cur>=100?'Alta demanda':delta<0?'Queda':'Estável';
+    return {n,cur,prev,delta,pct,status,score:Math.abs(delta)+cur/8};
+  }).filter(g=>g.cur>0||g.prev>0).sort((a,b)=>b.score-a.score);
+}
+function renderManager(m){
+  $('mgr-month').textContent=D.mesNomes[m]+' 2026';
+  $('mgr-status').textContent=monthIsPartial(m+1)?'Mês parcial':'Mês fechado';
+  const monthRows=(D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===m+1);
+  const rated=monthRows.filter(r=>r[6]!=null), unrated=monthRows.length-rated.length;
+  const clients=managerClientRows(m), agents=managerAgentRows(m), groups=managerGroupRows(m);
+  const riskClients=clients.filter(c=>c.risk!=='Monitorar');
+  const attentionAgents=agents.filter(a=>a.status!=='Ok');
+  const pressureGroups=groups.filter(g=>g.status==='Pressão subindo'||g.status==='Alta demanda');
+  const priorities=[];
+  riskClients.slice(0,4).forEach(c=>priorities.push({level:c.risk==='Crítico'?'Alta':'Média',type:'Cliente',title:c.name,impact:`${fN(c.monthTotal)} atend. · CSAT ${c.monthCsat!=null?fS(c.monthCsat):'sem avaliação'} · ${c.delta>=0?'+':''}${fN(c.delta)} vs mês ant.`,action:'Contato ativo e leitura dos protocolos recorrentes',click:`showClientPopup('${esc(c.code)}')`}));
+  pressureGroups.slice(0,3).forEach(g=>priorities.push({level:g.status==='Pressão subindo'?'Alta':'Média',type:'Grupo',title:g.n,impact:`${fN(g.cur)} atend. · ${g.delta>=0?'+':''}${fN(g.delta)} vs mês ant.`,action:'Checar causa da alta, distribuição e capacidade',click:`chartDrill('${esc(g.n)}','${D.mesNomes[m]} · gargalo do grupo',drillRows(${m},{group:'${esc(g.n)}'}))`}));
+  attentionAgents.slice(0,4).forEach(a=>priorities.push({level:a.status.includes('CSAT')?'Alta':'Média',type:'Agente',title:a.agent,impact:`${fN(a.total)} atend. · CSAT ${a.csat!=null?fS(a.csat):'—'} · cobert. ${pct1(a.cov)}`,action:'Acompanhar qualidade, cobertura e tempo médio',click:`chartDrill('${esc(a.agent)}','${D.mesNomes[m]} · atenção do agente',drillRows(${m},{agent:'${esc(a.agent)}'}))`}));
+  if(unrated>0)priorities.push({level:'Média',type:'Dados',title:'Atendimentos sem avaliação',impact:`${fN(unrated)} sem CSAT · ${pct1(unrated/Math.max(1,monthRows.length))}`,action:'Verificar solicitação de feedback e regra de tratamento',click:`chartDrill('Sem avaliação','${D.mesNomes[m]} · atendimentos sem CSAT',drillRows(${m},{unrated:true}))`});
+  const high=priorities.filter(p=>p.level==='Alta').length;
+  $('mgr-k1').textContent=fN(high);
+  $('mgr-k2').textContent=fN(riskClients.length);
+  $('mgr-k3').textContent=fN(pressureGroups.length);
+  $('mgr-k4').textContent=fN(attentionAgents.length);
+  $('mgr-k5').textContent=fN(unrated);
+  $('mgr-priority-tbody').innerHTML=priorities.slice(0,14).map(p=>`<tr onclick="${p.click}" style="cursor:pointer"><td><span class="kd ${p.level==='Alta'?'kdn':'knt'}">${p.level}</span></td><td>${esc(p.type)}</td><td><b>${esc(p.title)}</b></td><td class="tn">${esc(p.impact)}</td><td>${esc(p.action)}</td></tr>`).join('')||'<tr><td colspan="5">Nenhuma prioridade crítica no mês selecionado.</td></tr>';
+  $('mgr-clients-tbody').innerHTML=clients.slice(0,10).map(c=>`<tr onclick="showClientPopup('${esc(c.code)}')" style="cursor:pointer"><td><button class="rel-client" onclick="event.stopPropagation();showClientPopup('${esc(c.code)}')">${esc(c.name)}</button><br><span class="op-mono">${esc(c.group)} · ${c.delta>=0?'+':''}${fN(c.delta)} vs ant.</span></td><td class="th">${fN(c.monthTotal)}</td><td class="tn">${c.monthCsat!=null?fS(c.monthCsat):'—'}</td><td><span class="kd ${c.risk==='Crítico'?'kdn':c.risk==='Atenção'?'knt':'kup'}">${c.risk}</span></td></tr>`).join('');
+  $('mgr-agents-tbody').innerHTML=agents.slice(0,10).map(a=>`<tr onclick="chartDrill('${esc(a.agent)}','${D.mesNomes[m]} · capacidade do time',drillRows(${m},{agent:'${esc(a.agent)}'}))" style="cursor:pointer"><td><b>${esc(a.agent)}</b><br><span class="op-mono">${fmtDur(a.avgTma)} TMA · ${pct1(a.cov)} cobert.</span></td><td class="th">${fN(a.total)}</td><td class="tn">${a.csat!=null?fS(a.csat):'—'}</td><td><span class="kd ${a.status==='Ok'?'kup':'kdn'}">${esc(a.status)}</span></td></tr>`).join('');
+  $('mgr-groups-tbody').innerHTML=groups.slice(0,10).map(g=>`<tr onclick="chartDrill('${esc(g.n)}','${D.mesNomes[m]} · núcleo operacional',drillRows(${m},{group:'${esc(g.n)}'}))" style="cursor:pointer"><td><b>${esc(g.n)}</b><br><span class="op-mono">${esc(SEASON_HINTS[g.n]||'monitorar')}</span></td><td class="th">${fN(g.cur)}</td><td class="tn">${deltaBadge(g.cur,g.prev)}</td><td><span class="kd ${g.status==='Pressão subindo'?'kdn':g.status==='Alta demanda'?'knt':'kup'}">${esc(g.status)}</span></td></tr>`).join('');
+  const topClient=clients[0], topGroup=groups[0], topAgent=agents[0];
+  $('mgr-narrative').innerHTML=[
+    `<div class="insight"><b>O que aconteceu</b><br>${D.mesNomes[m]} teve ${fN(monthRows.length)} atendimentos, ${fN(rated.length)} avaliações e CSAT médio ${rated.length?fS(avgArr(rated.map(r=>r[6]))):'—'}.</div>`,
+    `<div class="insight"><b>Onde olhar primeiro</b><br>${topClient?`Cliente ${esc(topClient.name)} concentrou ${fN(topClient.monthTotal)} atendimentos no mês.`:'Sem cliente recorrente relevante.'} ${topGroup?`O grupo ${esc(topGroup.n)} aparece como principal variação operacional.`:''}</div>`,
+    `<div class="insight"><b>Time</b><br>${topAgent?`${esc(topAgent.agent)} pede leitura por ${esc(topAgent.status.toLowerCase())}, com ${fN(topAgent.total)} atendimentos.`:'Sem agente em destaque.'}</div>`,
+    `<div class="insight"><b>Próxima decisão</b><br>Usar esta fila para separar ação operacional imediata, conversa com cliente e ajustes manuais que precisam de justificativa no diário.</div>`
+  ].join('');
+}
+
 function initHistorico(){
   const sel=$('hist-year');
   if(!sel||sel.options.length)return;
@@ -252039,6 +252174,7 @@ function setGlobalMonth(m){
   updateOvKPIs(m);
   updateDailyChart(m);
   renderOverviewMonth(m);
+  renderManager(m);
   renderTempoMonth(m);
   buildAgentes(m);
   renderGroupsMonth(m);

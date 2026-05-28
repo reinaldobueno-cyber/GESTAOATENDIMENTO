@@ -629,6 +629,19 @@ function renderConversationBundle(histories) {
     .join('');
 }
 
+async function getCurrentDashboardRow(request, env, protocol) {
+  const indexUrl = new URL('/index.html', request.url);
+  const response = await env.ASSETS.fetch(indexUrl);
+  if (!response.ok) return null;
+  const html = await response.text();
+  const match = html.match(/const D = (\{[\s\S]*?\n\});\r?\n\r?\nconst MANUAL_ADJUSTMENTS_STORAGE_KEY/);
+  if (!match) return null;
+  const data = JSON.parse(match[1]);
+  return (Array.isArray(data.rows) ? data.rows : []).find(
+    (row) => Array.isArray(row) && String(row[7] || '').toUpperCase() === String(protocol || '').toUpperCase(),
+  ) || null;
+}
+
 async function renderPdfReport(request, env, protocol) {
   const url = new URL(request.url);
   let payload = null;
@@ -638,9 +651,13 @@ async function renderPdfReport(request, env, protocol) {
     return reportErrorPage('Atendimento', 'Não consegui abrir os dados deste atendimento.');
   }
 
-  const row = Array.isArray(payload?.row) ? payload.row : [];
-  const code = payload?.code || row[18] || '';
-  const clientName = payload?.clientName || row[19] || row[12] || code || 'Cliente não informado';
+  const payloadRow = Array.isArray(payload?.row) ? payload.row : [];
+  const currentRow = await getCurrentDashboardRow(request, env, protocol).catch(() => null);
+  const row = currentRow || payloadRow;
+  const code = row[18] || payload?.code || '';
+  const payloadCode = payload?.code || payloadRow[18] || '';
+  const payloadNameStillMatches = !currentRow || String(payloadCode) === String(code);
+  const clientName = (payloadNameStillMatches ? payload?.clientName : '') || row[19] || row[12] || code || 'Cliente não informado';
   const histories = await getAttendanceHistoryBundle(protocol, env);
   const conversationHtml = renderConversationBundle(histories);
 

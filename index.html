@@ -994,7 +994,8 @@ canvas{cursor:pointer;}
         </div>
         <div class="pattern-row">
           <label class="fl">Cadastrar ou editar padrão<br><input class="fs" id="tr-new-pattern" placeholder="Ex: CSAT referente ao produto, não ao atendimento"></label>
-          <button type="button" class="rel-action" onclick="saveTreatmentPattern()">Salvar padrão</button>
+          <button type="button" class="rel-action" onclick="addTreatmentPattern()">Cadastrar</button>
+          <button type="button" class="rel-action" onclick="editTreatmentPattern()">Editar</button>
           <button type="button" class="rel-action" onclick="deleteTreatmentPattern()">Excluir</button>
         </div>
         <label class="fl">O que aconteceu?<br><textarea class="fs" id="tr-reason" required rows="4" placeholder="Texto do diário, como na planilha: o que aconteceu neste protocolo?"></textarea></label>
@@ -251733,16 +251734,27 @@ function refreshTreatmentPatternSelect(){
   treatmentPatterns().forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p.length>86?p.slice(0,86)+'...':p;sel.appendChild(o);});
   sel.value=current;
 }
-function saveTreatmentPattern(){
+function addTreatmentPattern(){
   const input=$('tr-new-pattern'), value=(input?.value||'').trim();
   if(!value)return;
-  const current=$('tr-reason-pattern')?.value||'';
-  const custom=treatmentPatterns().filter(p=>!DEFAULT_TREATMENT_PATTERNS.includes(p)&&p!==current);
+  const custom=treatmentPatterns().filter(p=>!DEFAULT_TREATMENT_PATTERNS.includes(p));
   localStorage.setItem(TREATMENT_PATTERN_KEY,JSON.stringify([...new Set([...custom,value])]));
   refreshTreatmentPatternSelect();
   $('tr-reason-pattern').value=value;
   $('tr-reason').value=value;
   input.value='';
+}
+function editTreatmentPattern(){
+  const current=$('tr-reason-pattern')?.value||'', value=($('tr-new-pattern')?.value||'').trim();
+  if(!current||!value)return;
+  const custom=treatmentPatterns()
+    .filter(p=>!DEFAULT_TREATMENT_PATTERNS.includes(p))
+    .map(p=>p===current?value:p);
+  const next=DEFAULT_TREATMENT_PATTERNS.includes(current)?[...custom,value]:custom;
+  localStorage.setItem(TREATMENT_PATTERN_KEY,JSON.stringify([...new Set(next)]));
+  refreshTreatmentPatternSelect();
+  $('tr-reason-pattern').value=value;
+  $('tr-reason').value=value;
 }
 function deleteTreatmentPattern(){
   const current=$('tr-reason-pattern')?.value||'';
@@ -251759,8 +251771,6 @@ function applyTreatmentPattern(){
 }
 function applyTreatmentAction(){
   const action=$('tr-action-select')?.value||'';
-  $('tr-discard-csat').checked=action.includes('CSAT')&&action.includes('Desconsiderar');
-  $('tr-ignore').checked=action.includes('Desconsiderar atendimento');
   $('tr-type').value=action.includes('CSAT')?'csat_produto':action.includes('TMA')||action.includes('TE/TME')?'corrigir_tempo':action.includes('plataforma')?'problema_plataforma':action.includes('atendimento')?'ignorar_atendimento':'ajuste_manual';
   $('tr-impact').value=action;
 }
@@ -251850,7 +251860,7 @@ function saveTreatmentFromPanel(event){
   const protocol=$('tr-protocol').value||selectedTreatmentProtocol;
   if(!protocol){$('tr-save-status').textContent='Selecione um protocolo antes de salvar.';return;}
   const adj={id:`${String(protocol).toUpperCase()}-${Date.now()}`,protocolo:String(protocol).toUpperCase(),tipo:$('tr-type').value,motivo:$('tr-reason').value.trim(),impacto:$('tr-impact').value.trim(),acao:$('tr-action-select').value,diario:$('tr-diary').value.trim(),responsavel:'Painel',data:new Date().toLocaleDateString('pt-BR')};
-  if($('tr-discard-csat').checked||adj.tipo==='csat_produto')adj.desconsiderarCsat=true;
+  if($('tr-discard-csat').checked)adj.desconsiderarCsat=true;
   if($('tr-discard-tme').checked)adj.desconsiderarTme=true;
   if($('tr-ignore').checked||adj.tipo==='ignorar_atendimento')adj.ignorarAtendimento=true;
   if($('tr-csat').value.trim()&&!adj.desconsiderarCsat)adj.csat=Number($('tr-csat').value.replace(',','.'));
@@ -252479,7 +252489,7 @@ function saveAdjustmentFromForm(event){
   const protocolo=String(f.protocolo.value||'').trim().toUpperCase();
   const tipo=f.tipo.value;
   const adj={id:`${protocolo}-${Date.now()}`,protocolo,tipo,motivo:f.motivo.value.trim(),acao:f.acao.value.trim(),diario:f.diario.value.trim(),responsavel:'Painel',data:new Date().toLocaleDateString('pt-BR')};
-  if(f.desconsiderarCsat.checked||tipo==='csat_produto')adj.desconsiderarCsat=true;
+  if(f.desconsiderarCsat.checked)adj.desconsiderarCsat=true;
   if(f.ignorarAtendimento.checked||tipo==='ignorar_atendimento')adj.ignorarAtendimento=true;
   if(f.csat.value.trim()&&!adj.desconsiderarCsat)adj.csat=Number(f.csat.value.replace(',','.'));
   const tma=adjustmentSeconds(f.tma.value), tme=adjustmentSeconds(f.tme.value);
@@ -252654,6 +252664,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

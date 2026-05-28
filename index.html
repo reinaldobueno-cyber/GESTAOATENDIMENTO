@@ -489,8 +489,8 @@ canvas{cursor:pointer;}
       <div id="mgr-narrative" class="insight-list"></div>
     </div>
     <div class="card">
-      <div class="ch"><div><div class="ct">Tratamentos Manuais Pendentes</div><div class="cs">Amanhã entra regra de CSAT, TMA, TE e justificativa</div></div></div>
-      <div class="insight-list">
+      <div class="ch"><div><div class="ct">Tratamentos Manuais Aplicados</div><div class="cs">CSAT, TMA, TE e justificativas auditáveis</div></div></div>
+      <div class="insight-list" id="mgr-adjustments">
         <div class="insight"><b>CSAT fora do escopo</b><br>Exemplo: nota dada ao produto, não ao atendimento. Deve ser desconsiderada com justificativa no diário.</div>
         <div class="insight"><b>Ajuste de tempo</b><br>TMA ou TE contaminado por erro de plataforma, espera externa ou atendimento travado precisa de tratamento auditável.</div>
         <div class="insight"><b>Problema de plataforma</b><br>Atendimento com instabilidade deve manter protocolo, evidência, impacto e motivo do ajuste.</div>
@@ -1056,6 +1056,7 @@ canvas{cursor:pointer;}
 
 <script src="historico-dashboard.js"></script>
 <script src="cliente-map-privado.js"></script>
+<script src="manual-adjustments.js"></script>
 <script>
 // ════════════════════ DATA ════════════════════
 const D = {
@@ -250835,6 +250836,67 @@ const D = {
               ]
 };
 
+function applyManualAdjustments(){
+  const adjustments=Array.isArray(window.MANUAL_ADJUSTMENTS)?window.MANUAL_ADJUSTMENTS:[];
+  D.rawRows=(D.rows||[]).map(r=>Array.isArray(r)?r.slice():r);
+  const byProtocol=new Map(adjustments.filter(a=>a&&a.protocolo).map(a=>[String(a.protocolo).trim().toUpperCase(),a]));
+  const matched=[];
+  D.rows=D.rawRows.map(r=>{
+    if(!Array.isArray(r))return r;
+    const copy=r.slice();
+    const adj=byProtocol.get(String(copy[7]||'').trim().toUpperCase());
+    if(!adj)return copy;
+    copy._manualAdjustment=adj;
+    if(adj.ignorarAtendimento===true||adj.ignorar===true)copy._manualIgnore=true;
+    if(adj.desconsiderarCsat===true||adj.csat===null)copy[6]=null;
+    else if(adj.csat!==undefined&&adj.csat!=='')copy[6]=Number(adj.csat);
+    if(adj.tmaSec!==undefined&&adj.tmaSec!==''&&adj.tmaSec!==null)copy[4]=Number(adj.tmaSec);
+    if(adj.tmeSec!==undefined&&adj.tmeSec!==''&&adj.tmeSec!==null)copy[5]=Number(adj.tmeSec);
+    if(adj.agente)copy[2]=adj.agente;
+    if(adj.grupo)copy[3]=adj.grupo;
+    if(adj.periodo)copy[8]=adj.periodo;
+    matched.push({...adj,protocolo:String(copy[7]||'')});
+    return copy;
+  }).filter(r=>!r?false:!r._manualIgnore);
+  D.manualAdjustments=matched;
+  recalcDashboardFromRows();
+}
+function recalcDashboardFromRows(){
+  const rows=(D.rows||[]).filter(Array.isArray), months=D.meses.length;
+  const avg=arr=>arr.length?arr.reduce((s,v)=>s+v,0)/arr.length:null;
+  const fmt=sec=>{const s=Math.round(sec||0),h=Math.floor(s/3600),m=Math.floor((s%3600)/60),r=s%60;return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(r).padStart(2,'0')}`;};
+  const med=arr=>{const a=arr.slice().sort((x,y)=>x-y);if(!a.length)return 0;const mid=Math.floor(a.length/2);return a.length%2?a[mid]:(a[mid-1]+a[mid])/2;};
+  const weekOf=d=>Math.max(1,Math.ceil(Number(d||1)/7));
+  const periodDefs=[
+    ['1º Período da manhã','07–09h',7,9],['2º Período da manhã','09–10h',9,10],['3º Período da manhã','10–11h',10,11],['4º Período da manhã','11–12h',11,12],
+    ['Almoço 1','12–13h',12,13],['Almoço 2','13–14h',13,14],['1º Período da tarde','14–15h',14,15],['2º Período da tarde','15–16h',15,16],
+    ['3º Período da tarde','16–17h',16,17],['4º Período da tarde','17–18:30h',17,19]
+  ];
+  const groupNames=[...new Set([...(D.grupos?.nomes||[]),...rows.map(r=>r[3]||'Sem grupo')])];
+  D.grupos={nomes:groupNames};
+  D.atend=[];D.aval=[];D.cobert=[];D.sat=[];D.tma=[];D.tme=[];D.sla=[];D.daily={};D.agentes={};D.byMonth={};
+  for(let mi=0;mi<months;mi++){
+    const monthNo=mi+1, mk=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][mi];
+    const mr=rows.filter(r=>r[0]===monthNo), rated=mr.filter(r=>r[6]!=null);
+    D.atend[mi]=mr.length;D.aval[mi]=rated.length;D.cobert[mi]=mr.length?rated.length/mr.length:0;D.sat[mi]=avg(rated.map(r=>Number(r[6])))||0;
+    D.tma[mi]=fmt(avg(mr.map(r=>r[4]).filter(v=>v!=null))||0);D.tme[mi]=fmt(avg(mr.map(r=>r[5]).filter(v=>v!=null))||0);D.sla[mi]=mr.length?mr.filter(r=>(r[5]||0)<=120).length/mr.length:0;
+    const dayMap={};mr.forEach(r=>{const d=String(r[1]);if(!dayMap[d])dayMap[d]={rows:[],ratings:[]};dayMap[d].rows.push(r);if(r[6]!=null)dayMap[d].ratings.push(Number(r[6]));});
+    D.daily[monthNo]=Object.fromEntries(Object.entries(dayMap).map(([d,o])=>[d,{v:o.rows.length,c:avg(o.ratings)||D.sat[mi]||0}]));
+    D.grupos[mk]=groupNames.map(g=>mr.filter(r=>(r[3]||'Sem grupo')===g).length);
+    const agents=[...new Set(mr.map(r=>r[2]||'Sem agente'))];
+    agents.forEach(a=>{if(!D.agentes[a])D.agentes[a]=Array.from({length:months},()=>[0,0,0,'00:00:00']);const ar=mr.filter(r=>(r[2]||'Sem agente')===a), rr=ar.filter(r=>r[6]!=null);D.agentes[a][mi]=[ar.length,rr.length,avg(rr.map(r=>Number(r[6])))||0,fmt(avg(ar.map(r=>r[4]).filter(v=>v!=null))||0)];});
+    const tmaAg={};agents.forEach(a=>{const ar=mr.filter(r=>(r[2]||'Sem agente')===a), tmas=ar.map(r=>r[4]).filter(v=>v!=null);if(ar.length)tmaAg[a]=[((avg(tmas)||0)/60),med(tmas)/60,avg(ar.map(r=>r[5]).filter(v=>v!=null))||0,ar.length];});
+    const avDist={};rated.forEach(r=>{const k=String(Math.round(Number(r[6])));avDist[k]=(avDist[k]||0)+1;});
+    const tmaDist=[0,0,0,0,0,0];mr.forEach(r=>{const min=(r[4]||0)/60;const i=min<10?0:min<20?1:min<30?2:min<45?3:min<60?4:5;tmaDist[i]++;});
+    const agGrp={};mr.forEach(r=>{const a=r[2]||'Sem agente',g=r[3]||'Sem grupo';if(!agGrp[a])agGrp[a]={};agGrp[a][g]=(agGrp[a][g]||0)+1;});
+    const csatWeek={labels:[],data:[]};for(let w=1;w<=5;w++){const wr=rated.filter(r=>weekOf(r[1])===w);if(wr.length){csatWeek.labels.push(`Sem.${w}`);csatWeek.data.push(+(avg(wr.map(r=>Number(r[6]))).toFixed(3)));}}
+    const periodos=periodDefs.map(([n,h,start,end])=>{const pr=mr.filter(r=>Number(r[9])>=start&&Number(r[9])<end), rv=pr.filter(r=>r[6]!=null);return {n,h,at:pr.length,pct:mr.length?pr.length/mr.length:0,av:rv.length,cob:pr.length?rv.length/pr.length:0,sat:avg(rv.map(r=>Number(r[6])))||0,tma:fmt(avg(pr.map(r=>r[4]).filter(v=>v!=null))||0),tme:fmt(avg(pr.map(r=>r[5]).filter(v=>v!=null))||0)};});
+    D.byMonth[mk]={tmaAg,avDist,tmaDist,agGrp,csatWeek,periodos};
+    if(mi===D.focusIndex){D.tmaAg=tmaAg;D.avDist=avDist;D.csatWeek=csatWeek;}
+  }
+}
+applyManualAdjustments();
+
 // ════════ UTILS ════════
 const $=id=>document.getElementById(id);
 const fN=v=>v.toLocaleString('pt-BR');
@@ -252034,6 +252096,11 @@ function renderManager(m){
     `<div class="insight"><b>Time</b><br>${topAgent?`${esc(topAgent.agent)} pede leitura por ${esc(topAgent.status.toLowerCase())}, com ${fN(topAgent.total)} atendimentos.`:'Sem agente em destaque.'}</div>`,
     `<div class="insight"><b>Próxima decisão</b><br>Usar esta fila para separar ação operacional imediata, conversa com cliente e ajustes manuais que precisam de justificativa no diário.</div>`
   ].join('');
+  const applied=(D.manualAdjustments||[]).filter(a=>{
+    const r=(D.rawRows||[]).find(x=>Array.isArray(x)&&String(x[7]||'').toUpperCase()===String(a.protocolo||'').toUpperCase());
+    return r&&r[0]===m+1;
+  });
+  $('mgr-adjustments').innerHTML=applied.length?applied.map(a=>`<div class="insight"><b>${esc(a.protocolo||'Protocolo')}</b><br>${esc(a.acao||'Tratamento aplicado')}<br><span style="color:var(--sub)">${esc(a.motivo||'Sem motivo informado')}</span>${a.diario?`<br><span style="color:var(--ghost)">${esc(a.diario)}</span>`:''}</div>`).join(''):`<div class="insight"><b>Nenhum ajuste manual aplicado neste mês</b><br>Quando houver CSAT fora do escopo, TMA/TE corrigido ou problema de plataforma, registre no arquivo manual-adjustments.js com protocolo e justificativa.</div><div class="insight"><b>Regras já preparadas</b><br>desconsiderarCsat, csat, tmaSec, tmeSec, agente, grupo, periodo e ignorarAtendimento.</div>`;
 }
 
 function initHistorico(){

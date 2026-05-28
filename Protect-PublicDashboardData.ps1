@@ -12,6 +12,23 @@ $match = [regex]::Match($html, '(?s)const D = (\{.*?\n\});\r?\n\r?\nconst MANUAL
 if (!$match.Success) { throw 'Bloco const D não encontrado no HTML.' }
 
 $D = $match.Groups[1].Value | ConvertFrom-Json
+$privateCsvPath = Join-Path $scriptDir 'cliente-map-privado.csv'
+
+$existingByKey = @{}
+$usedCodes = New-Object System.Collections.Generic.HashSet[string]
+$maxCode = 0
+if (Test-Path -LiteralPath $privateCsvPath) {
+  foreach ($client in @(Import-Csv -LiteralPath $privateCsvPath)) {
+    $key = [string]$client.ChaveCliente
+    $code = [string]$client.Codigo
+    if (![string]::IsNullOrWhiteSpace($key) -and ![string]::IsNullOrWhiteSpace($code)) {
+      $existingByKey[$key] = $code
+      [void]$usedCodes.Add($code)
+      $m = [regex]::Match($code, 'Cliente #(\d+)')
+      if ($m.Success) { $maxCode = [Math]::Max($maxCode, [int]$m.Groups[1].Value) }
+    }
+  }
+}
 
 $clientGroups = @{}
 for ($i = 0; $i -lt $D.rows.Count; $i++) {
@@ -33,8 +50,16 @@ $orderedClients = $clientGroups.GetEnumerator() |
 $clientMap = @{}
 $idx = 1
 foreach ($entry in $orderedClients) {
+  $code = $existingByKey[$entry.Key]
+  if ([string]::IsNullOrWhiteSpace($code)) {
+    do {
+      $maxCode++
+      $code = ('Cliente #{0:000}' -f $maxCode)
+    } while ($usedCodes.Contains($code))
+  }
+  [void]$usedCodes.Add($code)
   $clientMap[$entry.Key] = [pscustomobject]@{
-    Code = ('Cliente #{0:000}' -f $idx)
+    Code = $code
     Count = $entry.Value.Count
   }
   $idx++

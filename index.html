@@ -251970,6 +251970,15 @@ function renderFluxMonth(m){
   const tmeHora=tmeBuckets.map(v=>v.length?avgArr(v):0);
   const scopeLabel=scope==='week'?`Semana ${week}`:scope==='day'?`Dia ${String(day).padStart(2,'0')}/${String(m+1).padStart(2,'0')}`:'Mês inteiro';
   $('title-flux-sub').textContent=`${scopeLabel} · ${D.mesNomes[m]} · ${fN(scopedRows.length)} atendimento(s)`;
+  const cells=[];
+  hourDow.forEach((row,hi)=>row.forEach((v,di)=>{if(v>0)cells.push({h:D.hours[hi],d:dowLabels[di],v});}));
+  const peak=cells.slice().sort((a,b)=>b.v-a.v)[0], lowCell=cells.slice().sort((a,b)=>a.v-b.v)[0];
+  if(peak){$('flux-peak-v').textContent=`${peak.h}h ${peak.d}`;$('flux-peak-l').textContent=`Pico no recorte (${peak.v} atend.)`;}else{$('flux-peak-v').textContent='—';$('flux-peak-l').textContent='Sem volume no recorte';}
+  if(lowCell){$('flux-low-v').textContent=`${lowCell.d} ${lowCell.h}h`;$('flux-low-l').textContent=`Menor volume (${lowCell.v} atend.)`;}else{$('flux-low-v').textContent='—';$('flux-low-l').textContent='Sem volume no recorte';}
+  const peakTmeIdx=tmeHora.reduce((bi,v,i)=>v>(tmeHora[bi]||0)?i:bi,0);
+  $('flux-tme-v').textContent=(D.hours[peakTmeIdx]??'—')+'h';
+  const gTop=Object.entries(grpHora).map(([g,vals])=>({g,v:vals.reduce((s,x)=>s+x,0)})).sort((a,b)=>b.v-a.v)[0];
+  $('flux-grp-v').textContent=gTop?(gTop.g.length>13?gTop.g.slice(0,13)+'...':gTop.g):'—';
   const hdMx=Math.max(1,...hourDow.flatMap(r=>r));
   const heatColor=v=>{const p=v/hdMx;return p<.1?'#eef1e9':p<.25?'#c8dece':p<.5?'#9ec4a8':p<.75?'#4f8562':'#3d6b47';};
   let hh=`<div class="hour-row">${['<div style="width:28px"></div>',...dowLabels.map(d=>`<div class="dow-lbl">${d}</div>`)].join('')}</div>`;
@@ -251994,8 +252003,8 @@ function setGlobalMonth(m){
   renderGroupsMonth(m);
   renderClientsMonth(m);
   renderAvalMonth(m);
-  renderFluxMonth(m);
   updateBandsForMonth(m);
+  renderFluxMonth(m);
   renderCal();
 }
 

@@ -941,8 +941,8 @@ try {
   $html = Get-Content -LiteralPath $htmlPath -Raw
   $html = [regex]::Replace(
     $html,
-    'const D = \{[\s\S]*?\n\};\r?\n\r?\n// ════════ UTILS ════════',
-    ($newBlock + "`r`n`r`n// ════════ UTILS ════════"),
+    'const D = \{[\s\S]*?\n\};\r?\n\r?\nconst MANUAL_ADJUSTMENTS_STORAGE_KEY',
+    ($newBlock + "`r`n`r`nconst MANUAL_ADJUSTMENTS_STORAGE_KEY"),
     1
   )
   Set-Content -LiteralPath $htmlPath -Value $html -Encoding UTF8

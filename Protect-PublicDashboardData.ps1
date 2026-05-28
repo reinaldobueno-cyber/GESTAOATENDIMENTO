@@ -8,7 +8,7 @@ $scriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyI
 if ([string]::IsNullOrWhiteSpace($HtmlPath)) { $HtmlPath = Join-Path $scriptDir 'index.html' }
 
 $html = Get-Content -LiteralPath $HtmlPath -Raw
-$match = [regex]::Match($html, '(?s)const D = (\{.*?\n\});\r?\n\r?\n// ════════ UTILS')
+$match = [regex]::Match($html, '(?s)const D = (\{.*?\n\});\r?\n\r?\nconst MANUAL_ADJUSTMENTS_STORAGE_KEY')
 if (!$match.Success) { throw 'Bloco const D não encontrado no HTML.' }
 
 $D = $match.Groups[1].Value | ConvertFrom-Json

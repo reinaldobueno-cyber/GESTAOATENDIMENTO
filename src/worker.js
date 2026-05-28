@@ -925,6 +925,61 @@ async function isAuthorized(request, env) {
   return Boolean(findAppUser(env, user, password));
 }
 
+const MANUAL_ADJUSTMENTS_KEY = 'manual-adjustments-v1';
+
+function cleanAdjustment(input) {
+  const item = input && typeof input === 'object' ? input : {};
+  const protocolo = String(item.protocolo || '').trim().toUpperCase();
+  if (!protocolo) return null;
+
+  const out = {
+    id: String(item.id || `${protocolo}-${Date.now()}`),
+    protocolo,
+    tipo: String(item.tipo || 'ajuste_manual').slice(0, 80),
+    motivo: String(item.motivo || '').slice(0, 1200),
+    acao: String(item.acao || '').slice(0, 1200),
+    diario: String(item.diario || '').slice(0, 2000),
+    responsavel: String(item.responsavel || 'Painel').slice(0, 120),
+    data: String(item.data || new Date().toLocaleDateString('pt-BR')).slice(0, 30),
+  };
+
+  if (item.desconsiderarCsat === true) out.desconsiderarCsat = true;
+  if (item.ignorarAtendimento === true || item.ignorar === true) out.ignorarAtendimento = true;
+  if (item.csat !== undefined && item.csat !== null && item.csat !== '') out.csat = Number(item.csat);
+  if (item.tmaSec !== undefined && item.tmaSec !== null && item.tmaSec !== '') out.tmaSec = Number(item.tmaSec);
+  if (item.tmeSec !== undefined && item.tmeSec !== null && item.tmeSec !== '') out.tmeSec = Number(item.tmeSec);
+  if (item.agente) out.agente = String(item.agente).slice(0, 160);
+  if (item.grupo) out.grupo = String(item.grupo).slice(0, 160);
+  if (item.periodo) out.periodo = String(item.periodo).slice(0, 160);
+
+  return out;
+}
+
+async function handleManualAdjustments(request, env) {
+  if (!env.ADJUSTMENTS) {
+    return jsonResponse({ adjustments: [], storage: false, message: 'ADJUSTMENTS_KV nao configurado' }, request.method === 'GET' ? 200 : 501);
+  }
+
+  if (request.method === 'GET') {
+    const list = (await env.ADJUSTMENTS.get(MANUAL_ADJUSTMENTS_KEY, 'json')) || [];
+    return jsonResponse({ adjustments: Array.isArray(list) ? list : [], storage: true });
+  }
+
+  if (request.method !== 'POST') {
+    return jsonResponse({ error: 'Metodo nao permitido' }, 405);
+  }
+
+  const body = await request.json().catch(() => null);
+  const item = cleanAdjustment(body);
+  if (!item) return jsonResponse({ error: 'Protocolo obrigatorio' }, 400);
+
+  const current = (await env.ADJUSTMENTS.get(MANUAL_ADJUSTMENTS_KEY, 'json')) || [];
+  const list = Array.isArray(current) ? current.filter((a) => String(a.id) !== String(item.id)) : [];
+  list.push(item);
+  await env.ADJUSTMENTS.put(MANUAL_ADJUSTMENTS_KEY, JSON.stringify(list.slice(-2000)));
+  return jsonResponse({ ok: true, adjustment: item, total: list.length });
+}
+
 export default {
   async fetch(request, env) {
     if (!parseAppUsers(env).length) {
@@ -949,6 +1004,10 @@ export default {
 
     if (url.pathname === '/media') {
       return fetchMediaProxy(request, env);
+    }
+
+    if (url.pathname === '/api/manual-adjustments') {
+      return handleManualAdjustments(request, env);
     }
 
     const reportMatch = url.pathname.match(/^\/pdf-report\/([^/]+)$/);

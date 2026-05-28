@@ -489,12 +489,13 @@ canvas{cursor:pointer;}
       <div id="mgr-narrative" class="insight-list"></div>
     </div>
     <div class="card">
-      <div class="ch"><div><div class="ct">Tratamentos Manuais Aplicados</div><div class="cs">CSAT, TMA, TE e justificativas auditáveis</div></div></div>
+      <div class="ch"><div><div class="ct">Tratamentos Manuais Aplicados</div><div class="cs">CSAT, TMA, TE e justificativas auditáveis</div></div><button class="rel-action" onclick="openAdjustmentForm()">Novo ajuste</button></div>
       <div class="insight-list" id="mgr-adjustments">
         <div class="insight"><b>CSAT fora do escopo</b><br>Exemplo: nota dada ao produto, não ao atendimento. Deve ser desconsiderada com justificativa no diário.</div>
         <div class="insight"><b>Ajuste de tempo</b><br>TMA ou TE contaminado por erro de plataforma, espera externa ou atendimento travado precisa de tratamento auditável.</div>
         <div class="insight"><b>Problema de plataforma</b><br>Atendimento com instabilidade deve manter protocolo, evidência, impacto e motivo do ajuste.</div>
       </div>
+      <div style="margin-top:.7rem;font-family:'Geist Mono',monospace;font-size:.62rem;color:var(--ghost);" id="mgr-adjust-status"></div>
     </div>
   </div>
 </div>
@@ -250836,9 +250837,36 @@ const D = {
               ]
 };
 
+const MANUAL_ADJUSTMENTS_STORAGE_KEY='gestao_manual_adjustments_v1';
+let manualAdjustmentsLoaded=false;
+function localManualAdjustments(){
+  try{return JSON.parse(localStorage.getItem(MANUAL_ADJUSTMENTS_STORAGE_KEY)||'[]')||[];}catch{return[];}
+}
+function saveLocalManualAdjustments(items){
+  localStorage.setItem(MANUAL_ADJUSTMENTS_STORAGE_KEY,JSON.stringify(items||[]));
+}
+function mergedManualAdjustments(){
+  const map=new Map();
+  [...(Array.isArray(window.MANUAL_ADJUSTMENTS)?window.MANUAL_ADJUSTMENTS:[]),...(Array.isArray(window.MANUAL_ADJUSTMENTS_REMOTE)?window.MANUAL_ADJUSTMENTS_REMOTE:[]),...localManualAdjustments()].forEach((a,i)=>{
+    if(!a||!a.protocolo)return;
+    const key=String(a.id||a.protocolo+'-'+(a.tipo||'ajuste')+'-'+i);
+    map.set(key,{...a,id:key});
+  });
+  return [...map.values()];
+}
+async function loadRemoteManualAdjustments(){
+  try{
+    const res=await fetch('/api/manual-adjustments',{cache:'no-store'});
+    if(!res.ok)return;
+    const data=await res.json();
+    window.MANUAL_ADJUSTMENTS_REMOTE=Array.isArray(data.adjustments)?data.adjustments:[];
+    applyManualAdjustments();
+    setGlobalMonth(appM);
+  }catch{}
+}
 function applyManualAdjustments(){
-  const adjustments=Array.isArray(window.MANUAL_ADJUSTMENTS)?window.MANUAL_ADJUSTMENTS:[];
-  D.rawRows=(D.rows||[]).map(r=>Array.isArray(r)?r.slice():r);
+  const adjustments=mergedManualAdjustments();
+  if(!D.rawRows)D.rawRows=(D.rows||[]).map(r=>Array.isArray(r)?r.slice():r);
   const byProtocol=new Map(adjustments.filter(a=>a&&a.protocolo).map(a=>[String(a.protocolo).trim().toUpperCase(),a]));
   const matched=[];
   D.rows=D.rawRows.map(r=>{
@@ -251786,7 +251814,7 @@ function showTempoPopup(title,subtitle,rows){
     </div>
     ${byAgent.length?`<div class="click-note">Agentes nesta relação: ${byAgent.map(([a,v])=>`${a} (${v})`).join(' · ')}</div>`:''}
     <div class="rel-list" style="margin-top:.8rem;">
-      ${rows.slice(0,160).map(r=>`<div class="rel-item"><div class="rel-main"><b>${r[2]}</b><br>${String(r[1]).padStart(2,'0')}/${String(r[0]).padStart(2,'0')} · ${r[3]} · ${r[7]||'sem protocolo'}<br>${clientButton(r)}${r[11]?`<br><span style="color:var(--ghost)">Encerrado em ${r[11]}</span>`:''}</div><div class="rel-tags"><span class="rel-tag">TMA ${fmtDur(r[4])}</span><span class="rel-tag">TME ${fmtDur(r[5])}</span><span class="rel-tag">CSAT ${fmtCsat(r[6])}</span></div></div>`).join('')}
+      ${rows.slice(0,160).map(r=>`<div class="rel-item"><div class="rel-main"><b>${r[2]}</b><br>${String(r[1]).padStart(2,'0')}/${String(r[0]).padStart(2,'0')} · ${r[3]} · ${r[7]||'sem protocolo'}<br>${clientButton(r)}${r[11]?`<br><span style="color:var(--ghost)">Encerrado em ${r[11]}</span>`:''}</div><div class="rel-tags">${r[7]?`<button class="rel-action" onclick="openAdjustmentForm('${esc(r[7])}')">Ajustar</button>`:''}<span class="rel-tag">TMA ${fmtDur(r[4])}</span><span class="rel-tag">TME ${fmtDur(r[5])}</span><span class="rel-tag">CSAT ${fmtCsat(r[6])}</span></div></div>`).join('')}
     </div>
     ${rows.length>160?`<div class="click-note">Exibindo 160 de ${fN(rows.length)} atendimentos.</div>`:''}
   `;
@@ -252100,7 +252128,70 @@ function renderManager(m){
     const r=(D.rawRows||[]).find(x=>Array.isArray(x)&&String(x[7]||'').toUpperCase()===String(a.protocolo||'').toUpperCase());
     return r&&r[0]===m+1;
   });
-  $('mgr-adjustments').innerHTML=applied.length?applied.map(a=>`<div class="insight"><b>${esc(a.protocolo||'Protocolo')}</b><br>${esc(a.acao||'Tratamento aplicado')}<br><span style="color:var(--sub)">${esc(a.motivo||'Sem motivo informado')}</span>${a.diario?`<br><span style="color:var(--ghost)">${esc(a.diario)}</span>`:''}</div>`).join(''):`<div class="insight"><b>Nenhum ajuste manual aplicado neste mês</b><br>Quando houver CSAT fora do escopo, TMA/TE corrigido ou problema de plataforma, registre no arquivo manual-adjustments.js com protocolo e justificativa.</div><div class="insight"><b>Regras já preparadas</b><br>desconsiderarCsat, csat, tmaSec, tmeSec, agente, grupo, periodo e ignorarAtendimento.</div>`;
+  $('mgr-adjustments').innerHTML=applied.length?applied.map(a=>`<div class="insight"><b>${esc(a.protocolo||'Protocolo')}</b><br>${esc(a.acao||'Tratamento aplicado')}<br><span style="color:var(--sub)">${esc(a.motivo||'Sem motivo informado')}</span>${a.diario?`<br><span style="color:var(--ghost)">${esc(a.diario)}</span>`:''}</div>`).join(''):`<div class="insight"><b>Nenhum ajuste manual aplicado neste mês</b><br>Quando houver CSAT fora do escopo, TMA/TE corrigido ou problema de plataforma, clique em <b>Novo ajuste</b> e registre pelo próprio site.</div><div class="insight"><b>Regras já preparadas</b><br>desconsiderarCsat, corrigir CSAT, corrigir TMA/TE e ignorar atendimento inteiro.</div>`;
+  const status=$('mgr-adjust-status');
+  if(status)status.textContent=`${fN((D.manualAdjustments||[]).length)} ajuste(s) aplicado(s) · ${localManualAdjustments().length} salvo(s) neste navegador`;
+}
+
+function adjustmentSeconds(value){
+  const v=String(value||'').trim();
+  if(!v)return undefined;
+  if(v.includes(':')){
+    const p=v.split(':').map(Number);
+    if(p.length===3)return p[0]*3600+p[1]*60+p[2];
+    if(p.length===2)return p[0]*60+p[1];
+  }
+  const n=Number(v.replace(',','.'));
+  return Number.isFinite(n)?Math.round(n):undefined;
+}
+function openAdjustmentForm(protocol=''){
+  $('rel-title').textContent='Novo ajuste manual';
+  $('rel-sub').textContent='O ajuste fica salvo no site deste navegador e recalcula os indicadores tratados.';
+  $('rel-body').innerHTML=`
+    <form id="manual-adjust-form" onsubmit="saveAdjustmentFromForm(event)" style="display:grid;gap:.75rem">
+      <div class="g2">
+        <label class="fl">Protocolo<br><input class="fs" name="protocolo" required value="${esc(protocol)}" placeholder="WA00000123456"></label>
+        <label class="fl">Tipo<br><select class="fs" name="tipo">
+          <option value="csat_produto">CSAT fora do atendimento</option>
+          <option value="corrigir_csat">Corrigir CSAT</option>
+          <option value="corrigir_tempo">Corrigir TMA/TE</option>
+          <option value="problema_plataforma">Problema de plataforma</option>
+          <option value="ignorar_atendimento">Ignorar atendimento inteiro</option>
+        </select></label>
+      </div>
+      <div class="g3">
+        <label class="fl">CSAT tratado<br><input class="fs" name="csat" placeholder="Ex: 10 ou vazio"></label>
+        <label class="fl">TMA tratado<br><input class="fs" name="tma" placeholder="Ex: 00:10:00 ou 600"></label>
+        <label class="fl">TE/TME tratado<br><input class="fs" name="tme" placeholder="Ex: 00:00:05 ou 5"></label>
+      </div>
+      <label class="fl"><input type="checkbox" name="desconsiderarCsat"> Desconsiderar CSAT deste protocolo</label>
+      <label class="fl"><input type="checkbox" name="ignorarAtendimento"> Ignorar atendimento inteiro dos indicadores</label>
+      <label class="fl">Motivo<br><textarea class="fs" name="motivo" required rows="3" placeholder="Ex: cliente avaliou o produto, nao o atendimento"></textarea></label>
+      <label class="fl">Ação tomada<br><textarea class="fs" name="acao" required rows="2" placeholder="Ex: desconsiderar CSAT no fechamento"></textarea></label>
+      <label class="fl">Diário / evidência<br><textarea class="fs" name="diario" rows="2" placeholder="Registro para auditoria do fechamento"></textarea></label>
+      <div style="display:flex;gap:.5rem;justify-content:flex-end"><button type="button" class="rel-action" onclick="closeRelModal()">Cancelar</button><button type="submit" class="rel-action">Salvar ajuste</button></div>
+    </form>`;
+  $('rel-modal').classList.add('open');
+}
+function saveAdjustmentFromForm(event){
+  event.preventDefault();
+  const f=event.target;
+  const protocolo=String(f.protocolo.value||'').trim().toUpperCase();
+  const tipo=f.tipo.value;
+  const adj={id:`${protocolo}-${Date.now()}`,protocolo,tipo,motivo:f.motivo.value.trim(),acao:f.acao.value.trim(),diario:f.diario.value.trim(),responsavel:'Painel',data:new Date().toLocaleDateString('pt-BR')};
+  if(f.desconsiderarCsat.checked||tipo==='csat_produto')adj.desconsiderarCsat=true;
+  if(f.ignorarAtendimento.checked||tipo==='ignorar_atendimento')adj.ignorarAtendimento=true;
+  if(f.csat.value.trim()&&!adj.desconsiderarCsat)adj.csat=Number(f.csat.value.replace(',','.'));
+  const tma=adjustmentSeconds(f.tma.value), tme=adjustmentSeconds(f.tme.value);
+  if(tma!==undefined)adj.tmaSec=tma;
+  if(tme!==undefined)adj.tmeSec=tme;
+  const items=localManualAdjustments().filter(a=>String(a.id)!==adj.id);
+  items.push(adj);
+  saveLocalManualAdjustments(items);
+  fetch('/api/manual-adjustments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(adj)}).catch(()=>{});
+  applyManualAdjustments();
+  setGlobalMonth(appM);
+  closeRelModal();
 }
 
 function initHistorico(){
@@ -252257,6 +252348,7 @@ populateCalFilters();
 initHistorico();
 const urlMonth=parseInt(new URLSearchParams(location.search).get('mes')||'',10);
 setGlobalMonth(urlMonth>=1&&urlMonth<=D.meses.length?urlMonth-1:F);
+loadRemoteManualAdjustments();
 const dt=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
 $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exportado em '+dt;
 </script>

@@ -1,6 +1,13 @@
 # Como ajustar dados manualmente
 
-Use o arquivo `manual-adjustments.js`.
+O caminho recomendado agora é pelo proprio site:
+
+1. Abra **Central do Gestor**.
+2. Clique em **Novo ajuste**.
+3. Informe protocolo, motivo, acao e diario/evidencia.
+4. Salve. O painel recalcula os indicadores tratados na hora.
+
+O arquivo `manual-adjustments.js` continua existindo apenas como plano B tecnico.
 
 Cada ajuste precisa ter `protocolo`, `motivo`, `acao` e, quando possivel, `diario`.
 

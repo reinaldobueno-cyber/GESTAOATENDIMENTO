@@ -269,7 +269,7 @@ canvas{cursor:pointer;}
 .op-main{font-weight:600;color:var(--ink);}
 .op-client{min-width:390px;max-width:460px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .op-badge{display:inline-flex;border:1px solid var(--border);border-radius:999px;background:var(--foam);padding:1px 7px;font-family:'Geist Mono',monospace;font-size:.55rem;color:var(--moss);white-space:nowrap;}
-.treat-grid{display:grid;grid-template-columns:minmax(460px,1fr) minmax(520px,1.15fr);gap:1rem;align-items:start;}
+.treat-grid{display:grid;grid-template-columns:minmax(400px,.9fr) minmax(560px,1.25fr);gap:1rem;align-items:start;}
 .treat-card{min-height:620px;}
 .treat-table{max-height:620px;overflow:auto;border:1px solid var(--border);border-radius:8px;background:var(--w);}
 .treat-actions{display:flex;gap:.45rem;flex-wrap:wrap;align-items:center;margin:.65rem 0;}
@@ -283,9 +283,10 @@ canvas{cursor:pointer;}
 .treat-selected{display:grid;grid-template-columns:1fr auto;gap:.75rem;align-items:start;border:1px solid var(--mist);background:var(--foam);border-radius:8px;padding:.85rem;margin-bottom:.85rem;}
 .treat-selected b{font-family:'Fraunces',serif;font-size:1.05rem;color:var(--ink);}
 .treat-selected .op-mono{white-space:normal;line-height:1.45;}
-.treat-list .csat-col{width:92px;max-width:92px;text-align:right;white-space:normal;word-break:normal;}
-.treat-list .csat-pill{display:inline-flex;justify-content:center;min-width:68px;border:1px solid var(--border);border-radius:999px;padding:2px 6px;background:var(--foam);font-size:.54rem;line-height:1.15;color:var(--moss);font-family:'Geist Mono',monospace;}
-.pattern-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.5rem;align-items:end;}
+.treat-list th,.treat-list td{padding:8px 9px;}
+.treat-list .csat-col{width:72px;max-width:72px;text-align:right;white-space:normal;word-break:normal;}
+.treat-list .csat-pill{display:inline-flex;justify-content:center;min-width:54px;max-width:64px;border:1px solid var(--border);border-radius:999px;padding:2px 5px;background:var(--foam);font-size:.49rem;line-height:1.1;color:var(--moss);font-family:'Geist Mono',monospace;white-space:normal;}
+.pattern-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:.5rem;align-items:end;}
 @media(max-width:1100px){.treat-grid,.treat-row,.treat-row.three{grid-template-columns:1fr}.treat-card{min-height:0}}
 .op-empty{padding:1rem;font-family:'Geist Mono',monospace;font-size:.65rem;color:var(--ghost);}
 .global-filter{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1.1rem;padding:.8rem .95rem;background:rgba(255,255,255,.78);border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);backdrop-filter:blur(10px);}
@@ -992,8 +993,9 @@ canvas{cursor:pointer;}
           <label class="fl">Padrão do ocorrido<br><select class="fs" id="tr-reason-pattern" onchange="applyTreatmentPattern()"></select></label>
         </div>
         <div class="pattern-row">
-          <label class="fl">Cadastrar novo padrão<br><input class="fs" id="tr-new-pattern" placeholder="Ex: CSAT referente ao produto, não ao atendimento"></label>
-          <button type="button" class="rel-action" onclick="addTreatmentPattern()">Cadastrar padrão</button>
+          <label class="fl">Cadastrar ou editar padrão<br><input class="fs" id="tr-new-pattern" placeholder="Ex: CSAT referente ao produto, não ao atendimento"></label>
+          <button type="button" class="rel-action" onclick="saveTreatmentPattern()">Salvar padrão</button>
+          <button type="button" class="rel-action" onclick="deleteTreatmentPattern()">Excluir</button>
         </div>
         <label class="fl">O que aconteceu?<br><textarea class="fs" id="tr-reason" required rows="4" placeholder="Texto do diário, como na planilha: o que aconteceu neste protocolo?"></textarea></label>
         <label class="fl">Observação complementar<br><textarea class="fs" id="tr-diary" rows="2" placeholder="Opcional: evidência, detalhe do fechamento ou orientação combinada."></textarea></label>
@@ -1006,6 +1008,7 @@ canvas{cursor:pointer;}
           </div>
           <div class="treat-checks">
             <label class="fl"><input type="checkbox" id="tr-discard-csat"> Desconsiderar CSAT</label>
+            <label class="fl"><input type="checkbox" id="tr-discard-tme"> Desconsiderar TE/TME</label>
             <label class="fl"><input type="checkbox" id="tr-ignore"> Ignorar atendimento inteiro</label>
           </div>
           <input type="hidden" id="tr-type" value="csat_produto">
@@ -250975,6 +250978,7 @@ function applyManualAdjustments(){
     if(adj.desconsiderarCsat===true||adj.csat===null)copy[6]=null;
     else if(adj.csat!==undefined&&adj.csat!=='')copy[6]=Number(adj.csat);
     if(adj.tmaSec!==undefined&&adj.tmaSec!==''&&adj.tmaSec!==null)copy[4]=Number(adj.tmaSec);
+    if(adj.desconsiderarTme===true)copy[5]=0;
     if(adj.tmeSec!==undefined&&adj.tmeSec!==''&&adj.tmeSec!==null)copy[5]=Number(adj.tmeSec);
     if(adj.agente)copy[2]=adj.agente;
     if(adj.grupo)copy[3]=adj.grupo;
@@ -251729,19 +251733,29 @@ function refreshTreatmentPatternSelect(){
   treatmentPatterns().forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p.length>86?p.slice(0,86)+'...':p;sel.appendChild(o);});
   sel.value=current;
 }
-function addTreatmentPattern(){
+function saveTreatmentPattern(){
   const input=$('tr-new-pattern'), value=(input?.value||'').trim();
   if(!value)return;
-  const custom=treatmentPatterns().filter(p=>!DEFAULT_TREATMENT_PATTERNS.includes(p));
+  const current=$('tr-reason-pattern')?.value||'';
+  const custom=treatmentPatterns().filter(p=>!DEFAULT_TREATMENT_PATTERNS.includes(p)&&p!==current);
   localStorage.setItem(TREATMENT_PATTERN_KEY,JSON.stringify([...new Set([...custom,value])]));
   refreshTreatmentPatternSelect();
   $('tr-reason-pattern').value=value;
   $('tr-reason').value=value;
   input.value='';
 }
+function deleteTreatmentPattern(){
+  const current=$('tr-reason-pattern')?.value||'';
+  if(!current||DEFAULT_TREATMENT_PATTERNS.includes(current))return;
+  const custom=treatmentPatterns().filter(p=>!DEFAULT_TREATMENT_PATTERNS.includes(p)&&p!==current);
+  localStorage.setItem(TREATMENT_PATTERN_KEY,JSON.stringify(custom));
+  refreshTreatmentPatternSelect();
+  $('tr-reason').value='';
+  $('tr-new-pattern').value='';
+}
 function applyTreatmentPattern(){
   const value=$('tr-reason-pattern')?.value||'';
-  if(value)$('tr-reason').value=value;
+  if(value){$('tr-reason').value=value;$('tr-new-pattern').value=value;}
 }
 function applyTreatmentAction(){
   const action=$('tr-action-select')?.value||'';
@@ -251806,6 +251820,7 @@ function showTreatmentSelection(protocol,fill=true){
     $('tr-tma').value=adj.tmaSec!=null?fmtDur(adj.tmaSec):'';
     $('tr-tme').value=adj.tmeSec!=null?fmtDur(adj.tmeSec):'';
     $('tr-discard-csat').checked=!!adj.desconsiderarCsat;
+    $('tr-discard-tme').checked=!!adj.desconsiderarTme;
     $('tr-ignore').checked=!!adj.ignorarAtendimento;
     $('tr-reason').value=adj.motivo||'';
     $('tr-impact').value=adj.impacto||'';
@@ -251825,7 +251840,7 @@ function clearTreatmentForm(){
   ['tr-protocol','tr-csat','tr-tma','tr-tme','tr-reason','tr-impact','tr-diary','tr-new-pattern'].forEach(id=>$(id).value='');
   if($('tr-action-select'))$('tr-action-select').value=TREATMENT_ACTIONS[0];
   if($('tr-reason-pattern'))$('tr-reason-pattern').value='';
-  $('tr-discard-csat').checked=false;$('tr-ignore').checked=false;
+  $('tr-discard-csat').checked=false;$('tr-discard-tme').checked=false;$('tr-ignore').checked=false;
   $('tr-selected-sub').textContent='Nenhum protocolo selecionado';
   $('tr-selected-box').innerHTML='';
   $('tr-save-status').textContent='';
@@ -251836,6 +251851,7 @@ function saveTreatmentFromPanel(event){
   if(!protocol){$('tr-save-status').textContent='Selecione um protocolo antes de salvar.';return;}
   const adj={id:`${String(protocol).toUpperCase()}-${Date.now()}`,protocolo:String(protocol).toUpperCase(),tipo:$('tr-type').value,motivo:$('tr-reason').value.trim(),impacto:$('tr-impact').value.trim(),acao:$('tr-action-select').value,diario:$('tr-diary').value.trim(),responsavel:'Painel',data:new Date().toLocaleDateString('pt-BR')};
   if($('tr-discard-csat').checked||adj.tipo==='csat_produto')adj.desconsiderarCsat=true;
+  if($('tr-discard-tme').checked)adj.desconsiderarTme=true;
   if($('tr-ignore').checked||adj.tipo==='ignorar_atendimento')adj.ignorarAtendimento=true;
   if($('tr-csat').value.trim()&&!adj.desconsiderarCsat)adj.csat=Number($('tr-csat').value.replace(',','.'));
   const tma=adjustmentSeconds($('tr-tma').value), tme=adjustmentSeconds($('tr-tme').value);

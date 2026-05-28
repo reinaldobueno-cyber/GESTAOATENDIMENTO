@@ -945,6 +945,7 @@ function cleanAdjustment(input) {
   };
 
   if (item.desconsiderarCsat === true) out.desconsiderarCsat = true;
+  if (item.desconsiderarTme === true) out.desconsiderarTme = true;
   if (item.ignorarAtendimento === true || item.ignorar === true) out.ignorarAtendimento = true;
   if (item.csat !== undefined && item.csat !== null && item.csat !== '') out.csat = Number(item.csat);
   if (item.tmaSec !== undefined && item.tmaSec !== null && item.tmaSec !== '') out.tmaSec = Number(item.tmaSec);

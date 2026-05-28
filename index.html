@@ -269,6 +269,19 @@ canvas{cursor:pointer;}
 .op-main{font-weight:600;color:var(--ink);}
 .op-client{min-width:390px;max-width:460px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .op-badge{display:inline-flex;border:1px solid var(--border);border-radius:999px;background:var(--foam);padding:1px 7px;font-family:'Geist Mono',monospace;font-size:.55rem;color:var(--moss);white-space:nowrap;}
+.treat-grid{display:grid;grid-template-columns:minmax(460px,1fr) minmax(520px,1.15fr);gap:1rem;align-items:start;}
+.treat-card{min-height:620px;}
+.treat-table{max-height:620px;overflow:auto;border:1px solid var(--border);border-radius:8px;background:var(--w);}
+.treat-actions{display:flex;gap:.45rem;flex-wrap:wrap;align-items:center;margin:.65rem 0;}
+.treat-form{display:grid;gap:.85rem;}
+.treat-form .fs{width:100%;box-sizing:border-box;margin-top:.25rem;}
+.treat-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem;}
+.treat-row.three{grid-template-columns:repeat(3,minmax(0,1fr));}
+.treat-checks{display:flex;gap:1rem;flex-wrap:wrap;align-items:center;background:var(--foam);border:1px solid var(--mist);border-radius:8px;padding:.65rem .75rem;}
+.treat-selected{display:grid;grid-template-columns:1fr auto;gap:.75rem;align-items:start;border:1px solid var(--mist);background:var(--foam);border-radius:8px;padding:.85rem;margin-bottom:.85rem;}
+.treat-selected b{font-family:'Fraunces',serif;font-size:1.05rem;color:var(--ink);}
+.treat-selected .op-mono{white-space:normal;line-height:1.45;}
+@media(max-width:1100px){.treat-grid,.treat-row,.treat-row.three{grid-template-columns:1fr}.treat-card{min-height:0}}
 .op-empty{padding:1rem;font-family:'Geist Mono',monospace;font-size:.65rem;color:var(--ghost);}
 .global-filter{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1.1rem;padding:.8rem .95rem;background:rgba(255,255,255,.78);border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);backdrop-filter:blur(10px);}
 .gf-title{font-family:'Fraunces',serif;font-size:1rem;font-weight:700;color:var(--ink);}
@@ -942,6 +955,10 @@ canvas{cursor:pointer;}
       <option value="low">Notas abaixo de 9</option>
       <option value="adjusted">Já ajustados</option>
     </select>
+    <span class="fl">Ação:</span>
+    <select class="fs" id="tr-action-filter" onchange="renderTreatments()">
+      <option value="">Todas</option>
+    </select>
     <input class="fs search" id="tr-q" oninput="renderTreatments()" placeholder="Buscar protocolo, cliente, agente, grupo..." />
   </div>
 
@@ -950,22 +967,22 @@ canvas{cursor:pointer;}
     <div class="op-summary">O dado bruto fica preservado; o indicador tratado é recalculado por cima do ajuste salvo.</div>
   </div>
 
-  <div class="g4060">
-    <div class="card">
+  <div class="treat-grid">
+    <div class="card treat-card">
       <div class="ch"><div><div class="ct">Protocolos Filtrados</div><div class="cs">Clique em um atendimento</div></div></div>
-      <div class="tsc" style="max-height:620px;overflow:auto">
+      <div class="treat-table">
         <table class="dt">
           <thead><tr><th>Protocolo</th><th>Resumo</th><th style="text-align:right">CSAT</th></tr></thead>
           <tbody id="tr-list"></tbody>
         </table>
       </div>
     </div>
-    <div class="card">
+    <div class="card treat-card">
       <div class="ch"><div><div class="ct">Ajuste do Atendimento</div><div class="cs" id="tr-selected-sub">Nenhum protocolo selecionado</div></div></div>
-      <div id="tr-selected-box" class="insight-list" style="margin-bottom:.9rem"></div>
-      <form id="tr-form" onsubmit="saveTreatmentFromPanel(event)" style="display:grid;gap:.7rem">
+      <div id="tr-selected-box"></div>
+      <form id="tr-form" class="treat-form" onsubmit="saveTreatmentFromPanel(event)">
         <input type="hidden" id="tr-protocol">
-        <div class="g2">
+        <div class="treat-row">
           <label class="fl">Tipo<br><select class="fs" id="tr-type">
             <option value="csat_produto">CSAT fora do atendimento</option>
             <option value="corrigir_csat">Corrigir CSAT</option>
@@ -973,19 +990,20 @@ canvas{cursor:pointer;}
             <option value="problema_plataforma">Problema de plataforma</option>
             <option value="ignorar_atendimento">Ignorar atendimento inteiro</option>
           </select></label>
-          <label class="fl">CSAT tratado<br><input class="fs" id="tr-csat" placeholder="Ex: 10 ou vazio"></label>
+          <label class="fl">Ação tomada<br><select class="fs" id="tr-action-select"></select></label>
         </div>
-        <div class="g2">
+        <div class="treat-row three">
+          <label class="fl">CSAT tratado<br><input class="fs" id="tr-csat" placeholder="Ex: 10 ou vazio"></label>
           <label class="fl">TMA tratado<br><input class="fs" id="tr-tma" placeholder="00:10:00 ou 600"></label>
           <label class="fl">TE/TME tratado<br><input class="fs" id="tr-tme" placeholder="00:00:05 ou 5"></label>
         </div>
-        <div class="g2">
+        <div class="treat-checks">
           <label class="fl"><input type="checkbox" id="tr-discard-csat"> Desconsiderar CSAT</label>
           <label class="fl"><input type="checkbox" id="tr-ignore"> Ignorar atendimento inteiro</label>
         </div>
-        <label class="fl">Motivo<br><textarea class="fs" id="tr-reason" required rows="3" placeholder="Explique por que o dado bruto nao deve ser considerado puro"></textarea></label>
-        <label class="fl">Ação tomada<br><textarea class="fs" id="tr-action" required rows="2" placeholder="Ex: desconsiderar CSAT no fechamento"></textarea></label>
-        <label class="fl">Diário / evidência<br><textarea class="fs" id="tr-diary" rows="2" placeholder="Registro auditável para justificar o tratamento"></textarea></label>
+        <label class="fl">Motivo do ajuste<br><textarea class="fs" id="tr-reason" required rows="3" placeholder="Por que o dado bruto precisa ser tratado? Ex: CSAT foi para produto, falha de plataforma, tempo contaminado."></textarea></label>
+        <label class="fl">Impacto no indicador<br><textarea class="fs" id="tr-impact" rows="2" placeholder="Ex: retirar esta nota da média de CSAT; zerar tempo de espera contaminado."></textarea></label>
+        <label class="fl">Registro no diário / observações<br><textarea class="fs" id="tr-diary" rows="3" placeholder="Aqui entra a narrativa do diário, como na planilha: contexto, evidência e observação do fechamento."></textarea></label>
         <div style="display:flex;gap:.5rem;justify-content:flex-end"><button type="button" class="rel-action" onclick="clearTreatmentForm()">Limpar</button><button type="submit" class="rel-action">Salvar ajuste</button></div>
       </form>
       <div class="op-summary" id="tr-save-status" style="margin-top:.7rem"></div>
@@ -251641,6 +251659,12 @@ function initTreatments(){
     D.meses.forEach((m,i)=>{const o=document.createElement('option');o.value=i+1;o.textContent=D.mesNomes[i];$('tr-mes').appendChild(o);});
     $('tr-mes').value=String(appM+1);
   }
+  if($('tr-action-filter')&&$('tr-action-filter').options.length<=1){
+    TREATMENT_ACTIONS.forEach(a=>{const o=document.createElement('option');o.value=a;o.textContent=a;$('tr-action-filter').appendChild(o);});
+  }
+  if($('tr-action-select')&&$('tr-action-select').options.length===0){
+    TREATMENT_ACTIONS.forEach(a=>{const o=document.createElement('option');o.value=a;o.textContent=a;$('tr-action-select').appendChild(o);});
+  }
 }
 function atendimentoRows(){
   initAtendimentos();
@@ -251664,11 +251688,20 @@ function atendimentoRows(){
   });
 }
 let selectedTreatmentProtocol='';
+const TREATMENT_ACTIONS=[
+  'Desconsiderar CSAT no fechamento',
+  'Corrigir CSAT tratado',
+  'Ajustar TMA tratado',
+  'Ajustar TE/TME tratado',
+  'Desconsiderar atendimento dos indicadores',
+  'Justificar problema de plataforma',
+  'Registrar ocorrência sem alterar indicador'
+];
 function treatmentRows(){
   initTreatments();
   const m=parseInt($('tr-mes')?.value||String(appM+1),10);
   const ds=parseInt($('tr-day-start')?.value||'',10), de=parseInt($('tr-day-end')?.value||'',10);
-  const av=$('tr-av')?.value||'', q=($('tr-q')?.value||'').trim().toLowerCase();
+  const av=$('tr-av')?.value||'', action=$('tr-action-filter')?.value||'', q=($('tr-q')?.value||'').trim().toLowerCase();
   return (D.rows||[]).filter(r=>{
     if(!Array.isArray(r)||r[0]!==m)return false;
     if(Number.isFinite(ds)&&r[1]<ds)return false;
@@ -251677,6 +251710,7 @@ function treatmentRows(){
     if(av==='unrated'&&r[6]!=null)return false;
     if(av==='low'&&!(r[6]!=null&&r[6]<9))return false;
     if(av==='adjusted'&&!r._manualAdjustment)return false;
+    if(action&&r._manualAdjustment?.acao!==action)return false;
     if(q){
       const hay=[r[7],r[12],r[13],r[18],r[19],r[2],r[3]].map(x=>String(x||'').toLowerCase()).join(' ');
       if(!hay.includes(q))return false;
@@ -251708,17 +251742,19 @@ function showTreatmentSelection(protocol,fill=true){
     return;
   }
   $('tr-selected-sub').textContent=`${protocol} · ${raw[10]||''}`;
-  $('tr-selected-box').innerHTML=`<div class="insight"><b>Dado bruto</b><br>${esc(raw[2])} · ${esc(raw[3])} · ${esc(clientLabel(raw))}<br><span class="op-mono">CSAT ${fmtCsat(raw[6])} · TMA ${fmtDur(raw[4])} · TE/TME ${fmtDur(raw[5])}</span></div>${treated&&treated._manualAdjustment?`<div class="insight"><b>Tratado atual</b><br>${esc(adj.acao||'Ajuste aplicado')}<br><span class="op-mono">CSAT ${fmtCsat(treated[6])} · TMA ${fmtDur(treated[4])} · TE/TME ${fmtDur(treated[5])}</span></div>`:''}`;
+  const pdf=attendanceProtocol(raw), code=clientCode(raw);
+  $('tr-selected-box').innerHTML=`<div class="treat-selected"><div><b>Dado bruto</b><br><span class="op-mono">${esc(raw[2])} · ${esc(raw[3])} · ${esc(clientLabel(raw))}<br>CSAT ${fmtCsat(raw[6])} · TMA ${fmtDur(raw[4])} · TE/TME ${fmtDur(raw[5])}</span></div><div class="treat-actions"><button class="rel-action" onclick="showAttendanceDetail('${esc(code)}','${esc(protocol)}')">Ler atendimento</button>${pdf?`<button class="rel-action" onclick="openNeppoPdf('${esc(pdf)}')">PDF</button>`:`<button class="rel-action disabled">PDF</button>`}</div></div>${treated&&treated._manualAdjustment?`<div class="treat-selected"><div><b>Tratado atual</b><br><span class="op-mono">${esc(adj.acao||'Ajuste aplicado')}<br>CSAT ${fmtCsat(treated[6])} · TMA ${fmtDur(treated[4])} · TE/TME ${fmtDur(treated[5])}</span></div></div>`:''}`;
   if(fill){
     $('tr-protocol').value=protocol;
     $('tr-type').value=adj.tipo||'csat_produto';
+    $('tr-action-select').value=adj.acao||TREATMENT_ACTIONS[0];
     $('tr-csat').value=adj.csat??'';
     $('tr-tma').value=adj.tmaSec!=null?fmtDur(adj.tmaSec):'';
     $('tr-tme').value=adj.tmeSec!=null?fmtDur(adj.tmeSec):'';
     $('tr-discard-csat').checked=!!adj.desconsiderarCsat;
     $('tr-ignore').checked=!!adj.ignorarAtendimento;
     $('tr-reason').value=adj.motivo||'';
-    $('tr-action').value=adj.acao||'';
+    $('tr-impact').value=adj.impacto||'';
     $('tr-diary').value=adj.diario||'';
     $('tr-save-status').textContent='';
   }
@@ -251730,7 +251766,8 @@ function selectTreatmentProtocol(protocol){
 }
 function clearTreatmentForm(){
   selectedTreatmentProtocol='';
-  ['tr-protocol','tr-csat','tr-tma','tr-tme','tr-reason','tr-action','tr-diary'].forEach(id=>$(id).value='');
+  ['tr-protocol','tr-csat','tr-tma','tr-tme','tr-reason','tr-impact','tr-diary'].forEach(id=>$(id).value='');
+  if($('tr-action-select'))$('tr-action-select').value=TREATMENT_ACTIONS[0];
   $('tr-discard-csat').checked=false;$('tr-ignore').checked=false;
   $('tr-selected-sub').textContent='Nenhum protocolo selecionado';
   $('tr-selected-box').innerHTML='';
@@ -251740,7 +251777,7 @@ function saveTreatmentFromPanel(event){
   event.preventDefault();
   const protocol=$('tr-protocol').value||selectedTreatmentProtocol;
   if(!protocol){$('tr-save-status').textContent='Selecione um protocolo antes de salvar.';return;}
-  const adj={id:`${String(protocol).toUpperCase()}-${Date.now()}`,protocolo:String(protocol).toUpperCase(),tipo:$('tr-type').value,motivo:$('tr-reason').value.trim(),acao:$('tr-action').value.trim(),diario:$('tr-diary').value.trim(),responsavel:'Painel',data:new Date().toLocaleDateString('pt-BR')};
+  const adj={id:`${String(protocol).toUpperCase()}-${Date.now()}`,protocolo:String(protocol).toUpperCase(),tipo:$('tr-type').value,motivo:$('tr-reason').value.trim(),impacto:$('tr-impact').value.trim(),acao:$('tr-action-select').value,diario:$('tr-diary').value.trim(),responsavel:'Painel',data:new Date().toLocaleDateString('pt-BR')};
   if($('tr-discard-csat').checked||adj.tipo==='csat_produto')adj.desconsiderarCsat=true;
   if($('tr-ignore').checked||adj.tipo==='ignorar_atendimento')adj.ignorarAtendimento=true;
   if($('tr-csat').value.trim()&&!adj.desconsiderarCsat)adj.csat=Number($('tr-csat').value.replace(',','.'));
@@ -252526,6 +252563,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

@@ -937,6 +937,7 @@ function cleanAdjustment(input) {
     protocolo,
     tipo: String(item.tipo || 'ajuste_manual').slice(0, 80),
     motivo: String(item.motivo || '').slice(0, 1200),
+    impacto: String(item.impacto || '').slice(0, 1200),
     acao: String(item.acao || '').slice(0, 1200),
     diario: String(item.diario || '').slice(0, 2000),
     responsavel: String(item.responsavel || 'Painel').slice(0, 120),

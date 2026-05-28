@@ -277,10 +277,15 @@ canvas{cursor:pointer;}
 .treat-form .fs{width:100%;box-sizing:border-box;margin-top:.25rem;}
 .treat-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem;}
 .treat-row.three{grid-template-columns:repeat(3,minmax(0,1fr));}
-.treat-checks{display:flex;gap:1rem;flex-wrap:wrap;align-items:center;background:var(--foam);border:1px solid var(--mist);border-radius:8px;padding:.65rem .75rem;}
+.treat-advanced{border:1px solid var(--mist);border-radius:8px;background:var(--foam);padding:.65rem .75rem;}
+.treat-advanced summary{cursor:pointer;font-family:'Geist Mono',monospace;font-size:.62rem;color:var(--ghost);}
+.treat-checks{display:flex;gap:1rem;flex-wrap:wrap;align-items:center;margin-top:.65rem;}
 .treat-selected{display:grid;grid-template-columns:1fr auto;gap:.75rem;align-items:start;border:1px solid var(--mist);background:var(--foam);border-radius:8px;padding:.85rem;margin-bottom:.85rem;}
 .treat-selected b{font-family:'Fraunces',serif;font-size:1.05rem;color:var(--ink);}
 .treat-selected .op-mono{white-space:normal;line-height:1.45;}
+.treat-list .csat-col{width:92px;max-width:92px;text-align:right;white-space:normal;word-break:normal;}
+.treat-list .csat-pill{display:inline-flex;justify-content:center;min-width:68px;border:1px solid var(--border);border-radius:999px;padding:2px 6px;background:var(--foam);font-size:.54rem;line-height:1.15;color:var(--moss);font-family:'Geist Mono',monospace;}
+.pattern-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.5rem;align-items:end;}
 @media(max-width:1100px){.treat-grid,.treat-row,.treat-row.three{grid-template-columns:1fr}.treat-card{min-height:0}}
 .op-empty{padding:1rem;font-family:'Geist Mono',monospace;font-size:.65rem;color:var(--ghost);}
 .global-filter{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1.1rem;padding:.8rem .95rem;background:rgba(255,255,255,.78);border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);backdrop-filter:blur(10px);}
@@ -971,8 +976,8 @@ canvas{cursor:pointer;}
     <div class="card treat-card">
       <div class="ch"><div><div class="ct">Protocolos Filtrados</div><div class="cs">Clique em um atendimento</div></div></div>
       <div class="treat-table">
-        <table class="dt">
-          <thead><tr><th>Protocolo</th><th>Resumo</th><th style="text-align:right">CSAT</th></tr></thead>
+        <table class="dt treat-list">
+          <thead><tr><th>Protocolo</th><th>Resumo</th><th class="csat-col">CSAT</th></tr></thead>
           <tbody id="tr-list"></tbody>
         </table>
       </div>
@@ -983,27 +988,29 @@ canvas{cursor:pointer;}
       <form id="tr-form" class="treat-form" onsubmit="saveTreatmentFromPanel(event)">
         <input type="hidden" id="tr-protocol">
         <div class="treat-row">
-          <label class="fl">Tipo<br><select class="fs" id="tr-type">
-            <option value="csat_produto">CSAT fora do atendimento</option>
-            <option value="corrigir_csat">Corrigir CSAT</option>
-            <option value="corrigir_tempo">Corrigir TMA/TE</option>
-            <option value="problema_plataforma">Problema de plataforma</option>
-            <option value="ignorar_atendimento">Ignorar atendimento inteiro</option>
-          </select></label>
-          <label class="fl">Ação tomada<br><select class="fs" id="tr-action-select"></select></label>
+          <label class="fl">Ação tomada<br><select class="fs" id="tr-action-select" onchange="applyTreatmentAction()"></select></label>
+          <label class="fl">Padrão do ocorrido<br><select class="fs" id="tr-reason-pattern" onchange="applyTreatmentPattern()"></select></label>
         </div>
-        <div class="treat-row three">
-          <label class="fl">CSAT tratado<br><input class="fs" id="tr-csat" placeholder="Ex: 10 ou vazio"></label>
-          <label class="fl">TMA tratado<br><input class="fs" id="tr-tma" placeholder="00:10:00 ou 600"></label>
-          <label class="fl">TE/TME tratado<br><input class="fs" id="tr-tme" placeholder="00:00:05 ou 5"></label>
+        <div class="pattern-row">
+          <label class="fl">Cadastrar novo padrão<br><input class="fs" id="tr-new-pattern" placeholder="Ex: CSAT referente ao produto, não ao atendimento"></label>
+          <button type="button" class="rel-action" onclick="addTreatmentPattern()">Cadastrar padrão</button>
         </div>
-        <div class="treat-checks">
-          <label class="fl"><input type="checkbox" id="tr-discard-csat"> Desconsiderar CSAT</label>
-          <label class="fl"><input type="checkbox" id="tr-ignore"> Ignorar atendimento inteiro</label>
-        </div>
-        <label class="fl">Motivo do ajuste<br><textarea class="fs" id="tr-reason" required rows="3" placeholder="Por que o dado bruto precisa ser tratado? Ex: CSAT foi para produto, falha de plataforma, tempo contaminado."></textarea></label>
-        <label class="fl">Impacto no indicador<br><textarea class="fs" id="tr-impact" rows="2" placeholder="Ex: retirar esta nota da média de CSAT; zerar tempo de espera contaminado."></textarea></label>
-        <label class="fl">Registro no diário / observações<br><textarea class="fs" id="tr-diary" rows="3" placeholder="Aqui entra a narrativa do diário, como na planilha: contexto, evidência e observação do fechamento."></textarea></label>
+        <label class="fl">O que aconteceu?<br><textarea class="fs" id="tr-reason" required rows="4" placeholder="Texto do diário, como na planilha: o que aconteceu neste protocolo?"></textarea></label>
+        <label class="fl">Observação complementar<br><textarea class="fs" id="tr-diary" rows="2" placeholder="Opcional: evidência, detalhe do fechamento ou orientação combinada."></textarea></label>
+        <details class="treat-advanced">
+          <summary>Ajustes avançados de indicador</summary>
+          <div class="treat-row three" style="margin-top:.65rem">
+            <label class="fl">CSAT tratado<br><input class="fs" id="tr-csat" placeholder="Ex: 10 ou vazio"></label>
+            <label class="fl">TMA tratado<br><input class="fs" id="tr-tma" placeholder="00:10:00 ou 600"></label>
+            <label class="fl">TE/TME tratado<br><input class="fs" id="tr-tme" placeholder="00:00:05 ou 5"></label>
+          </div>
+          <div class="treat-checks">
+            <label class="fl"><input type="checkbox" id="tr-discard-csat"> Desconsiderar CSAT</label>
+            <label class="fl"><input type="checkbox" id="tr-ignore"> Ignorar atendimento inteiro</label>
+          </div>
+          <input type="hidden" id="tr-type" value="csat_produto">
+          <input type="hidden" id="tr-impact">
+        </details>
         <div style="display:flex;gap:.5rem;justify-content:flex-end"><button type="button" class="rel-action" onclick="clearTreatmentForm()">Limpar</button><button type="submit" class="rel-action">Salvar ajuste</button></div>
       </form>
       <div class="op-summary" id="tr-save-status" style="margin-top:.7rem"></div>
@@ -251665,6 +251672,10 @@ function initTreatments(){
   if($('tr-action-select')&&$('tr-action-select').options.length===0){
     TREATMENT_ACTIONS.forEach(a=>{const o=document.createElement('option');o.value=a;o.textContent=a;$('tr-action-select').appendChild(o);});
   }
+  if($('tr-reason-pattern')&&$('tr-reason-pattern').options.length===0){
+    const empty=document.createElement('option');empty.value='';empty.textContent='Selecione um padrão';$('tr-reason-pattern').appendChild(empty);
+    treatmentPatterns().forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p.length>86?p.slice(0,86)+'...':p;$('tr-reason-pattern').appendChild(o);});
+  }
 }
 function atendimentoRows(){
   initAtendimentos();
@@ -251697,6 +251708,48 @@ const TREATMENT_ACTIONS=[
   'Justificar problema de plataforma',
   'Registrar ocorrência sem alterar indicador'
 ];
+const TREATMENT_PATTERN_KEY='gestao_treatment_patterns_v1';
+const DEFAULT_TREATMENT_PATTERNS=[
+  'CSAT referente ao produto, nao ao atendimento prestado pelo suporte.',
+  'Cliente avaliou demanda, prazo ou regra de negocio, nao a condução do atendimento.',
+  'Periodo de instabilidade/falha de plataforma contaminou o tempo do protocolo.',
+  'Atendimento ficou parado por configuracao/fila externa e o tempo bruto nao representa o atendimento real.',
+  'Atendimento duplicado ou registro invalido para indicador operacional.',
+  'Cliente voltou ao bot ou fluxo automatico, gerando avaliacao/tempo fora do escopo do suporte.',
+  'Atendimento teve intervencao de outra area antes do suporte concluir a tratativa.'
+];
+function treatmentPatterns(){
+  try{return [...new Set([...DEFAULT_TREATMENT_PATTERNS,...(JSON.parse(localStorage.getItem(TREATMENT_PATTERN_KEY)||'[]')||[])])];}catch{return DEFAULT_TREATMENT_PATTERNS;}
+}
+function refreshTreatmentPatternSelect(){
+  const sel=$('tr-reason-pattern');
+  if(!sel)return;
+  const current=sel.value;
+  sel.innerHTML='<option value="">Selecione um padrão</option>';
+  treatmentPatterns().forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p.length>86?p.slice(0,86)+'...':p;sel.appendChild(o);});
+  sel.value=current;
+}
+function addTreatmentPattern(){
+  const input=$('tr-new-pattern'), value=(input?.value||'').trim();
+  if(!value)return;
+  const custom=treatmentPatterns().filter(p=>!DEFAULT_TREATMENT_PATTERNS.includes(p));
+  localStorage.setItem(TREATMENT_PATTERN_KEY,JSON.stringify([...new Set([...custom,value])]));
+  refreshTreatmentPatternSelect();
+  $('tr-reason-pattern').value=value;
+  $('tr-reason').value=value;
+  input.value='';
+}
+function applyTreatmentPattern(){
+  const value=$('tr-reason-pattern')?.value||'';
+  if(value)$('tr-reason').value=value;
+}
+function applyTreatmentAction(){
+  const action=$('tr-action-select')?.value||'';
+  $('tr-discard-csat').checked=action.includes('CSAT')&&action.includes('Desconsiderar');
+  $('tr-ignore').checked=action.includes('Desconsiderar atendimento');
+  $('tr-type').value=action.includes('CSAT')?'csat_produto':action.includes('TMA')||action.includes('TE/TME')?'corrigir_tempo':action.includes('plataforma')?'problema_plataforma':action.includes('atendimento')?'ignorar_atendimento':'ajuste_manual';
+  $('tr-impact').value=action;
+}
 function treatmentRows(){
   initTreatments();
   const m=parseInt($('tr-mes')?.value||String(appM+1),10);
@@ -251728,7 +251781,7 @@ function renderTreatments(){
   $('tr-summary').textContent=`${fN(rows.length)} protocolo(s) filtrado(s) · ${fN(adjusted)} já ajustado(s)`;
   $('tr-list').innerHTML=rows.slice(0,250).map(r=>{
     const active=String(r[7]||'')===selectedTreatmentProtocol;
-    return `<tr onclick="selectTreatmentProtocol('${esc(r[7]||'')}')" style="cursor:pointer;${active?'background:var(--foam)':''}"><td><b>${esc(r[7]||'sem protocolo')}</b>${r._manualAdjustment?'<br><span class="kd kup">tratado</span>':''}</td><td>${String(r[1]).padStart(2,'0')}/${String(r[0]).padStart(2,'0')} · ${esc(r[2])}<br><span class="op-mono">${esc(r[3])} · ${esc(clientLabel(r))}</span></td><td class="tn">${fmtCsat(r[6])}</td></tr>`;
+    return `<tr onclick="selectTreatmentProtocol('${esc(r[7]||'')}')" style="cursor:pointer;${active?'background:var(--foam)':''}"><td><b>${esc(r[7]||'sem protocolo')}</b>${r._manualAdjustment?'<br><span class="kd kup">tratado</span>':''}</td><td>${String(r[1]).padStart(2,'0')}/${String(r[0]).padStart(2,'0')} · ${esc(r[2])}<br><span class="op-mono">${esc(r[3])} · ${esc(clientLabel(r))}</span></td><td class="csat-col"><span class="csat-pill">${r[6]!=null?fS(r[6]):'SEM AVAL.'}</span></td></tr>`;
   }).join('')||'<tr><td colspan="3">Nenhum protocolo encontrado.</td></tr>';
   if(selectedTreatmentProtocol)showTreatmentSelection(selectedTreatmentProtocol,false);
 }
@@ -251748,6 +251801,7 @@ function showTreatmentSelection(protocol,fill=true){
     $('tr-protocol').value=protocol;
     $('tr-type').value=adj.tipo||'csat_produto';
     $('tr-action-select').value=adj.acao||TREATMENT_ACTIONS[0];
+    $('tr-reason-pattern').value=treatmentPatterns().includes(adj.motivo)?adj.motivo:'';
     $('tr-csat').value=adj.csat??'';
     $('tr-tma').value=adj.tmaSec!=null?fmtDur(adj.tmaSec):'';
     $('tr-tme').value=adj.tmeSec!=null?fmtDur(adj.tmeSec):'';
@@ -251756,6 +251810,8 @@ function showTreatmentSelection(protocol,fill=true){
     $('tr-reason').value=adj.motivo||'';
     $('tr-impact').value=adj.impacto||'';
     $('tr-diary').value=adj.diario||'';
+    applyTreatmentAction();
+    if(adj.impacto)$('tr-impact').value=adj.impacto;
     $('tr-save-status').textContent='';
   }
 }
@@ -251766,8 +251822,9 @@ function selectTreatmentProtocol(protocol){
 }
 function clearTreatmentForm(){
   selectedTreatmentProtocol='';
-  ['tr-protocol','tr-csat','tr-tma','tr-tme','tr-reason','tr-impact','tr-diary'].forEach(id=>$(id).value='');
+  ['tr-protocol','tr-csat','tr-tma','tr-tme','tr-reason','tr-impact','tr-diary','tr-new-pattern'].forEach(id=>$(id).value='');
   if($('tr-action-select'))$('tr-action-select').value=TREATMENT_ACTIONS[0];
+  if($('tr-reason-pattern'))$('tr-reason-pattern').value='';
   $('tr-discard-csat').checked=false;$('tr-ignore').checked=false;
   $('tr-selected-sub').textContent='Nenhum protocolo selecionado';
   $('tr-selected-box').innerHTML='';

@@ -995,8 +995,7 @@ canvas{cursor:pointer;}
         <div class="pattern-row">
           <label class="fl">Cadastrar ou editar padrão<br><input class="fs" id="tr-new-pattern" placeholder="Ex: CSAT referente ao produto, não ao atendimento"></label>
           <button type="button" class="rel-action" onclick="addTreatmentPattern()">Cadastrar</button>
-          <button type="button" class="rel-action" onclick="editTreatmentPattern()">Editar</button>
-          <button type="button" class="rel-action" onclick="deleteTreatmentPattern()">Excluir</button>
+          <button type="button" class="rel-action" onclick="openPatternEditor()">Editar</button>
         </div>
         <label class="fl">O que aconteceu?<br><textarea class="fs" id="tr-reason" required rows="4" placeholder="Texto do diário, como na planilha: o que aconteceu neste protocolo?"></textarea></label>
         <label class="fl">Observação complementar<br><textarea class="fs" id="tr-diary" rows="2" placeholder="Opcional: evidência, detalhe do fechamento ou orientação combinada."></textarea></label>
@@ -251756,14 +251755,36 @@ function editTreatmentPattern(){
   $('tr-reason-pattern').value=value;
   $('tr-reason').value=value;
 }
-function deleteTreatmentPattern(){
+function openPatternEditor(){
   const current=$('tr-reason-pattern')?.value||'';
-  if(!current||DEFAULT_TREATMENT_PATTERNS.includes(current))return;
-  const custom=treatmentPatterns().filter(p=>!DEFAULT_TREATMENT_PATTERNS.includes(p)&&p!==current);
-  localStorage.setItem(TREATMENT_PATTERN_KEY,JSON.stringify(custom));
+  if(!current)return;
+  $('rel-title').textContent='Editar padrão';
+  $('rel-sub').textContent='Ajuste o texto do padrão e salve para reutilizar nos próximos tratamentos.';
+  $('rel-body').innerHTML=`
+    <form onsubmit="savePatternEditor(event)" style="display:grid;gap:.75rem">
+      <input type="hidden" id="pattern-old-value" value="${esc(current)}">
+      <label class="fl">Padrão<br><textarea class="fs" id="pattern-edit-value" rows="5" required>${esc(current)}</textarea></label>
+      <div style="display:flex;gap:.5rem;justify-content:flex-end">
+        <button type="button" class="rel-action" onclick="closeRelModal()">Cancelar</button>
+        <button type="submit" class="rel-action">Salvar e seguir</button>
+      </div>
+    </form>`;
+  $('rel-modal').classList.add('open');
+}
+function savePatternEditor(event){
+  event.preventDefault();
+  const current=$('pattern-old-value')?.value||'', value=($('pattern-edit-value')?.value||'').trim();
+  if(!current||!value)return;
+  const custom=treatmentPatterns()
+    .filter(p=>!DEFAULT_TREATMENT_PATTERNS.includes(p))
+    .map(p=>p===current?value:p);
+  const next=DEFAULT_TREATMENT_PATTERNS.includes(current)?[...custom,value]:custom;
+  localStorage.setItem(TREATMENT_PATTERN_KEY,JSON.stringify([...new Set(next)]));
   refreshTreatmentPatternSelect();
-  $('tr-reason').value='';
-  $('tr-new-pattern').value='';
+  $('tr-reason-pattern').value=value;
+  $('tr-new-pattern').value=value;
+  $('tr-reason').value=value;
+  closeRelModal();
 }
 function applyTreatmentPattern(){
   const value=$('tr-reason-pattern')?.value||'';

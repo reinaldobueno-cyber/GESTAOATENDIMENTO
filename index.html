@@ -348,6 +348,7 @@ canvas{cursor:pointer;}
     <button class="ntab" onclick="go('avaliacoes',this)"><span class="ico">★</span> Avaliações</button>
     <button class="ntab" onclick="go('fluxo',this)"><span class="ico">◈</span> Fluxo Horário</button>
     <button class="ntab" onclick="go('atendimentos',this)"><span class="ico">▤</span> Atendimentos</button>
+    <button class="ntab" onclick="go('tratamentos',this)"><span class="ico">✓</span> Tratamentos</button>
     <button class="ntab" onclick="go('diario',this)"><span class="ico">✎</span> Diário</button>
   </div>
 </nav>
@@ -919,6 +920,76 @@ canvas{cursor:pointer;}
       <tbody id="op-tbody"></tbody>
     </table>
     <div class="op-empty" id="op-empty" style="display:none">Nenhum atendimento encontrado para os filtros.</div>
+  </div>
+</div>
+
+<!-- ════════════════ TRATAMENTOS ════════════════ -->
+<div id="pane-tratamentos" class="pane">
+  <div class="sh"><span class="sh-title">Tratamento Manual de Dados</span><span class="sh-sub">Filtre, selecione o protocolo, defina o ajuste e salve pelo site</span><div class="sh-line"></div></div>
+
+  <div class="fbar">
+    <span class="fl">Mês:</span>
+    <select class="fs" id="tr-mes" onchange="renderTreatments()"></select>
+    <span class="fl">Dia inicial:</span>
+    <input class="fs" id="tr-day-start" type="number" min="1" max="31" oninput="renderTreatments()" placeholder="1">
+    <span class="fl">Dia final:</span>
+    <input class="fs" id="tr-day-end" type="number" min="1" max="31" oninput="renderTreatments()" placeholder="31">
+    <span class="fl">Avaliação:</span>
+    <select class="fs" id="tr-av" onchange="renderTreatments()">
+      <option value="">Todas</option>
+      <option value="rated">Com avaliação</option>
+      <option value="unrated">Sem avaliação</option>
+      <option value="low">Notas abaixo de 9</option>
+      <option value="adjusted">Já ajustados</option>
+    </select>
+    <input class="fs search" id="tr-q" oninput="renderTreatments()" placeholder="Buscar protocolo, cliente, agente, grupo..." />
+  </div>
+
+  <div class="op-tools">
+    <div class="op-summary" id="tr-summary">Selecione um protocolo para ajustar.</div>
+    <div class="op-summary">O dado bruto fica preservado; o indicador tratado é recalculado por cima do ajuste salvo.</div>
+  </div>
+
+  <div class="g4060">
+    <div class="card">
+      <div class="ch"><div><div class="ct">Protocolos Filtrados</div><div class="cs">Clique em um atendimento</div></div></div>
+      <div class="tsc" style="max-height:620px;overflow:auto">
+        <table class="dt">
+          <thead><tr><th>Protocolo</th><th>Resumo</th><th style="text-align:right">CSAT</th></tr></thead>
+          <tbody id="tr-list"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ch"><div><div class="ct">Ajuste do Atendimento</div><div class="cs" id="tr-selected-sub">Nenhum protocolo selecionado</div></div></div>
+      <div id="tr-selected-box" class="insight-list" style="margin-bottom:.9rem"></div>
+      <form id="tr-form" onsubmit="saveTreatmentFromPanel(event)" style="display:grid;gap:.7rem">
+        <input type="hidden" id="tr-protocol">
+        <div class="g2">
+          <label class="fl">Tipo<br><select class="fs" id="tr-type">
+            <option value="csat_produto">CSAT fora do atendimento</option>
+            <option value="corrigir_csat">Corrigir CSAT</option>
+            <option value="corrigir_tempo">Corrigir TMA/TE</option>
+            <option value="problema_plataforma">Problema de plataforma</option>
+            <option value="ignorar_atendimento">Ignorar atendimento inteiro</option>
+          </select></label>
+          <label class="fl">CSAT tratado<br><input class="fs" id="tr-csat" placeholder="Ex: 10 ou vazio"></label>
+        </div>
+        <div class="g2">
+          <label class="fl">TMA tratado<br><input class="fs" id="tr-tma" placeholder="00:10:00 ou 600"></label>
+          <label class="fl">TE/TME tratado<br><input class="fs" id="tr-tme" placeholder="00:00:05 ou 5"></label>
+        </div>
+        <div class="g2">
+          <label class="fl"><input type="checkbox" id="tr-discard-csat"> Desconsiderar CSAT</label>
+          <label class="fl"><input type="checkbox" id="tr-ignore"> Ignorar atendimento inteiro</label>
+        </div>
+        <label class="fl">Motivo<br><textarea class="fs" id="tr-reason" required rows="3" placeholder="Explique por que o dado bruto nao deve ser considerado puro"></textarea></label>
+        <label class="fl">Ação tomada<br><textarea class="fs" id="tr-action" required rows="2" placeholder="Ex: desconsiderar CSAT no fechamento"></textarea></label>
+        <label class="fl">Diário / evidência<br><textarea class="fs" id="tr-diary" rows="2" placeholder="Registro auditável para justificar o tratamento"></textarea></label>
+        <div style="display:flex;gap:.5rem;justify-content:flex-end"><button type="button" class="rel-action" onclick="clearTreatmentForm()">Limpar</button><button type="submit" class="rel-action">Salvar ajuste</button></div>
+      </form>
+      <div class="op-summary" id="tr-save-status" style="margin-top:.7rem"></div>
+    </div>
   </div>
 </div>
 
@@ -251022,6 +251093,7 @@ function go(id,el){
   if(id==='clientes')renderClientsMonth(appM);
   if(id==='historico')renderHistorico();
   if(id==='atendimentos')renderAtendimentos();
+  if(id==='tratamentos')renderTreatments();
 }
 
 // ════════ OVERVIEW ════════
@@ -251564,6 +251636,12 @@ function initAtendimentos(){
     D.groupList.forEach(g=>{const o=document.createElement('option');o.value=g;o.textContent=g;$('op-group').appendChild(o);});
   }
 }
+function initTreatments(){
+  if($('tr-mes')&&$('tr-mes').options.length===0){
+    D.meses.forEach((m,i)=>{const o=document.createElement('option');o.value=i+1;o.textContent=D.mesNomes[i];$('tr-mes').appendChild(o);});
+    $('tr-mes').value=String(appM+1);
+  }
+}
 function atendimentoRows(){
   initAtendimentos();
   const m=parseInt($('op-mes').value||String(appM+1),10), ag=$('op-agent').value, gp=$('op-group').value, av=$('op-av').value, q=($('op-q').value||'').trim().toLowerCase();
@@ -251584,6 +251662,98 @@ function atendimentoRows(){
     const cmp=typeof av==='number'&&typeof bv==='number' ? av-bv : String(av).localeCompare(String(bv),'pt-BR',{numeric:true,sensitivity:'base'});
     return opSort.dir==='asc'?cmp:-cmp;
   });
+}
+let selectedTreatmentProtocol='';
+function treatmentRows(){
+  initTreatments();
+  const m=parseInt($('tr-mes')?.value||String(appM+1),10);
+  const ds=parseInt($('tr-day-start')?.value||'',10), de=parseInt($('tr-day-end')?.value||'',10);
+  const av=$('tr-av')?.value||'', q=($('tr-q')?.value||'').trim().toLowerCase();
+  return (D.rows||[]).filter(r=>{
+    if(!Array.isArray(r)||r[0]!==m)return false;
+    if(Number.isFinite(ds)&&r[1]<ds)return false;
+    if(Number.isFinite(de)&&r[1]>de)return false;
+    if(av==='rated'&&r[6]==null)return false;
+    if(av==='unrated'&&r[6]!=null)return false;
+    if(av==='low'&&!(r[6]!=null&&r[6]<9))return false;
+    if(av==='adjusted'&&!r._manualAdjustment)return false;
+    if(q){
+      const hay=[r[7],r[12],r[13],r[18],r[19],r[2],r[3]].map(x=>String(x||'').toLowerCase()).join(' ');
+      if(!hay.includes(q))return false;
+    }
+    return true;
+  }).sort((a,b)=>String(b[10]||'').localeCompare(String(a[10]||''))||String(a[7]||'').localeCompare(String(b[7]||'')));
+}
+function rawRowForProtocol(protocol){
+  return (D.rawRows||D.rows||[]).find(r=>Array.isArray(r)&&String(r[7]||'')===String(protocol||''))||null;
+}
+function renderTreatments(){
+  initTreatments();
+  const rows=treatmentRows();
+  const adjusted=rows.filter(r=>r._manualAdjustment).length;
+  $('tr-summary').textContent=`${fN(rows.length)} protocolo(s) filtrado(s) · ${fN(adjusted)} já ajustado(s)`;
+  $('tr-list').innerHTML=rows.slice(0,250).map(r=>{
+    const active=String(r[7]||'')===selectedTreatmentProtocol;
+    return `<tr onclick="selectTreatmentProtocol('${esc(r[7]||'')}')" style="cursor:pointer;${active?'background:var(--foam)':''}"><td><b>${esc(r[7]||'sem protocolo')}</b>${r._manualAdjustment?'<br><span class="kd kup">tratado</span>':''}</td><td>${String(r[1]).padStart(2,'0')}/${String(r[0]).padStart(2,'0')} · ${esc(r[2])}<br><span class="op-mono">${esc(r[3])} · ${esc(clientLabel(r))}</span></td><td class="tn">${fmtCsat(r[6])}</td></tr>`;
+  }).join('')||'<tr><td colspan="3">Nenhum protocolo encontrado.</td></tr>';
+  if(selectedTreatmentProtocol)showTreatmentSelection(selectedTreatmentProtocol,false);
+}
+function showTreatmentSelection(protocol,fill=true){
+  const treated=(D.rows||[]).find(r=>Array.isArray(r)&&String(r[7]||'')===String(protocol||''))||null;
+  const raw=rawRowForProtocol(protocol)||treated;
+  const adj=treated?._manualAdjustment||{};
+  if(!raw){
+    $('tr-selected-sub').textContent='Protocolo não encontrado';
+    $('tr-selected-box').innerHTML='';
+    return;
+  }
+  $('tr-selected-sub').textContent=`${protocol} · ${raw[10]||''}`;
+  $('tr-selected-box').innerHTML=`<div class="insight"><b>Dado bruto</b><br>${esc(raw[2])} · ${esc(raw[3])} · ${esc(clientLabel(raw))}<br><span class="op-mono">CSAT ${fmtCsat(raw[6])} · TMA ${fmtDur(raw[4])} · TE/TME ${fmtDur(raw[5])}</span></div>${treated&&treated._manualAdjustment?`<div class="insight"><b>Tratado atual</b><br>${esc(adj.acao||'Ajuste aplicado')}<br><span class="op-mono">CSAT ${fmtCsat(treated[6])} · TMA ${fmtDur(treated[4])} · TE/TME ${fmtDur(treated[5])}</span></div>`:''}`;
+  if(fill){
+    $('tr-protocol').value=protocol;
+    $('tr-type').value=adj.tipo||'csat_produto';
+    $('tr-csat').value=adj.csat??'';
+    $('tr-tma').value=adj.tmaSec!=null?fmtDur(adj.tmaSec):'';
+    $('tr-tme').value=adj.tmeSec!=null?fmtDur(adj.tmeSec):'';
+    $('tr-discard-csat').checked=!!adj.desconsiderarCsat;
+    $('tr-ignore').checked=!!adj.ignorarAtendimento;
+    $('tr-reason').value=adj.motivo||'';
+    $('tr-action').value=adj.acao||'';
+    $('tr-diary').value=adj.diario||'';
+    $('tr-save-status').textContent='';
+  }
+}
+function selectTreatmentProtocol(protocol){
+  selectedTreatmentProtocol=protocol;
+  showTreatmentSelection(protocol,true);
+  renderTreatments();
+}
+function clearTreatmentForm(){
+  selectedTreatmentProtocol='';
+  ['tr-protocol','tr-csat','tr-tma','tr-tme','tr-reason','tr-action','tr-diary'].forEach(id=>$(id).value='');
+  $('tr-discard-csat').checked=false;$('tr-ignore').checked=false;
+  $('tr-selected-sub').textContent='Nenhum protocolo selecionado';
+  $('tr-selected-box').innerHTML='';
+  $('tr-save-status').textContent='';
+}
+function saveTreatmentFromPanel(event){
+  event.preventDefault();
+  const protocol=$('tr-protocol').value||selectedTreatmentProtocol;
+  if(!protocol){$('tr-save-status').textContent='Selecione um protocolo antes de salvar.';return;}
+  const adj={id:`${String(protocol).toUpperCase()}-${Date.now()}`,protocolo:String(protocol).toUpperCase(),tipo:$('tr-type').value,motivo:$('tr-reason').value.trim(),acao:$('tr-action').value.trim(),diario:$('tr-diary').value.trim(),responsavel:'Painel',data:new Date().toLocaleDateString('pt-BR')};
+  if($('tr-discard-csat').checked||adj.tipo==='csat_produto')adj.desconsiderarCsat=true;
+  if($('tr-ignore').checked||adj.tipo==='ignorar_atendimento')adj.ignorarAtendimento=true;
+  if($('tr-csat').value.trim()&&!adj.desconsiderarCsat)adj.csat=Number($('tr-csat').value.replace(',','.'));
+  const tma=adjustmentSeconds($('tr-tma').value), tme=adjustmentSeconds($('tr-tme').value);
+  if(tma!==undefined)adj.tmaSec=tma;
+  if(tme!==undefined)adj.tmeSec=tme;
+  const items=localManualAdjustments();items.push(adj);saveLocalManualAdjustments(items);
+  fetch('/api/manual-adjustments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(adj)}).catch(()=>{});
+  applyManualAdjustments();
+  selectedTreatmentProtocol=adj.protocolo;
+  setGlobalMonth(appM);
+  renderTreatments();
+  $('tr-save-status').textContent='Ajuste salvo e indicadores recalculados.';
 }
 function renderAtendimentos(){
   initAtendimentos();
@@ -251618,12 +251788,14 @@ function renderAtendimentos(){
   }).join('');
 }
 initAtendimentos();
+initTreatments();
 
 // ════════ FILTRO GLOBAL ════════
 function syncMonthControls(m){
   appM=m;ovM=m;agM=m;
   if($('global-month'))$('global-month').value=String(m);
   if($('op-mes'))$('op-mes').value=String(m+1);
+  if($('tr-mes'))$('tr-mes').value=String(m+1);
   document.querySelectorAll('#ov-ms .mb').forEach((b,i)=>b.classList.toggle('active',i===m));
   document.querySelectorAll('#ag-ms .mb').forEach((b,i)=>b.classList.toggle('active',i===m));
   if($('cal-mes'))$('cal-mes').value=String(m+1);

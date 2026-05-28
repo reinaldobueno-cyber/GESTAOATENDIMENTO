@@ -395,6 +395,16 @@ canvas{cursor:pointer;}
     <div class="kpi" style="--kc:var(--rust)"><div class="kl">SLA ≤ 2min</div><div class="kv" id="ov-sla">—</div><div class="ks">Dentro da meta</div><div class="kd knt" id="ov-sla-d">—</div></div>
   </div>
 
+  <div class="card" style="margin-bottom:1rem;">
+    <div class="ch"><div><div class="ct">Fechamento Executivo do Mês</div><div class="cs">Indicadores principais e variação contra o mês anterior</div></div></div>
+    <div class="tsc">
+      <table class="dt">
+        <thead><tr><th>Indicador</th><th style="text-align:right">Mês</th><th style="text-align:right">Mês anterior</th><th style="text-align:right">Variação</th><th>Leitura</th></tr></thead>
+        <tbody id="ov-close-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- INSIGHTS automáticos -->
   <div id="insights-box" style="margin-bottom:1.2rem;"></div>
 
@@ -543,6 +553,16 @@ canvas{cursor:pointer;}
   </div>
 
   <div class="agrid" id="ag-cards" style="margin-bottom:1.4rem;"></div>
+
+  <div class="card" style="margin-bottom:1rem;">
+    <div class="ch"><div><div class="ct" id="ag-summary-title">Fechamento Sintético por Agente</div><div class="cs">Volume, avaliações, CSAT, tempos e SLA no mês selecionado</div></div></div>
+    <div class="tsc">
+      <table class="dt">
+        <thead><tr><th>Agente</th><th style="text-align:right">Atend.</th><th style="text-align:right">Aval.</th><th style="text-align:right">Cobert.</th><th style="text-align:right">CSAT</th><th style="text-align:right">TMA</th><th style="text-align:right">TME</th><th style="text-align:right">TE ≤ 2min</th><th style="text-align:right">TE &gt; 5min</th><th>Status</th></tr></thead>
+        <tbody id="ag-summary-tbody"></tbody>
+      </table>
+    </div>
+  </div>
 
   <div class="sh"><span class="sh-title">Heatmap · Agente × Dia</span><span class="sh-sub">Cada célula = atendimentos naquele dia · intensidade = volume</span><div class="sh-line"></div></div>
   <div class="card" style="margin-bottom:1rem;">
@@ -810,6 +830,16 @@ canvas{cursor:pointer;}
     <div class="kpi" style="--kc:var(--amber)"><div class="kl">CSAT</div><div class="kv" id="hist-k3">—</div><div class="ks">Média anual</div></div>
     <div class="kpi" style="--kc:var(--moss2)"><div class="kl">TMA</div><div class="kv" id="hist-k4">—</div><div class="ks">Minutos</div></div>
     <div class="kpi" style="--kc:var(--rust)"><div class="kl">SLA ≤ 2min</div><div class="kv" id="hist-k5">—</div><div class="ks">Espera</div></div>
+  </div>
+
+  <div class="card" style="margin-bottom:1rem;">
+    <div class="ch"><div><div class="ct">Fechamento Mensal do Ano</div><div class="cs">Mesma leitura da planilha: volume, avaliação, qualidade, tempos e variação mês a mês</div></div></div>
+    <div class="tsc">
+      <table class="dt">
+        <thead><tr><th>Mês</th><th style="text-align:right">Atend.</th><th style="text-align:right">Aval.</th><th style="text-align:right">Cobert.</th><th style="text-align:right">CSAT</th><th style="text-align:right">TMA</th><th style="text-align:right">TME</th><th style="text-align:right">Var Atend.</th><th style="text-align:right">Var CSAT</th></tr></thead>
+        <tbody id="hist-close-tbody"></tbody>
+      </table>
+    </div>
   </div>
 
   <div class="g6040" style="margin-bottom:1rem;">
@@ -250653,6 +250683,8 @@ const pct1=v=>(v*100).toFixed(1).replace('.',',')+'%';
 const avgArr=arr=>arr.length?arr.reduce((s,v)=>s+v,0)/arr.length:null;
 const fmtDur=sec=>{if(sec==null)return'—';const s=Math.round(sec),h=Math.floor(s/3600),m=Math.floor((s%3600)/60),r=s%60;return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(r).padStart(2,'0')}`;};
 const fmtCsat=v=>v!=null?fS(v):'SEM AVALIAÇÃO';
+const trendPct=(cur,prev,lowerGood=false)=>{if(prev==null||prev===0||cur==null)return{txt:'—',cls:'knt'};const pct=(cur-prev)/prev*100;const good=lowerGood?pct<=0:pct>=0;return{txt:(pct>0?'+':'')+pct.toFixed(1).replace('.',',')+'%',cls:good?'kup':'kdn'};};
+const trendAbs=(cur,prev,lowerGood=false)=>{if(prev==null||cur==null)return{txt:'—',cls:'knt'};const diff=cur-prev;const good=lowerGood?diff<=0:diff>=0;return{txt:(diff>0?'+':'')+diff.toFixed(2).replace('.',','),cls:good?'kup':'kdn'};};
 const csatScale=vals=>{const clean=(vals||[]).filter(v=>typeof v==='number'&&v>0);const lo=clean.length?Math.min(...clean):9.5,hi=clean.length?Math.max(...clean):10;return {...cDef.scales.y,min:Math.max(0,Math.floor((lo-.08)*20)/20),max:Math.min(10.05,Math.ceil((hi+.08)*20)/20),ticks:{...cDef.scales.y.ticks,callback:v=>Number(v).toFixed(2).replace('.',',')}};};
 const monthMaxDay=m=>Math.max(...Object.keys(D.daily[m]||{}).map(Number));
 const monthIsPartial=m=>monthMaxDay(m)<new Date(2026,m,0).getDate();
@@ -250753,7 +250785,25 @@ function updateOvKPIs(m){
   $('ov-tme-d').textContent='dentro SLA';$('ov-tme-d').className='kd knt';
   $('ov-sla-d').textContent=D.sla[m]<1?'⚠ '+Math.round((1-D.sla[m])*D.atend[m])+' fora':'✓ Meta 100%';
   $('ov-sla-d').className='kd '+(D.sla[m]<1?'kdn':'kup');
+  renderOverviewClose(m);
   buildInsights(m);
+}
+
+function renderOverviewClose(m){
+  const p=m>0?m-1:null;
+  const rows=[
+    {n:'Qtd. Atendimentos',cur:D.atend[m],prev:p!=null?D.atend[p]:null,fmt:fN,trend:(c,v)=>trendPct(c,v),read:c=>c>=1800?'Volume alto':c>=1200?'Volume controlado':'Volume reduzido'},
+    {n:'Qtd. Avaliações',cur:D.aval[m],prev:p!=null?D.aval[p]:null,fmt:fN,trend:(c,v)=>trendPct(c,v),read:()=>`Cobertura ${fP(D.cobert[m])}`},
+    {n:'Satisfação Média',cur:D.sat[m],prev:p!=null?D.sat[p]:null,fmt:fS,trend:(c,v)=>trendAbs(c,v),read:c=>c>=9.9?'Dentro da referência':c>=9.8?'Monitorar':'Atenção'},
+    {n:'TMA',cur:minFromTime(D.tma[m]),prev:p!=null?minFromTime(D.tma[p]):null,fmt:()=>D.tma[m],prevFmt:()=>p!=null?D.tma[p]:'—',trend:(c,v)=>trendPct(c,v,true),read:c=>c<=25?'Rápido':c<=35?'Normal':'Atenção'},
+    {n:'TME',cur:minFromTime(D.tme[m]),prev:p!=null?minFromTime(D.tme[p]):null,fmt:()=>D.tme[m],prevFmt:()=>p!=null?D.tme[p]:'—',trend:(c,v)=>trendPct(c,v,true),read:c=>c<=2/60?'Dentro do SLA':'Monitorar espera'},
+    {n:'SLA ≤ 2min',cur:D.sla[m],prev:p!=null?D.sla[p]:null,fmt:fP,trend:(c,v)=>trendPct(c,v),read:c=>c>=1?'Meta 100%':'Há atendimentos fora'}
+  ];
+  $('ov-close-tbody').innerHTML=rows.map(r=>{
+    const t=r.trend(r.cur,r.prev);
+    const prevTxt=r.prevFmt?r.prevFmt():r.prev!=null?r.fmt(r.prev):'—';
+    return `<tr><td style="font-weight:600">${r.n}</td><td class="th">${r.fmt(r.cur)}</td><td class="tn">${prevTxt}</td><td class="tn"><span class="kd ${t.cls}">${t.txt}</span></td><td>${r.read(r.cur)}</td></tr>`;
+  }).join('');
 }
 
 function buildInsights(m){
@@ -251007,6 +251057,39 @@ function buildAgMs(){
 buildAgMs();
 
 const APAL=['#3d6b47','#4f8562','#6a9e78','#9ec4a8','#2d5038','#c8a048','#a83232','#2a6b8a','#7aae88','#5a6b3d','#8a9e5a','#6a4a2a','#3a5a8a','#8a5a3a','#2a4a5a','#5a3a2a'];
+function agentNucleus(agent){
+  const n=NUCLEOS.find(nu=>(nu.a||[]).map(normName).includes(normName(agent)));
+  return n?n.n.replace('Núcleo ',''):'Sem núcleo';
+}
+function renderAgentSummary(m){
+  const rows=(D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===m+1);
+  const map={};
+  rows.forEach(r=>{
+    const agent=r[2]||'Sem agente';
+    if(!map[agent])map[agent]={agent,rows:[],ratings:[],tma:[],tme:[],le120:0,gt300:0};
+    const a=map[agent];
+    a.rows.push(r);
+    if(r[6]!=null)a.ratings.push(r[6]);
+    if(r[4]!=null)a.tma.push(r[4]);
+    if(r[5]!=null){
+      a.tme.push(r[5]);
+      if(r[5]<=120)a.le120++;
+      if(r[5]>300)a.gt300++;
+    }
+  });
+  const data=Object.values(map).map(a=>{
+    const total=a.rows.length, aval=a.ratings.length, csat=avgArr(a.ratings), tma=avgArr(a.tma), tme=avgArr(a.tme);
+    const cov=total?aval/total:0, sla=total?a.le120/total:0;
+    const status=csat==null?'Sem avaliação':(csat<9.8?'Atenção CSAT':cov<.45?'Baixa cobertura':sla<.98?'Atenção espera':'Ok');
+    return {...a,total,aval,csat,tma,tme,cov,sla,status,nuc:agentNucleus(a.agent)};
+  }).filter(a=>a.total>0).sort((a,b)=>b.total-a.total||a.agent.localeCompare(b.agent,'pt-BR'));
+  $('ag-summary-title').textContent=`Fechamento Sintético por Agente — ${D.meses[m]}`;
+  $('ag-summary-tbody').innerHTML=data.map(a=>{
+    const cs=a.csat==null?'':a.csat<9.8?'color:var(--rust);font-weight:800':a.csat<9.9?'color:var(--amber);font-weight:800':'color:var(--moss);font-weight:800';
+    const st=a.status==='Ok'?'kup':a.status==='Sem avaliação'?'knt':'kdn';
+    return `<tr onclick="chartDrill('${esc(a.agent)}','${D.mesNomes[m]} · fechamento sintético',drillRows(${m},{agent:'${esc(a.agent)}'}))" style="cursor:pointer"><td><b>${esc(a.agent)}</b><br><span class="op-mono">${esc(a.nuc)}</span></td><td class="th">${fN(a.total)}</td><td class="tn">${fN(a.aval)}</td><td class="tn">${pct1(a.cov)}</td><td class="tn" style="${cs}">${a.csat!=null?fS(a.csat):'—'}</td><td class="tn">${fmtDur(a.tma)}</td><td class="tn">${fmtDur(a.tme)}</td><td class="tn">${fN(a.le120)} · ${pct1(a.sla)}</td><td class="tn">${fN(a.gt300)}</td><td><span class="kd ${st}">${a.status}</span></td></tr>`;
+  }).join('');
+}
 function buildAgentes(m){
   const ags=Object.entries(D.agentes).map(([nm,d])=>({nm,at:d[m][0],av:d[m][1],sat:d[m][2],tma:d[m][3]})).filter(a=>a.at>0).sort((a,b)=>b.at-a.at);
   const mx=Math.max(...ags.map(a=>a.at));
@@ -251020,6 +251103,7 @@ function buildAgentes(m){
     const sc=a.sat>=9.95?'color:var(--moss)':a.sat>=9.8?'color:var(--amber)':'color:var(--rust)';
     return `<div class="acard" style="--ac:${APAL[i%APAL.length]}22"><div class="acard-hd"><div class="ava" style="background:${APAL[i%APAL.length]}">${ini}</div><div><div class="aname">${a.nm}</div><div class="atma">TMA ${a.tma}</div></div></div><div class="astats"><div class="ast"><div class="av">${a.at}</div><div class="al">Atend.</div></div><div class="ast"><div class="av" style="${sc}">${a.sat>0?fS(a.sat):'—'}</div><div class="al">CSAT</div></div><div class="ast"><div class="av">${a.av>0?Math.round(a.av/a.at*100)+'%':'—'}</div><div class="al">Cobert.</div></div></div><div class="pb"><div class="pf" style="width:${(a.at/mx*100).toFixed(0)}%;background:${APAL[i%APAL.length]}"></div></div></div>`;
   }).join('');
+  renderAgentSummary(m);
 
   // Heatmap agente × dia
   {
@@ -251658,6 +251742,17 @@ function initHistorico(){
   anos.forEach(y=>{const o=document.createElement('option');o.value=y;o.textContent=y;sel.appendChild(o);});
   if(anos.includes('2025'))sel.value='2025';
 }
+function renderHistoricClose(H,y){
+  const months=y.months||[];
+  $('hist-close-tbody').innerHTML=months.map((m,i)=>{
+    const prev=i>0?months[i-1]:null;
+    const cov=m.atend?((m.aval||0)/m.atend):0;
+    const varAt=trendPct(m.atend||0,prev?.atend||0);
+    const varCs=trendAbs(m.csat||0,prev?.csat||0);
+    const active=(m.atend||m.aval||m.csat||m.tmaMin||m.tmeSec);
+    return `<tr style="${active?'':'opacity:.55'}"><td style="font-weight:600">${H.meses[i]||i+1}</td><td class="th">${fN(m.atend||0)}</td><td class="tn">${fN(m.aval||0)}</td><td class="tn">${pct1(cov)}</td><td class="tn">${m.csat?fS(m.csat):'—'}</td><td class="tn">${m.tmaMin?String(m.tmaMin.toFixed?m.tmaMin.toFixed(1):m.tmaMin).replace('.',',')+' min':'—'}</td><td class="tn">${m.tmeSec?fmtDur(m.tmeSec):'—'}</td><td class="tn"><span class="kd ${varAt.cls}">${varAt.txt}</span></td><td class="tn"><span class="kd ${varCs.cls}">${varCs.txt}</span></td></tr>`;
+  }).join('');
+}
 function renderHistorico(){
   initHistorico();
   const H=window.HISTORICO;
@@ -251670,6 +251765,7 @@ function renderHistorico(){
   $('hist-k3').textContent=fS(y.csat||0);
   $('hist-k4').textContent=(y.tmaMin||0).toFixed(1).replace('.',',');
   $('hist-k5').textContent=(y.sla||0).toFixed(1).replace('.',',')+'%';
+  renderHistoricClose(H,y);
 
   chart('ch-hist-month',{type:'bar',data:{labels:H.meses,datasets:[
     {label:'Atendimentos',data:y.months.map(m=>m.atend),backgroundColor:'#3d6b47aa',borderRadius:4,yAxisID:'y'},

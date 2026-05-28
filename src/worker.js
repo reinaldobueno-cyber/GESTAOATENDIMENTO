@@ -642,6 +642,16 @@ async function getCurrentDashboardRow(request, env, protocol) {
   ) || null;
 }
 
+async function getPrivateClientName(request, env, code) {
+  if (!code) return '';
+  const script = await decryptPrivateMap(request, env);
+  const match = script.match(/\(\s*(\[[\s\S]*?\])\s*\)\.forEach/);
+  if (!match) return '';
+  const clients = JSON.parse(match[1]);
+  const client = clients.find((item) => item?.codigo === code);
+  return client?.nome || '';
+}
+
 async function renderPdfReport(request, env, protocol) {
   const url = new URL(request.url);
   let payload = null;
@@ -657,7 +667,8 @@ async function renderPdfReport(request, env, protocol) {
   const code = row[18] || payload?.code || '';
   const payloadCode = payload?.code || payloadRow[18] || '';
   const payloadNameStillMatches = !currentRow || String(payloadCode) === String(code);
-  const clientName = (payloadNameStillMatches ? payload?.clientName : '') || row[19] || row[12] || code || 'Cliente não informado';
+  const privateClientName = await getPrivateClientName(request, env, code).catch(() => '');
+  const clientName = privateClientName || (payloadNameStillMatches ? payload?.clientName : '') || row[19] || row[12] || code || 'Cliente não informado';
   const histories = await getAttendanceHistoryBundle(protocol, env);
   const conversationHtml = renderConversationBundle(histories);
 

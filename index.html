@@ -252002,32 +252002,50 @@ function copyProtocol(protocol){
   if(!protocol)return;
   navigator.clipboard?.writeText(protocol);
 }
-function showAttendanceDetail(code,protocol){
-  const rows=(D.rows||[]).filter(r=>Array.isArray(r)&&clientCode(r)===code);
-  const r=rows.find(x=>String(x[7]||'')===String(protocol||''))||null;
-  if(!r)return;
+function attendanceDetailHtml(r){
   const pdfProtocol=attendanceProtocol(r), text=attendanceText(r);
-  const host=$('client-att-detail');
-  if(!host)return;
-  host.innerHTML=`
+  const code=clientCode(r), info=(window.CLIENTE_PRIVADO||{})[code]||null;
+  const displayClient=info?.nome||clientLabel(r);
+  return `
     <div class="attendance-detail">
       <div class="attendance-detail-title">${esc(r[7]||'sem protocolo')}</div>
       <div class="click-note">${String(r[1]).padStart(2,'0')}/${String(r[0]).padStart(2,'0')} · ${esc(r[2])} · ${esc(r[3])}</div>
       <div class="attendance-detail-grid">
+        <div class="attendance-detail-k"><b>Cliente</b><span>${esc(displayClient)}</span></div>
+        <div class="attendance-detail-k"><b>Código</b><span>${esc(code||'—')}</span></div>
+        <div class="attendance-detail-k"><b>Canal</b><span>${esc(r[14]||'WHATSAPP')}</span></div>
         <div class="attendance-detail-k"><b>Início</b><span>${esc(r[10]||'—')}</span></div>
         <div class="attendance-detail-k"><b>Encerramento</b><span>${esc(r[11]||'—')}</span></div>
         <div class="attendance-detail-k"><b>TMA</b><span>${fmtDur(r[4]||0)}</span></div>
         <div class="attendance-detail-k"><b>TME</b><span>${fmtDur(r[5]||0)}</span></div>
         <div class="attendance-detail-k"><b>CSAT</b><span>${fmtCsat(r[6])}</span></div>
         <div class="attendance-detail-k"><b>Session ID</b><span>${esc(r[16]||'—')}</span></div>
+        <div class="attendance-detail-k"><b>Operação</b><span>${esc(r[17]||'MODELO')}</span></div>
+        <div class="attendance-detail-k"><b>Status</b><span>${esc(r[15]||'—')}</span></div>
+        <div class="attendance-detail-k"><b>Recorrência cliente</b><span>${esc(r[24]||'—')}</span></div>
       </div>
       <div class="rel-actions" style="justify-content:flex-start;margin-top:.65rem;">
         <button class="rel-action" onclick="copyProtocol('${esc(r[7]||'')}')">Copiar protocolo</button>
         ${pdfProtocol?`<button class="rel-action" onclick="openNeppoPdf('${esc(pdfProtocol)}')">Abrir PDF</button>`:`<button class="rel-action disabled">PDF indisponível</button>`}
+        ${code?`<button class="rel-action" onclick="showClientPopup('${esc(code)}')">Abrir cliente</button>`:''}
       </div>
       <div class="click-note" style="margin-top:.55rem;">${text?esc(text):'O PDF será gerado com os dados consolidados já importados para o painel.'}</div>
     </div>
   `;
+}
+function showAttendanceDetail(code,protocol){
+  const r=(D.rows||[]).find(x=>Array.isArray(x)&&String(x[7]||'')===String(protocol||''))||
+    (D.rows||[]).find(x=>Array.isArray(x)&&clientCode(x)===code&&String(x[7]||'')===String(protocol||''))||null;
+  if(!r)return;
+  const host=$('client-att-detail');
+  if(host){
+    host.innerHTML=attendanceDetailHtml(r);
+    return;
+  }
+  $('rel-title').textContent=`Atendimento ${r[7]||''}`;
+  $('rel-sub').textContent=`${clientLabel(r)} · ${r[10]||''}`;
+  $('rel-body').innerHTML=attendanceDetailHtml(r);
+  $('rel-modal').classList.add('open');
 }
 function renderClientPopup(code,month=appM+1,group=''){
   const rows=(D.rows||[]).filter(r=>Array.isArray(r)&&clientCode(r)===code);

@@ -256117,13 +256117,18 @@ function renderGroupFractions(m){
     groupMap[group].total++;
     groupMap[group].agents[agent]=(groupMap[group].agents[agent]||0)+1;
   });
-  const lines=[];
-  Object.entries(groupMap).forEach(([group,g])=>{
+  const groups=Object.entries(groupMap).sort((a,b)=>b[1].total-a[1].total||a[0].localeCompare(b[0],'pt-BR'));
+  const html=[];
+  groups.forEach(([group,g])=>{
     const agentRows=Object.entries(g.agents).sort((a,b)=>b[1]-a[1]);
     const agentCount=agentRows.length;
-    agentRows.forEach(([agent,total])=>lines.push({group,agent,total,pct:g.total?total/g.total:0,frac:agentCount?1/agentCount:0,agentCount}));
+    agentRows.forEach(([agent,total],idx)=>{
+      const pct=g.total?total/g.total:0, frac=agentCount?1/agentCount:0;
+      html.push(`<tr onclick="chartDrill('${esc(group)} · ${esc(agent)}','${D.mesNomes[m]} · fração por grupo',drillRows(${m},{agent:'${esc(agent)}',group:'${esc(group)}'}))" style="cursor:pointer;${idx===0?'border-top:2px solid var(--mist)':''}"><td><b>${esc(group)}</b></td><td>${esc(agent)}</td><td class="th">${fN(total)}</td><td class="tn">${pct1(pct)}</td><td class="tn">1/${agentCount} · ${pct1(frac)}</td></tr>`);
+    });
+    html.push(`<tr style="background:var(--foam);border-bottom:2px solid var(--mist)"><td><b>${esc(group)}</b></td><td class="op-mono">Total do grupo</td><td class="th">${fN(g.total)}</td><td class="tn"><b>100,0%</b></td><td class="tn">${agentCount}/${agentCount} · 100,0%</td></tr>`);
   });
-  $('grp-agent-fraction-tbody').innerHTML=lines.sort((a,b)=>b.total-a.total).slice(0,80).map(r=>`<tr onclick="chartDrill('${esc(r.group)} · ${esc(r.agent)}','${D.mesNomes[m]} · fração por grupo',drillRows(${m},{agent:'${esc(r.agent)}',group:'${esc(r.group)}'}))" style="cursor:pointer"><td><b>${esc(r.group)}</b></td><td>${esc(r.agent)}</td><td class="th">${fN(r.total)}</td><td class="tn">${pct1(r.pct)}</td><td class="tn">1/${r.agentCount} · ${pct1(r.frac)}</td></tr>`).join('');
+  $('grp-agent-fraction-tbody').innerHTML=html.join('');
 }
 function renderGroupVariationTable(){
   const host=$('grp-var-tbody');

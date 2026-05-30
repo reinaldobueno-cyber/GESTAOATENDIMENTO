@@ -224,6 +224,10 @@ canvas{cursor:pointer;}
 .hm-large .hmc{height:28px;min-width:54px;font-size:.64rem;font-weight:700;}
 .hm-total{background:var(--foam);font-weight:800;}
 .hm-total .hmc{border:1px solid var(--border);background:#e7efe4;color:var(--ink);}
+.hm-nucleus td{background:#dfeadd!important;border-top:3px solid var(--moss);border-bottom:2px solid rgba(61,107,71,.25);padding-top:7px;padding-bottom:7px;}
+.hm-nucleus .hm-ag{font-family:'Geist Mono',monospace!important;font-size:.66rem!important;font-weight:900!important;text-transform:uppercase;letter-spacing:.08em;color:var(--moss)!important;}
+.hm-nucleus .hmc{background:#cfdec9!important;border:1px solid rgba(61,107,71,.3);color:var(--ink);font-weight:900;}
+.hm-nucleus+tr td{padding-top:7px;}
 
 /* ——— HOUR HEATMAP ——— */
 .hour-hm{display:grid;gap:2px;}
@@ -255493,7 +255497,7 @@ function renderAgentGroupHeatmap(m){
   agentBlocks.forEach(block=>{
     if(!block.agents.length)return;
     const blockTotal=block.agents.reduce((s,a)=>s+(agentTotals[a]||0),0);
-    html+=`<tr class="hm-total"><td class="hm-ag">${esc(block.name)}</td>${groups.map(g=>{const v=block.agents.reduce((s,a)=>s+(agentMap[a]?.[g]||0),0);return`<td><div class="hmc" title="${esc(block.name)} · ${esc(g)}: ${fN(v)}" onclick="chartDrill('${esc(block.name)} · ${esc(g)}','${D.mesNomes[m]} · núcleo por grupo',groupDrillRows(${m},{group:'${esc(g)}'}).filter(r=>agentNucleusName(r[2])==='${esc(block.name)}'))" style="cursor:pointer">${v||''}</div></td>`;}).join('')}<td><div class="hmc" title="${esc(block.name)}: ${fN(blockTotal)}">${fN(blockTotal)}</div></td></tr>`;
+    html+=`<tr class="hm-total hm-nucleus"><td class="hm-ag">${esc(block.name)}</td>${groups.map(g=>{const v=block.agents.reduce((s,a)=>s+(agentMap[a]?.[g]||0),0);return`<td><div class="hmc" title="${esc(block.name)} · ${esc(g)}: ${fN(v)}" onclick="chartDrill('${esc(block.name)} · ${esc(g)}','${D.mesNomes[m]} · núcleo por grupo',groupDrillRows(${m},{group:'${esc(g)}'}).filter(r=>agentNucleusName(r[2])==='${esc(block.name)}'))" style="cursor:pointer">${v||''}</div></td>`;}).join('')}<td><div class="hmc" title="${esc(block.name)}: ${fN(blockTotal)}">${fN(blockTotal)}</div></td></tr>`;
     block.agents.forEach((a,i)=>{
       html+=`<tr style="background:${i%2===0?'transparent':'var(--s1)'}"><td class="hm-ag">${esc(a)}</td>${groups.map(g=>{const v=agentMap[a]?.[g]||0;return`<td><div class="hmc" title="${esc(a)} · ${esc(g)}: ${fN(v)}" onclick="chartDrill('${esc(a)} · ${esc(g)}','${D.mesNomes[m]} · agente por grupo',groupDrillRows(${m},{agent:'${esc(a)}',group:'${esc(g)}'}))" style="cursor:pointer;background:${hmcGrp(v,mx)};color:${v>mx*.35?'#fff':'#2d5038'}">${v||''}</div></td>`;}).join('')}<td class="hm-total"><div class="hmc" title="${esc(a)}: ${fN(agentTotals[a])}" onclick="chartDrill('${esc(a)}','${D.mesNomes[m]} · total do agente',groupDrillRows(${m},{agent:'${esc(a)}'}))" style="cursor:pointer">${fN(agentTotals[a])}</div></td></tr>`;
     });

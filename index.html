@@ -255465,6 +255465,10 @@ function groupDrillRows(m,opts={}){
   const period=currentGroupPeriod();
   return drillRows(m,{...opts,period:period||opts.period||''});
 }
+function agentNucleusName(agent){
+  const found=NUCLEOS.find(n=>(n.a||[]).map(normName).includes(normName(agent)));
+  return found?.n||'Outros agentes';
+}
 function renderAgentGroupHeatmap(m){
   const monthRows=groupScopeRows(m);
   const agentMap={}, groupTotals={}, agentTotals={};
@@ -255476,12 +255480,23 @@ function renderAgentGroupHeatmap(m){
     agentTotals[agent]=(agentTotals[agent]||0)+1;
   });
   const groups=Object.keys(groupTotals).sort((a,b)=>groupTotals[b]-groupTotals[a]||a.localeCompare(b,'pt-BR'));
-  const agents=Object.keys(agentTotals).sort((a,b)=>agentTotals[b]-agentTotals[a]||a.localeCompare(b,'pt-BR'));
+  const agentBlocks=NUCLEOS.map(n=>({
+    name:n.n,
+    agents:Object.keys(agentTotals).filter(a=>agentNucleusName(a)===n.n).sort((a,b)=>agentTotals[b]-agentTotals[a]||a.localeCompare(b,'pt-BR'))
+  }));
+  const otherAgents=Object.keys(agentTotals).filter(a=>agentNucleusName(a)==='Outros agentes').sort((a,b)=>agentTotals[b]-agentTotals[a]||a.localeCompare(b,'pt-BR'));
+  if(otherAgents.length)agentBlocks.push({name:'Outros agentes',agents:otherAgents});
+  const agents=agentBlocks.flatMap(b=>b.agents);
   const mx=Math.max(1,...agents.flatMap(a=>groups.map(g=>agentMap[a]?.[g]||0)),...Object.values(agentTotals),...Object.values(groupTotals));
   const total=monthRows.length;
   let html=`<tr><th class="hm-ag">Agente ↓ / Grupo →</th>${groups.map(g=>`<th title="${esc(g)}">${esc(shortGroupLabel(g))}</th>`).join('')}<th>Total agente</th></tr>`;
-  agents.forEach((a,i)=>{
-    html+=`<tr style="background:${i%2===0?'transparent':'var(--s1)'}"><td class="hm-ag">${esc(a)}</td>${groups.map(g=>{const v=agentMap[a]?.[g]||0;return`<td><div class="hmc" title="${esc(a)} · ${esc(g)}: ${fN(v)}" onclick="chartDrill('${esc(a)} · ${esc(g)}','${D.mesNomes[m]} · agente por grupo',groupDrillRows(${m},{agent:'${esc(a)}',group:'${esc(g)}'}))" style="cursor:pointer;background:${hmcGrp(v,mx)};color:${v>mx*.35?'#fff':'#2d5038'}">${v||''}</div></td>`;}).join('')}<td class="hm-total"><div class="hmc" title="${esc(a)}: ${fN(agentTotals[a])}" onclick="chartDrill('${esc(a)}','${D.mesNomes[m]} · total do agente',groupDrillRows(${m},{agent:'${esc(a)}'}))" style="cursor:pointer">${fN(agentTotals[a])}</div></td></tr>`;
+  agentBlocks.forEach(block=>{
+    if(!block.agents.length)return;
+    const blockTotal=block.agents.reduce((s,a)=>s+(agentTotals[a]||0),0);
+    html+=`<tr class="hm-total"><td class="hm-ag">${esc(block.name)}</td>${groups.map(g=>{const v=block.agents.reduce((s,a)=>s+(agentMap[a]?.[g]||0),0);return`<td><div class="hmc" title="${esc(block.name)} · ${esc(g)}: ${fN(v)}" onclick="chartDrill('${esc(block.name)} · ${esc(g)}','${D.mesNomes[m]} · núcleo por grupo',groupDrillRows(${m},{group:'${esc(g)}'}).filter(r=>agentNucleusName(r[2])==='${esc(block.name)}'))" style="cursor:pointer">${v||''}</div></td>`;}).join('')}<td><div class="hmc" title="${esc(block.name)}: ${fN(blockTotal)}">${fN(blockTotal)}</div></td></tr>`;
+    block.agents.forEach((a,i)=>{
+      html+=`<tr style="background:${i%2===0?'transparent':'var(--s1)'}"><td class="hm-ag">${esc(a)}</td>${groups.map(g=>{const v=agentMap[a]?.[g]||0;return`<td><div class="hmc" title="${esc(a)} · ${esc(g)}: ${fN(v)}" onclick="chartDrill('${esc(a)} · ${esc(g)}','${D.mesNomes[m]} · agente por grupo',groupDrillRows(${m},{agent:'${esc(a)}',group:'${esc(g)}'}))" style="cursor:pointer;background:${hmcGrp(v,mx)};color:${v>mx*.35?'#fff':'#2d5038'}">${v||''}</div></td>`;}).join('')}<td class="hm-total"><div class="hmc" title="${esc(a)}: ${fN(agentTotals[a])}" onclick="chartDrill('${esc(a)}','${D.mesNomes[m]} · total do agente',groupDrillRows(${m},{agent:'${esc(a)}'}))" style="cursor:pointer">${fN(agentTotals[a])}</div></td></tr>`;
+    });
   });
   html+=`<tr class="hm-total"><td class="hm-ag">Total grupo</td>${groups.map(g=>`<td><div class="hmc" title="${esc(g)}: ${fN(groupTotals[g])}" onclick="chartDrill('${esc(g)}','${D.mesNomes[m]} · total do grupo',groupDrillRows(${m},{group:'${esc(g)}'}))" style="cursor:pointer">${fN(groupTotals[g])}</div></td>`).join('')}<td><div class="hmc" title="Total geral">${fN(total)}</div></td></tr>`;
   $('grp-ag-hm').innerHTML=html;

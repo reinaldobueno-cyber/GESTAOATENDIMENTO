@@ -682,6 +682,12 @@ canvas{cursor:pointer;}
 <div id="pane-grupos" class="pane">
   <div class="sh"><span class="sh-title">Grupos de Atendimento</span><span class="sh-sub">Jan → Mai 2026 · volume, tendência e participação</span><div class="sh-line"></div></div>
 
+  <div class="fbar">
+    <span class="fl">Período do mês:</span>
+    <select class="fs" id="grp-period" onchange="renderGroupsMonth(appM)"><option value="">Todos</option></select>
+    <span class="op-summary" id="grp-period-summary">Todos os atendimentos do mês selecionado.</span>
+  </div>
+
   <div class="g4060" style="margin-bottom:1rem;">
     <div class="card">
       <div class="ch"><div class="ct">Ranking por Volume no Mês</div><div class="cs" id="title-grp-rank-sub">Recorte do mês selecionado · largura = participação</div></div>
@@ -693,7 +699,7 @@ canvas{cursor:pointer;}
     </div>
   </div>
 
-  <div class="g3" style="margin-bottom:1rem;">
+  <div class="g2" style="margin-bottom:1rem;">
     <div class="card">
       <div class="ch"><div class="ct" id="title-grp-pie">Distribuição Abril</div><div class="cs">% de participação de cada grupo</div></div>
       <div class="h260"><canvas id="ch-grp-pie"></canvas></div>
@@ -702,10 +708,16 @@ canvas{cursor:pointer;}
       <div class="ch"><div class="ct">Tendência — Top 5 Grupos</div><div class="cs">Evolução Jan → Mai volume</div></div>
       <div class="h260"><canvas id="ch-grp-line"></canvas></div>
     </div>
-    <div class="card">
-      <div class="ch"><div class="ct" id="title-grp-hm">Agentes × Grupos (Abril)</div><div class="cs">Heatmap de especialização · quem atende o quê</div></div>
-      <div class="hm-wrap"><table class="hm hm-large" id="grp-ag-hm" style="width:100%;"></table></div>
-    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:1rem;">
+    <div class="ch"><div><div class="ct" id="title-grp-hm">Agentes × Grupos (Abril)</div><div class="cs">Heatmap em largura total · totais precisam bater com ranking e tabela do mesmo período</div></div></div>
+    <div class="hm-wrap"><table class="hm hm-large" id="grp-ag-hm" style="width:100%;"></table></div>
+  </div>
+
+  <div class="card" style="margin-bottom:1rem;">
+    <div class="ch"><div><div class="ct">Divisão por Núcleo</div><div class="cs">Leitura por time operacional dentro do período filtrado</div></div></div>
+    <div class="nuc-detail" id="grp-nuc-detail"></div>
   </div>
 
   <div class="card">
@@ -255437,8 +255449,24 @@ Chart.getChart($('ch-grp-line')).update();
 // Agente × Grupo heatmap
 function hmcGrp(v,mx2){if(!v)return'#f6f8f3';const p=v/mx2;return p<.1?'#e4ead0':p<.3?'#9ec4a8':p<.6?'#4f8562':'#3d6b47';}
 function shortGroupLabel(g){return g.length>14?g.slice(0,14)+'…':g;}
+function initGroupPeriodFilter(){
+  const sel=$('grp-period');
+  if(!sel||sel.options.length>1)return;
+  [...new Set((D.rows||[]).filter(Array.isArray).map(r=>r[8]).filter(Boolean))]
+    .sort((a,b)=>String(a).localeCompare(String(b),'pt-BR',{numeric:true}))
+    .forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;sel.appendChild(o);});
+}
+function currentGroupPeriod(){return $('grp-period')?.value||'';}
+function groupScopeRows(m){
+  const period=currentGroupPeriod();
+  return (D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===m+1&&(!period||r[8]===period));
+}
+function groupDrillRows(m,opts={}){
+  const period=currentGroupPeriod();
+  return drillRows(m,{...opts,period:period||opts.period||''});
+}
 function renderAgentGroupHeatmap(m){
-  const monthRows=(D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===m+1);
+  const monthRows=groupScopeRows(m);
   const agentMap={}, groupTotals={}, agentTotals={};
   monthRows.forEach(r=>{
     const agent=r[2]||'Sem agente', group=r[3]||'Sem grupo';
@@ -255453,9 +255481,9 @@ function renderAgentGroupHeatmap(m){
   const total=monthRows.length;
   let html=`<tr><th class="hm-ag">Agente ↓ / Grupo →</th>${groups.map(g=>`<th title="${esc(g)}">${esc(shortGroupLabel(g))}</th>`).join('')}<th>Total agente</th></tr>`;
   agents.forEach((a,i)=>{
-    html+=`<tr style="background:${i%2===0?'transparent':'var(--s1)'}"><td class="hm-ag">${esc(a)}</td>${groups.map(g=>{const v=agentMap[a]?.[g]||0;return`<td><div class="hmc" title="${esc(a)} · ${esc(g)}: ${fN(v)}" onclick="chartDrill('${esc(a)} · ${esc(g)}','${D.mesNomes[m]} · agente por grupo',drillRows(${m},{agent:'${esc(a)}',group:'${esc(g)}'}))" style="cursor:pointer;background:${hmcGrp(v,mx)};color:${v>mx*.35?'#fff':'#2d5038'}">${v||''}</div></td>`;}).join('')}<td class="hm-total"><div class="hmc" title="${esc(a)}: ${fN(agentTotals[a])}" onclick="chartDrill('${esc(a)}','${D.mesNomes[m]} · total do agente',drillRows(${m},{agent:'${esc(a)}'}))" style="cursor:pointer">${fN(agentTotals[a])}</div></td></tr>`;
+    html+=`<tr style="background:${i%2===0?'transparent':'var(--s1)'}"><td class="hm-ag">${esc(a)}</td>${groups.map(g=>{const v=agentMap[a]?.[g]||0;return`<td><div class="hmc" title="${esc(a)} · ${esc(g)}: ${fN(v)}" onclick="chartDrill('${esc(a)} · ${esc(g)}','${D.mesNomes[m]} · agente por grupo',groupDrillRows(${m},{agent:'${esc(a)}',group:'${esc(g)}'}))" style="cursor:pointer;background:${hmcGrp(v,mx)};color:${v>mx*.35?'#fff':'#2d5038'}">${v||''}</div></td>`;}).join('')}<td class="hm-total"><div class="hmc" title="${esc(a)}: ${fN(agentTotals[a])}" onclick="chartDrill('${esc(a)}','${D.mesNomes[m]} · total do agente',groupDrillRows(${m},{agent:'${esc(a)}'}))" style="cursor:pointer">${fN(agentTotals[a])}</div></td></tr>`;
   });
-  html+=`<tr class="hm-total"><td class="hm-ag">Total grupo</td>${groups.map(g=>`<td><div class="hmc" title="${esc(g)}: ${fN(groupTotals[g])}" onclick="chartDrill('${esc(g)}','${D.mesNomes[m]} · total do grupo',drillRows(${m},{group:'${esc(g)}'}))" style="cursor:pointer">${fN(groupTotals[g])}</div></td>`).join('')}<td><div class="hmc" title="Total geral">${fN(total)}</div></td></tr>`;
+  html+=`<tr class="hm-total"><td class="hm-ag">Total grupo</td>${groups.map(g=>`<td><div class="hmc" title="${esc(g)}: ${fN(groupTotals[g])}" onclick="chartDrill('${esc(g)}','${D.mesNomes[m]} · total do grupo',groupDrillRows(${m},{group:'${esc(g)}'}))" style="cursor:pointer">${fN(groupTotals[g])}</div></td>`).join('')}<td><div class="hmc" title="Total geral">${fN(total)}</div></td></tr>`;
   $('grp-ag-hm').innerHTML=html;
 }
 renderAgentGroupHeatmap(F);
@@ -256144,23 +256172,35 @@ function renderTempoMonth(m){
 }
 
 function renderGroupsMonth(m){
-  const mk=mKey(m+1), prev=m>0?mKey(m):null;
-  const rows=D.grupos.nomes.map((n,i)=>({n,focus:D.grupos[mk][i]||0,prev:prev?(D.grupos[prev][i]||0):0,tot:monthKeys.reduce((s,k)=>s+(D.grupos[k][i]||0),0),vals:Object.fromEntries(monthKeys.map(k=>[k,D.grupos[k][i]||0]))})).sort((a,b)=>b.focus-a.focus);
+  initGroupPeriodFilter();
+  const period=currentGroupPeriod(), periodLabel=period||'Todos os períodos';
+  const rowsByMonth=monthKeys.map((_,i)=>(D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===i+1&&(!period||r[8]===period)));
+  const groupNames=[...new Set(rowsByMonth.flatMap(rs=>rs.map(r=>r[3]||'Sem grupo')))];
+  const rows=groupNames.map(n=>{
+    const vals=rowsByMonth.map(rs=>rs.filter(r=>(r[3]||'Sem grupo')===n).length);
+    return {n,focus:vals[m]||0,prev:m>0?(vals[m-1]||0):0,tot:vals.reduce((s,v)=>s+v,0),vals};
+  }).filter(g=>g.tot>0).sort((a,b)=>b.focus-a.focus||b.tot-a.tot||a.n.localeCompare(b.n,'pt-BR'));
+  const monthRows=groupScopeRows(m);
   $('grp-var-head').textContent=m>0?`Var ${D.meses[m-1]}→${D.meses[m]}`:'Var mês';
-  $('title-grp-rank-sub').textContent=`${D.mesNomes[m]} · largura = participação`;
+  $('grp-period-summary').textContent=`${D.mesNomes[m]} · ${periodLabel} · ${fN(monthRows.length)} atendimento(s)`;
+  $('title-grp-rank-sub').textContent=`${D.mesNomes[m]} · ${periodLabel} · largura = participação`;
   $('grp-blist').innerHTML=rows.map((g,i)=>{
     const pct=(g.focus/Math.max(1,rows[0]?.focus||1)*100).toFixed(0);
     return `<div class="bi"><span class="bl" title="${g.n}">${g.n.length>14?g.n.slice(0,14)+'…':g.n}</span><div class="bt"><div class="bfill" style="width:${pct}%;background:${PAL[i%PAL.length]}"></div></div><span class="bv">${fN(g.focus)}</span></div>`;
   }).join('');
-  chart('ch-grp-pie',{type:'doughnut',data:{labels:rows.map(g=>g.n),datasets:[{data:rows.map(g=>g.focus),backgroundColor:PAL,borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{color:'#8fa28a',font:{family:'Geist Mono',size:9},boxWidth:9,padding:5}},tooltip:{...cDef.plugins.tooltip}},onClick:chartClick(el=>{const group=rows[el.index]?.n;if(group)chartDrill(`${group}`,`${D.mesNomes[m]} · distribuição`,drillRows(m,{group}));})}});
+  chart('ch-grp-comp',{type:'bar',data:{labels:rows.map(g=>g.n.length>12?g.n.slice(0,12)+'…':g.n),datasets:monthKeys.map((k,i)=>({label:D.meses[i],data:rows.map(g=>g.vals[i]||0),backgroundColor:PAL[i]+'99',borderRadius:2}))},options:{...cDef,scales:{...cDef.scales,x:{...cDef.scales.x,ticks:{maxRotation:35,color:'#8fa28a',font:{family:'Geist Mono',size:8}}}},onClick:chartClick(el=>{const month=el.datasetIndex,group=rows[el.index]?.n;if(group)chartDrill(`${group} · ${D.meses[month]}`,`${periodLabel} · comparativo mensal`,period?drillRows(month,{group,period}):drillRows(month,{group}));})}});
+  chart('ch-grp-pie',{type:'doughnut',data:{labels:rows.map(g=>g.n),datasets:[{data:rows.map(g=>g.focus),backgroundColor:PAL,borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{color:'#8fa28a',font:{family:'Geist Mono',size:9},boxWidth:9,padding:5}},tooltip:{...cDef.plugins.tooltip}},onClick:chartClick(el=>{const group=rows[el.index]?.n;if(group)chartDrill(`${group}`,`${D.mesNomes[m]} · ${periodLabel}`,groupDrillRows(m,{group}));})}});
+  const top5=rows.slice(0,5);
+  chart('ch-grp-line',{type:'line',data:{labels:D.meses,datasets:top5.map((g,i)=>({label:g.n.split(' ')[0],data:g.vals,borderColor:PAL[i],backgroundColor:'transparent',tension:.35,pointRadius:5,pointBackgroundColor:PAL[i]}))},options:{...cDef,onClick:chartClick(el=>{const group=top5[el.datasetIndex]?.n,month=el.index;if(group)chartDrill(`${group} · ${D.meses[month]}`,`${periodLabel} · tendência do grupo`,period?drillRows(month,{group,period}):drillRows(month,{group}));})}});
   renderAgentGroupHeatmap(m);
   renderGroupFractions(m);
+  renderGroupNuclei(m);
   renderGroupSeasonality();
-  $('grp-tbody').innerHTML=rows.map((g,i)=>{const rc=i===0?'r1':i===1?'r2':i===2?'r3':'rn';const vp=g.prev>0?((g.focus-g.prev)/g.prev*100).toFixed(1):'—';const vc=parseFloat(vp)>0?'color:var(--moss)':parseFloat(vp)<0?'color:var(--rust)':'color:var(--ghost)';return`<tr><td><span class="rb ${rc}">${i+1}</span></td><td style="font-weight:500">${g.n}</td><td class="tn">${g.vals.jan}</td><td class="tn">${g.vals.fev}</td><td class="tn">${g.vals.mar}</td><td class="tn">${g.vals.abr}</td><td class="tn">${g.vals.mai}</td><td class="th">${fN(g.tot)}</td><td class="tn" style="${vc}">${vp!=='—'?(parseFloat(vp)>0?'+':'')+vp+'%':vp}</td></tr>`;}).join('');
+  $('grp-tbody').innerHTML=rows.map((g,i)=>{const rc=i===0?'r1':i===1?'r2':i===2?'r3':'rn';const vp=g.prev>0?((g.focus-g.prev)/g.prev*100).toFixed(1):'—';const vc=parseFloat(vp)>0?'color:var(--moss)':parseFloat(vp)<0?'color:var(--rust)':'color:var(--ghost)';return`<tr><td><span class="rb ${rc}">${i+1}</span></td><td style="font-weight:500">${g.n}</td>${g.vals.map(v=>`<td class="tn">${fN(v)}</td>`).join('')}<td class="th">${fN(g.tot)}</td><td class="tn" style="${vc}">${vp!=='—'?(parseFloat(vp)>0?'+':'')+vp+'%':vp}</td></tr>`;}).join('');
 }
 
 function renderGroupFractions(m){
-  const rows=(D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===m+1);
+  const rows=groupScopeRows(m);
   const groupMap={};
   rows.forEach(r=>{
     const group=r[3]||'Sem grupo', agent=r[2]||'Sem agente';
@@ -256631,6 +256671,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

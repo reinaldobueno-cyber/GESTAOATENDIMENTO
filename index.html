@@ -182,6 +182,10 @@ body{background:var(--paper);color:var(--text);font-family:'Geist',sans-serif;li
 .rel-main b{font-family:'Fraunces',serif;color:var(--ink);font-size:.83rem;}
 .rel-tags{display:flex;gap:.35rem;flex-wrap:wrap;justify-content:flex-end;}
 .rel-tag{border-radius:999px;background:var(--foam);border:1px solid var(--border);padding:2px 7px;font-family:'Geist Mono',monospace;font-size:.56rem;color:var(--moss);}
+.rel-group{border-top:1px solid var(--mist);padding-top:.8rem;margin-top:.9rem;}
+.rel-group-head{display:flex;align-items:flex-end;justify-content:space-between;gap:.8rem;margin-bottom:.45rem;}
+.rel-group-title{font-family:'Fraunces',serif;font-weight:800;color:var(--ink);}
+.rel-group-meta{font-family:'Geist Mono',monospace;font-size:.58rem;color:var(--ghost);}
 .click-note{font-family:'Geist Mono',monospace;font-size:.58rem;color:var(--ghost);margin-top:.4rem;}
 .rel-client{border:0;background:transparent;color:var(--moss);font:inherit;font-weight:700;text-decoration:underline;text-underline-offset:2px;cursor:pointer;padding:0;text-align:left;}
 .client-months{display:grid;grid-template-columns:repeat(auto-fit,minmax(82px,1fr));gap:.45rem;margin:.8rem 0;}
@@ -256024,6 +256028,34 @@ function showClientPopup(code){
 function showTempoPopup(title,subtitle,rows){
   const total=rows.length, av=rows.filter(r=>r[6]!=null), avgAt=avgArr(rows.map(r=>r[4]||0)), avgWait=avgArr(rows.map(r=>r[5]||0));
   const byAgent=Object.entries(rows.reduce((a,r)=>{a[r[2]]=(a[r[2]]||0)+1;return a;},{})).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const groupStats=Object.entries(rows.reduce((a,r)=>{
+    const group=r[3]||'Sem grupo';
+    if(!a[group])a[group]=[];
+    a[group].push(r);
+    return a;
+  },{})).map(([group,items])=>{
+    const rated=items.filter(r=>r[6]!=null);
+    return {group,items,total:items.length,tma:avgArr(items.map(r=>r[4]||0)),tme:avgArr(items.map(r=>r[5]||0)),rated:rated.length,csat:rated.length?avgArr(rated.map(r=>r[6])):null};
+  }).sort((a,b)=>b.total-a.total||a.group.localeCompare(b.group,'pt-BR'));
+  const groupSummary=groupStats.length>1?`
+    <div class="tsc" style="margin-top:.85rem;">
+      <table class="dt">
+        <thead><tr><th>Grupo de atendimento</th><th style="text-align:right">Atend.</th><th style="text-align:right">%</th><th style="text-align:right">TMA</th><th style="text-align:right">TME</th><th style="text-align:right">Aval.</th><th style="text-align:right">CSAT</th></tr></thead>
+        <tbody>${groupStats.map(g=>`<tr><td><b>${esc(g.group)}</b></td><td class="th">${fN(g.total)}</td><td class="tn">${pct1(g.total/Math.max(1,total))}</td><td class="tn">${fmtDur(g.tma)}</td><td class="tn">${fmtDur(g.tme)}</td><td class="tn">${fN(g.rated)}</td><td class="tn">${g.csat!=null?fS(g.csat):'—'}</td></tr>`).join('')}</tbody>
+      </table>
+    </div>
+  `:'';
+  const groupLists=groupStats.map(g=>`
+    <div class="rel-group">
+      <div class="rel-group-head">
+        <div><div class="rel-group-title">${esc(g.group)}</div><div class="rel-group-meta">${fN(g.total)} atend. · ${pct1(g.total/Math.max(1,total))} da relação · TMA ${fmtDur(g.tma)} · CSAT ${g.csat!=null?fS(g.csat):'—'}</div></div>
+      </div>
+      <div class="rel-list">
+        ${g.items.slice(0,80).map(r=>`<div class="rel-item"><div class="rel-main"><b>${r[2]}</b><br>${String(r[1]).padStart(2,'0')}/${String(r[0]).padStart(2,'0')} · ${r[7]||'sem protocolo'}<br>${clientButton(r)}${r[11]?`<br><span style="color:var(--ghost)">Encerrado em ${r[11]}</span>`:''}</div><div class="rel-tags">${r[7]?`<button class="rel-action" onclick="openAdjustmentForm('${esc(r[7])}')">Ajustar</button>`:''}<span class="rel-tag">TMA ${fmtDur(r[4])}</span><span class="rel-tag">TME ${fmtDur(r[5])}</span><span class="rel-tag">CSAT ${fmtCsat(r[6])}</span></div></div>`).join('')}
+      </div>
+      ${g.items.length>80?`<div class="click-note">Exibindo 80 de ${fN(g.items.length)} atendimentos deste grupo.</div>`:''}
+    </div>
+  `).join('');
   $('rel-title').textContent=title;
   $('rel-sub').textContent=subtitle;
   $('rel-body').innerHTML=`
@@ -256034,10 +256066,8 @@ function showTempoPopup(title,subtitle,rows){
       <div class="rel-k"><div class="rel-kv">${av.length?fS(avgArr(av.map(r=>r[6]))):'—'}</div><div class="rel-kl">CSAT médio</div></div>
     </div>
     ${byAgent.length?`<div class="click-note">Agentes nesta relação: ${byAgent.map(([a,v])=>`${a} (${v})`).join(' · ')}</div>`:''}
-    <div class="rel-list" style="margin-top:.8rem;">
-      ${rows.slice(0,160).map(r=>`<div class="rel-item"><div class="rel-main"><b>${r[2]}</b><br>${String(r[1]).padStart(2,'0')}/${String(r[0]).padStart(2,'0')} · ${r[3]} · ${r[7]||'sem protocolo'}<br>${clientButton(r)}${r[11]?`<br><span style="color:var(--ghost)">Encerrado em ${r[11]}</span>`:''}</div><div class="rel-tags">${r[7]?`<button class="rel-action" onclick="openAdjustmentForm('${esc(r[7])}')">Ajustar</button>`:''}<span class="rel-tag">TMA ${fmtDur(r[4])}</span><span class="rel-tag">TME ${fmtDur(r[5])}</span><span class="rel-tag">CSAT ${fmtCsat(r[6])}</span></div></div>`).join('')}
-    </div>
-    ${rows.length>160?`<div class="click-note">Exibindo 160 de ${fN(rows.length)} atendimentos.</div>`:''}
+    ${groupSummary}
+    ${groupLists||'<div class="op-empty">Nenhum atendimento encontrado.</div>'}
   `;
   $('rel-modal').classList.add('open');
 }

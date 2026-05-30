@@ -217,6 +217,13 @@ canvas{cursor:pointer;}
 .hm-ag{text-align:left !important;font-size:.65rem;color:var(--text);font-family:'Geist',sans-serif;font-weight:500;padding:4px 10px 4px 4px !important;white-space:nowrap;}
 .hm td{padding:2px 3px;text-align:center;}
 .hmc{width:100%;height:20px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-family:'Geist Mono',monospace;font-size:.58rem;font-weight:500;min-width:24px;}
+.hm-large{min-width:1080px;font-size:.78rem;}
+.hm-large th{padding:7px 8px;font-size:.58rem;}
+.hm-large .hm-ag{min-width:150px;font-size:.72rem;padding-right:14px!important;}
+.hm-large td{padding:3px 4px;}
+.hm-large .hmc{height:28px;min-width:54px;font-size:.64rem;font-weight:700;}
+.hm-total{background:var(--foam);font-weight:800;}
+.hm-total .hmc{border:1px solid var(--border);background:#e7efe4;color:var(--ink);}
 
 /* ——— HOUR HEATMAP ——— */
 .hour-hm{display:grid;gap:2px;}
@@ -697,7 +704,7 @@ canvas{cursor:pointer;}
     </div>
     <div class="card">
       <div class="ch"><div class="ct" id="title-grp-hm">Agentes × Grupos (Abril)</div><div class="cs">Heatmap de especialização · quem atende o quê</div></div>
-      <div class="hm-wrap"><table class="hm" id="grp-ag-hm" style="width:100%;"></table></div>
+      <div class="hm-wrap"><table class="hm hm-large" id="grp-ag-hm" style="width:100%;"></table></div>
     </div>
   </div>
 
@@ -255428,12 +255435,30 @@ new Chart($('ch-grp-line'),{type:'line',data:{
 Chart.getChart($('ch-grp-line')).options.onClick=chartClick(el=>{const group=top5g[el.datasetIndex]?.n,m=el.index;if(group)chartDrill(`${group} · ${D.meses[m]}`,`Tendência do grupo`,drillRows(m,{group}));});
 Chart.getChart($('ch-grp-line')).update();
 // Agente × Grupo heatmap
-const agGrpAgs=Object.keys(D.agGrp);const agGrpGrps=['Estoque Animais','Reprodução','Infraestrutura','Confinamento','SISBOV','Financeiro'];
 function hmcGrp(v,mx2){if(!v)return'#f6f8f3';const p=v/mx2;return p<.1?'#e4ead0':p<.3?'#9ec4a8':p<.6?'#4f8562':'#3d6b47';}
-const grpMx=Math.max(...agGrpAgs.flatMap(a=>agGrpGrps.map(g=>D.agGrp[a]?D.agGrp[a][g]||0:0)));
-let grpHmHtml=`<tr><th class="hm-ag">Agente ↓ / Grupo →</th>${agGrpGrps.map(g=>`<th>${g.length>10?g.slice(0,10)+'…':g}</th>`).join('')}</tr>`;
-agGrpAgs.forEach((a,i)=>{grpHmHtml+=`<tr style="background:${i%2===0?'transparent':'var(--s1)'}"><td class="hm-ag">${a.split(' ')[0]}</td>${agGrpGrps.map(g=>{const v=D.agGrp[a]?D.agGrp[a][g]||0:0;return`<td><div class="hmc" style="background:${hmcGrp(v,grpMx)};color:${v>grpMx*.5?'#fff':'#2d5038'};min-width:36px">${v||''}</div></td>`;}).join('')}</tr>`;});
-$('grp-ag-hm').innerHTML=grpHmHtml;
+function shortGroupLabel(g){return g.length>14?g.slice(0,14)+'…':g;}
+function renderAgentGroupHeatmap(m){
+  const monthRows=(D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===m+1);
+  const agentMap={}, groupTotals={}, agentTotals={};
+  monthRows.forEach(r=>{
+    const agent=r[2]||'Sem agente', group=r[3]||'Sem grupo';
+    if(!agentMap[agent])agentMap[agent]={};
+    agentMap[agent][group]=(agentMap[agent][group]||0)+1;
+    groupTotals[group]=(groupTotals[group]||0)+1;
+    agentTotals[agent]=(agentTotals[agent]||0)+1;
+  });
+  const groups=Object.keys(groupTotals).sort((a,b)=>groupTotals[b]-groupTotals[a]||a.localeCompare(b,'pt-BR'));
+  const agents=Object.keys(agentTotals).sort((a,b)=>agentTotals[b]-agentTotals[a]||a.localeCompare(b,'pt-BR'));
+  const mx=Math.max(1,...agents.flatMap(a=>groups.map(g=>agentMap[a]?.[g]||0)),...Object.values(agentTotals),...Object.values(groupTotals));
+  const total=monthRows.length;
+  let html=`<tr><th class="hm-ag">Agente ↓ / Grupo →</th>${groups.map(g=>`<th title="${esc(g)}">${esc(shortGroupLabel(g))}</th>`).join('')}<th>Total agente</th></tr>`;
+  agents.forEach((a,i)=>{
+    html+=`<tr style="background:${i%2===0?'transparent':'var(--s1)'}"><td class="hm-ag">${esc(a)}</td>${groups.map(g=>{const v=agentMap[a]?.[g]||0;return`<td><div class="hmc" title="${esc(a)} · ${esc(g)}: ${fN(v)}" onclick="chartDrill('${esc(a)} · ${esc(g)}','${D.mesNomes[m]} · agente por grupo',drillRows(${m},{agent:'${esc(a)}',group:'${esc(g)}'}))" style="cursor:pointer;background:${hmcGrp(v,mx)};color:${v>mx*.35?'#fff':'#2d5038'}">${v||''}</div></td>`;}).join('')}<td class="hm-total"><div class="hmc" title="${esc(a)}: ${fN(agentTotals[a])}" onclick="chartDrill('${esc(a)}','${D.mesNomes[m]} · total do agente',drillRows(${m},{agent:'${esc(a)}'}))" style="cursor:pointer">${fN(agentTotals[a])}</div></td></tr>`;
+  });
+  html+=`<tr class="hm-total"><td class="hm-ag">Total grupo</td>${groups.map(g=>`<td><div class="hmc" title="${esc(g)}: ${fN(groupTotals[g])}" onclick="chartDrill('${esc(g)}','${D.mesNomes[m]} · total do grupo',drillRows(${m},{group:'${esc(g)}'}))" style="cursor:pointer">${fN(groupTotals[g])}</div></td>`).join('')}<td><div class="hmc" title="Total geral">${fN(total)}</div></td></tr>`;
+  $('grp-ag-hm').innerHTML=html;
+}
+renderAgentGroupHeatmap(F);
 $('grp-tbody').innerHTML=gRaw.map((g,i)=>{const rc=i===0?'r1':i===1?'r2':i===2?'r3':'rn';const vp=g.prev>0?((g.focus-g.prev)/g.prev*100).toFixed(1):'—';const vc=parseFloat(vp)>0?'color:var(--moss)':parseFloat(vp)<0?'color:var(--rust)':'color:var(--ghost)';return`<tr><td><span class="rb ${rc}">${i+1}</span></td><td style="font-weight:500">${g.n}</td><td class="tn">${g.jan}</td><td class="tn">${g.fev}</td><td class="tn">${g.mar}</td><td class="tn">${g.abr}</td><td class="tn">${g.mai}</td><td class="th">${fN(g.tot)}</td><td class="tn" style="${vc}">${vp!=='—'?(parseFloat(vp)>0?'+':'')+vp+'%':vp}</td></tr>`;}).join('');
 
 // ════════ AVALIAÇÕES ════════
@@ -256128,11 +256153,7 @@ function renderGroupsMonth(m){
     return `<div class="bi"><span class="bl" title="${g.n}">${g.n.length>14?g.n.slice(0,14)+'…':g.n}</span><div class="bt"><div class="bfill" style="width:${pct}%;background:${PAL[i%PAL.length]}"></div></div><span class="bv">${fN(g.focus)}</span></div>`;
   }).join('');
   chart('ch-grp-pie',{type:'doughnut',data:{labels:rows.map(g=>g.n),datasets:[{data:rows.map(g=>g.focus),backgroundColor:PAL,borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{color:'#8fa28a',font:{family:'Geist Mono',size:9},boxWidth:9,padding:5}},tooltip:{...cDef.plugins.tooltip}},onClick:chartClick(el=>{const group=rows[el.index]?.n;if(group)chartDrill(`${group}`,`${D.mesNomes[m]} · distribuição`,drillRows(m,{group}));})}});
-  const agGrp=bm(m).agGrp||{}, ags=Object.keys(agGrp), grps=[...new Set(ags.flatMap(a=>Object.keys(agGrp[a]||{})))].slice(0,8);
-  const mx=Math.max(1,...ags.flatMap(a=>grps.map(g=>agGrp[a]?.[g]||0)));
-  let html=`<tr><th class="hm-ag">Agente ↓ / Grupo →</th>${grps.map(g=>`<th>${g.length>10?g.slice(0,10)+'…':g}</th>`).join('')}</tr>`;
-  ags.forEach((a,i)=>{html+=`<tr style="background:${i%2===0?'transparent':'var(--s1)'}"><td class="hm-ag">${a.split(' ')[0]}</td>${grps.map(g=>{const v=agGrp[a]?.[g]||0;return`<td><div class="hmc" style="background:${hmcGrp(v,mx)};color:${v>mx*.5?'#fff':'#2d5038'};min-width:36px">${v||''}</div></td>`;}).join('')}</tr>`;});
-  $('grp-ag-hm').innerHTML=html;
+  renderAgentGroupHeatmap(m);
   renderGroupFractions(m);
   renderGroupSeasonality();
   $('grp-tbody').innerHTML=rows.map((g,i)=>{const rc=i===0?'r1':i===1?'r2':i===2?'r3':'rn';const vp=g.prev>0?((g.focus-g.prev)/g.prev*100).toFixed(1):'—';const vc=parseFloat(vp)>0?'color:var(--moss)':parseFloat(vp)<0?'color:var(--rust)':'color:var(--ghost)';return`<tr><td><span class="rb ${rc}">${i+1}</span></td><td style="font-weight:500">${g.n}</td><td class="tn">${g.vals.jan}</td><td class="tn">${g.vals.fev}</td><td class="tn">${g.vals.mar}</td><td class="tn">${g.vals.abr}</td><td class="tn">${g.vals.mai}</td><td class="th">${fN(g.tot)}</td><td class="tn" style="${vc}">${vp!=='—'?(parseFloat(vp)>0?'+':'')+vp+'%':vp}</td></tr>`;}).join('');

@@ -256199,6 +256199,26 @@ function renderGroupsMonth(m){
   $('grp-tbody').innerHTML=rows.map((g,i)=>{const rc=i===0?'r1':i===1?'r2':i===2?'r3':'rn';const vp=g.prev>0?((g.focus-g.prev)/g.prev*100).toFixed(1):'—';const vc=parseFloat(vp)>0?'color:var(--moss)':parseFloat(vp)<0?'color:var(--rust)':'color:var(--ghost)';return`<tr><td><span class="rb ${rc}">${i+1}</span></td><td style="font-weight:500">${g.n}</td>${g.vals.map(v=>`<td class="tn">${fN(v)}</td>`).join('')}<td class="th">${fN(g.tot)}</td><td class="tn" style="${vc}">${vp!=='—'?(parseFloat(vp)>0?'+':'')+vp+'%':vp}</td></tr>`;}).join('');
 }
 
+function renderGroupNuclei(m){
+  const host=$('grp-nuc-detail');
+  if(!host)return;
+  const rows=groupScopeRows(m);
+  const cards=NUCLEOS.map(n=>{
+    const agents=nucAgentSet(n);
+    const subset=rows.filter(r=>agents.has(normName(r[2])));
+    const rated=subset.filter(r=>r[6]!=null);
+    const groups=Object.entries(subset.reduce((a,r)=>{const g=r[3]||'Sem grupo';a[g]=(a[g]||0)+1;return a;},{})).sort((a,b)=>b[1]-a[1]).slice(0,6);
+    return `<div class="nuc-card"><div class="nuc-title">${esc(n.n)} · ${fN(subset.length)}</div><div class="nuc-row"><span>TMA</span><b>${fmtDur(avgArr(subset.map(r=>r[4]||0)))}</b></div><div class="nuc-row"><span>CSAT</span><b>${rated.length?fS(avgArr(rated.map(r=>r[6]))):'—'}</b></div>${groups.map(([g,v])=>`<div class="nuc-row"><span>${esc(g)}</span><b>${fN(v)}</b></div>`).join('')||'<div class="nuc-row"><span>Sem atendimentos</span><b>0</b></div>'}</div>`;
+  });
+  const assigned=new Set(NUCLEOS.flatMap(n=>(n.a||[]).map(normName)));
+  const others=rows.filter(r=>!assigned.has(normName(r[2])));
+  if(others.length){
+    const byAgent=Object.entries(others.reduce((a,r)=>{a[r[2]||'Sem agente']=(a[r[2]||'Sem agente']||0)+1;return a;},{})).sort((a,b)=>b[1]-a[1]);
+    cards.push(`<div class="nuc-card"><div class="nuc-title">Outros agentes · ${fN(others.length)}</div>${byAgent.map(([a,v])=>`<div class="nuc-row"><span>${esc(a)}</span><b>${fN(v)}</b></div>`).join('')}</div>`);
+  }
+  host.innerHTML=cards.join('');
+}
+
 function renderGroupFractions(m){
   const rows=groupScopeRows(m);
   const groupMap={};
@@ -256215,7 +256235,7 @@ function renderGroupFractions(m){
     const agentCount=agentRows.length;
     agentRows.forEach(([agent,total],idx)=>{
       const pct=g.total?total/g.total:0, frac=agentCount?1/agentCount:0;
-      html.push(`<tr onclick="chartDrill('${esc(group)} · ${esc(agent)}','${D.mesNomes[m]} · fração por grupo',drillRows(${m},{agent:'${esc(agent)}',group:'${esc(group)}'}))" style="cursor:pointer;${idx===0?'border-top:2px solid var(--mist)':''}"><td><b>${esc(group)}</b></td><td>${esc(agent)}</td><td class="th">${fN(total)}</td><td class="tn">${pct1(pct)}</td><td class="tn">1/${agentCount} · ${pct1(frac)}</td></tr>`);
+      html.push(`<tr onclick="chartDrill('${esc(group)} · ${esc(agent)}','${D.mesNomes[m]} · fração por grupo',groupDrillRows(${m},{agent:'${esc(agent)}',group:'${esc(group)}'}))" style="cursor:pointer;${idx===0?'border-top:2px solid var(--mist)':''}"><td><b>${esc(group)}</b></td><td>${esc(agent)}</td><td class="th">${fN(total)}</td><td class="tn">${pct1(pct)}</td><td class="tn">1/${agentCount} · ${pct1(frac)}</td></tr>`);
     });
     html.push(`<tr style="background:var(--foam);border-bottom:2px solid var(--mist)"><td><b>${esc(group)}</b></td><td class="op-mono">Total do grupo</td><td class="th">${fN(g.total)}</td><td class="tn"><b>100,0%</b></td><td class="tn">${agentCount}/${agentCount} · 100,0%</td></tr>`);
   });
@@ -256231,7 +256251,10 @@ function renderGroupVariationTable(){
 }
 
 function renderGroupSeasonality(){
-  const top=D.grupos.nomes.map((n,i)=>({n,vals:monthKeys.map(k=>D.grupos[k][i]||0)})).sort((a,b)=>b.vals.reduce((s,v)=>s+v,0)-a.vals.reduce((s,v)=>s+v,0)).slice(0,8);
+  const period=currentGroupPeriod();
+  const rowsByMonth=monthKeys.map((_,i)=>(D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===i+1&&(!period||r[8]===period)));
+  const names=[...new Set(rowsByMonth.flatMap(rs=>rs.map(r=>r[3]||'Sem grupo')))];
+  const top=names.map(n=>({n,vals:rowsByMonth.map(rs=>rs.filter(r=>(r[3]||'Sem grupo')===n).length)})).sort((a,b)=>b.vals.reduce((s,v)=>s+v,0)-a.vals.reduce((s,v)=>s+v,0)).slice(0,8);
   const mx=Math.max(1,...top.flatMap(g=>g.vals));
   $('grp-season-grid').innerHTML=top.map(g=>{
     const peak=Math.max(...g.vals), peakIdx=g.vals.indexOf(peak);

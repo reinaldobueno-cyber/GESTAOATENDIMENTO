@@ -24,6 +24,8 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--ink);font-family:var(--f);font-size:14px;line-height:1.5;min-height:100vh;display:flex;flex-direction:column}
 button,input,select,textarea{font-family:var(--f)}
+.gestao-return{position:fixed;right:18px;bottom:18px;z-index:900;background:var(--g1);color:#fff;text-decoration:none;border:1px solid rgba(255,255,255,.16);border-radius:var(--r2);padding:10px 14px;font-size:12px;font-weight:700;box-shadow:var(--shd)}
+.gestao-return:hover{background:var(--g)}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--g3);border-radius:3px}
@@ -302,6 +304,7 @@ button,input,select,textarea{font-family:var(--f)}
 </head>
 <body>
 
+<a class="gestao-return" href="./" target="_top">Voltar ao Gestão</a>
 <div class="layout">
 
 <!-- ══════════════════════ SIDEBAR ══════════════════════ -->
@@ -509,9 +512,9 @@ button,input,select,textarea{font-family:var(--f)}
             <option value="Raissa Ribeiro">Raissa Ribeiro</option>
             <option value="Julia Almeda">Julia Almeda</option>
             <option value="Alexandre Lobo">Alexandre Lobo</option>
-            <option value="Natalia Vieira">Natalia Vieira</option>
           </optgroup>
           <optgroup label="— Núcleo Engorda —">
+            <option value="Natalia Vieira">Natalia Vieira</option>
             <option value="Wiviane Limiro">Wiviane Limiro</option>
             <option value="Ana Paula">Ana Paula</option>
             <option value="Beatriz">Beatriz</option>
@@ -528,6 +531,9 @@ button,input,select,textarea{font-family:var(--f)}
             <option value="Helder Andrade">Helder Andrade</option>
             <option value="Marcelo Costa">Marcelo Costa</option>
           </optgroup>
+          <optgroup label="— Gestão / Indicação —">
+            <option value="Reinaldo Bueno">Reinaldo Bueno</option>
+          </optgroup>
         </select>
         <div class="htip" id="tip-nome"><strong>Colaborador</strong>Use sempre a lista para evitar variação de nome e erro no fechamento. O grupo de cálculo é definido automaticamente conforme o núcleo.</div>
         <span class="hint" id="h-nome"></span>
@@ -539,6 +545,7 @@ button,input,select,textarea{font-family:var(--f)}
           <option value="r">Núcleo Reprodução</option>
           <option value="e">Núcleo Engorda</option>
           <option value="i">Núcleo Infraestrutura</option>
+          <option value="x">Gestão / Indicação</option>
         </select>
         <span class="hint hmut" id="h-eq"></span>
       </div>
@@ -912,8 +919,8 @@ const SEED={"2024-05":{"agents":[{"nome":"Anita Cristina","total":283.5},{"nome"
 
 // ════════════════════════════════════════════════════
 // MAPEAMENTO DE EQUIPES (confirmado pelo gestor + planilha analitico)
-// Reprodutivo: Lais, Julia, Alexandre, Raissa, Evelyn + Natalia
-// Engorda: Wiviane, Ana Paula, Beatriz, Marcus, Marcelo Santos
+// Reprodutivo: Lais, Julia, Alexandre, Raissa, Evelyn
+// Engorda: Natalia, Wiviane, Ana Paula, Beatriz, Marcus, Marcelo Santos
 // Infra: Dhonleno, Gabriel de Oliveira, Helder, Marcelo (TI/Costa)
 // ════════════════════════════════════════════════════
 const TEAMS={
@@ -922,9 +929,9 @@ const TEAMS={
   'Alexandre Lobo':'r','Alexandre':'r',
   'Raissa Ribeiro':'r','Raíssa':'r','Raissa':'r',
   'Evelyn Souza':'r','Evelyn':'r',
-  'Natalia Vieira':'r','Natalia':'r','Natália':'r',
   'Anita Cristina':'r','Rhuan Marques':'r',
   'Maria Eduarda':'r','Maria Mariana':'r','Giovana Borges':'r',
+  'Natalia Vieira':'e','Natalia':'e','Natália':'e',
   'Wiviane Limiro':'e','Wiviane':'e',
   'Ana Paula':'e','Ana Pereira':'e',
   'Beatriz':'e','Marcus':'e','Marcelo Santos':'e',
@@ -932,6 +939,7 @@ const TEAMS={
   'Sergio':'e','Sergio Castro':'e',
   'Lucas Pereira':'e','Lucas Levi':'e','Lucas':'e',
   'Gabriel Almeida':'e',
+  'Reinaldo Bueno':'x','Reinaldo':'x',
   'Dhonleno Freitas':'i','Dhonleno':'i',
   'Gabriel de Oliveira':'i','Gabriel Freire':'i',
   'Helder Andrade':'i','Helder':'i',
@@ -944,7 +952,8 @@ function getEq(n){return TEAMS[n]||'';}
 const DEFAULT_RULES={
   r:{nota:{pct:40,val:180},vol:{pct:30,val:135},dem:{pct:10,val:45},ati:{pct:20,val:90}},
   e:{nota:{pct:40,val:180},vol:{pct:30,val:135},dem:{pct:10,val:45},ati:{pct:20,val:90}},
-  i:{nota:{pct:40,val:180},vol:{pct:30,val:135},ati:{pct:30,val:135}}
+  i:{nota:{pct:40,val:180},vol:{pct:30,val:135},ati:{pct:30,val:135}},
+  x:{nota:{pct:0,val:0},vol:{pct:0,val:0},dem:{pct:0,val:0},ati:{pct:0,val:0}}
 };
 const ruleClone=()=>JSON.parse(JSON.stringify(DEFAULT_RULES));
 
@@ -1001,6 +1010,7 @@ function calcBonus(a){
         metaTME,madrinha,reconhece,upgrades,extra,equipeExtra,diarias}=a;
   // sem proporcional global no subtotal: proporcionalidade já aplicada na meta de volume
   const isInfra=equipe==='i';
+  const isGestao=equipe==='x';
   const rules=rulesFor(equipe);
   const rows=[];let sub=0;
   const row=(l,v,f,t)=>rows.push({l,v,f:f||'',t:t||'n'});
@@ -1008,11 +1018,13 @@ function calcBonus(a){
   // NOTA (regra oficial da planilha)
   const notaBase=rules.nota?.val??180;
   let nv=0,nf='';
-  if(nota>=9.85){nv=notaBase;nf=`≥ 9,85 → ${R(nv)}`;}
-  else if(nota>=9.7){nv=Math.round(notaBase*.8*100)/100;nf=`≥ 9,70 → ${R(nv)}`;}
-  else if(nota>=9.2){nv=Math.round(notaBase*.6*100)/100;nf=`≥ 9,20 → ${R(nv)}`;}
-  else{nv=0;nf='< 9,20 → R$0';}
-  sub+=nv;row('Nota de Satisfação',nv,nf);
+  if(!isGestao){
+    if(nota>=9.85){nv=notaBase;nf=`≥ 9,85 → ${R(nv)}`;}
+    else if(nota>=9.7){nv=Math.round(notaBase*.8*100)/100;nf=`≥ 9,70 → ${R(nv)}`;}
+    else if(nota>=9.2){nv=Math.round(notaBase*.6*100)/100;nf=`≥ 9,20 → ${R(nv)}`;}
+    else{nv=0;nf='< 9,20 → R$0';}
+    sub+=nv;row('Nota de Satisfação',nv,nf);
+  }
 
   // VOLUME — meta = (vol_grupo / n_agentes / dias_uteis) * dias_trabalhados
   const pv=metaVol>0?volume/metaVol:0;
@@ -1021,12 +1033,14 @@ function calcBonus(a){
   const t10=metaVol*0.9,t15=metaVol*0.85,t20=metaVol*0.8,t30=metaVol*0.7,t40=metaVol*0.6,t50=metaVol*0.5;
   const volBase=rules.vol?.val??135;
   let vv=0,vf='';
-  if(volume>=t10){vv=volBase;vf=`Vol. ${volume} na faixa 10% (${t10.toFixed(1)}–${metaRnd.toFixed(1)}) → ${R(vv)}`;}
-  else if(volume>=t15){vv=Math.round(volBase*.8*100)/100;vf=`Vol. ${volume} na faixa 15% (${t15.toFixed(1)}–${t10.toFixed(1)}) → ${R(vv)}`;}
-  else if(volume>=t20){vv=Math.round(volBase*.6*100)/100;vf=`Vol. ${volume} na faixa 20% (${t20.toFixed(1)}–${t15.toFixed(1)}) → ${R(vv)}`;}
-  else if(volume>=t30){vv=Math.round(volBase*-.3*100)/100;vf=`Vol. ${volume} na faixa 30% (${t30.toFixed(1)}–${t20.toFixed(1)}) → ${R(vv)}`;}
-  else if(volume>=t40){vv=Math.round(volBase*-.5*100)/100;vf=`Vol. ${volume} na faixa 40% (${t40.toFixed(1)}–${t30.toFixed(1)}) → ${R(vv)}`;}
-  else{vv=-volBase;vf=`Vol. ${volume} abaixo da faixa 50% (<${t50.toFixed(1)}) → ${R(vv)}`;}
+  if(!isGestao){
+    if(volume>=t10){vv=volBase;vf=`Vol. ${volume} na faixa 10% (${t10.toFixed(1)}–${metaRnd.toFixed(1)}) → ${R(vv)}`;}
+    else if(volume>=t15){vv=Math.round(volBase*.8*100)/100;vf=`Vol. ${volume} na faixa 15% (${t15.toFixed(1)}–${t10.toFixed(1)}) → ${R(vv)}`;}
+    else if(volume>=t20){vv=Math.round(volBase*.6*100)/100;vf=`Vol. ${volume} na faixa 20% (${t20.toFixed(1)}–${t15.toFixed(1)}) → ${R(vv)}`;}
+    else if(volume>=t30){vv=Math.round(volBase*-.3*100)/100;vf=`Vol. ${volume} na faixa 30% (${t30.toFixed(1)}–${t20.toFixed(1)}) → ${R(vv)}`;}
+    else if(volume>=t40){vv=Math.round(volBase*-.5*100)/100;vf=`Vol. ${volume} na faixa 40% (${t40.toFixed(1)}–${t30.toFixed(1)}) → ${R(vv)}`;}
+    else{vv=-volBase;vf=`Vol. ${volume} abaixo da faixa 50% (<${t50.toFixed(1)}) → ${R(vv)}`;}
+  }
   const covRef=Number(avalTeam)>0?Math.max(45,Number(avalTeam)):0;
   if(vv>0&&Number(avalPct)>0&&covRef>0&&Number(avalPct)<covRef){
     const covRatio=Number(avalPct)/covRef;
@@ -1037,10 +1051,10 @@ function calcBonus(a){
       vf+=` · avaliados ${Number(avalPct).toFixed(1)}% < média ${covRef.toFixed(1)}%: teto ${Math.round(capPct*100)}% → ${R(vv)}`;
     }
   }
-  sub+=vv;row('Volume',vv,vf);
+  if(!isGestao){sub+=vv;row('Volume',vv,vf);}
 
   // DEMANDAS (só suporte)
-  if(!isInfra){
+  if(!isInfra&&!isGestao){
     const demBase=rules.dem?.val??45;
     let dv=0,df='';
     if(demandas===0){dv=demBase;df=`0 demandas → ${R(dv)}`;}
@@ -1053,20 +1067,22 @@ function calcBonus(a){
   // =SE(pts<100;0;SE(pts<150;54;SE(pts<200;72;90+((pts-200)*18/100))))
   const maxAt=rules.ati?.val??(isInfra?135:90);
   let av=0,af='';
-  if(atividades<100){
-    av=0;
-    af=atividades>0?`${atividades} pts < 100 → R$0`:'0 pts → R$0';
-  } else if(atividades<150){
-    av=Math.round((maxAt*0.6)*100)/100;
-    af=`${atividades} pts (100–149) → R$${av.toFixed(2)} fixo`;
-  } else if(atividades<200){
-    av=Math.round((maxAt*0.8)*100)/100;
-    af=`${atividades} pts (150–199) → R$${av.toFixed(2)} fixo`;
-  } else {
-    av=Math.round((maxAt+((atividades-200)*(0.2*maxAt)/100))*100)/100;
-    af=`${atividades} pts (≥200) → R$${av.toFixed(2)} progressivo`;
+  if(!isGestao){
+    if(atividades<100){
+      av=0;
+      af=atividades>0?`${atividades} pts < 100 → R$0`:'0 pts → R$0';
+    } else if(atividades<150){
+      av=Math.round((maxAt*0.6)*100)/100;
+      af=`${atividades} pts (100–149) → R$${av.toFixed(2)} fixo`;
+    } else if(atividades<200){
+      av=Math.round((maxAt*0.8)*100)/100;
+      af=`${atividades} pts (150–199) → R$${av.toFixed(2)} fixo`;
+    } else {
+      av=Math.round((maxAt+((atividades-200)*(0.2*maxAt)/100))*100)/100;
+      af=`${atividades} pts (≥200) → R$${av.toFixed(2)} progressivo`;
+    }
   }
-  sub+=av;row('Atividades Extras',av,af);
+  if(!isGestao){sub+=av;row('Atividades Extras',av,af);}
 
 
   // OVERRIDES MANUAIS (substituem o valor da métrica, não somam por fora)
@@ -1077,7 +1093,7 @@ function calcBonus(a){
   sub=Math.round(rows.reduce((acc,r)=>acc+(Number(r.v)||0),0)*100)/100;
 
   // ADICIONAIS
-  if(metaTME&&!isInfra){sub+=50;row('Meta TME zero',50,'+R$50','bon');}
+  if(metaTME&&!isGestao){sub+=50;row('Meta TME zero',50,'+R$50','bon');}
   if(madrinha){sub+=50;row('Madrinha / Padrinho',50,'+R$50','bon');}
   if(reconhece){sub+=50;row('Reconhecimento nota 10',50,'+R$50','bon');}
   if(upgrades>0){const u=upgrades*150;sub+=u;row(`Upgrades WEB ×${upgrades}`,u,`R$150/un = R$${u}`,'bon');}
@@ -1272,14 +1288,15 @@ function calc(){
 
   // Regras específicas Infra
   const isInfraUI=(a.equipe==='i');
+  const isGestaoUI=(a.equipe==='x');
   const demEl=document.getElementById('f-dem');
-  if(demEl){demEl.disabled=isInfraUI;if(isInfraUI){demEl.value='';const hd=document.getElementById('h-dem');if(hd){hd.textContent='Infra: não aplica demandas indevidas';hd.className='hint hmut';}}}
+  if(demEl){demEl.disabled=isInfraUI||isGestaoUI;if(isInfraUI||isGestaoUI){demEl.value='';const hd=document.getElementById('h-dem');if(hd){hd.textContent=isGestaoUI?'Gestão: não aplica demandas indevidas':'Infra: não aplica demandas indevidas';hd.className='hint hmut';}}}
   const cbTme=document.getElementById('cb0');
   const ckTme=document.getElementById('ci0');
-  if(cbTme){cbTme.disabled=isInfraUI;if(isInfraUI){cbTme.checked=false;ckTme?.classList.remove('on');const h=document.getElementById('h-up');if(h&&h.textContent==='Meta TME zero'){h.textContent='';}}}
+  if(cbTme){cbTme.disabled=isGestaoUI;if(isGestaoUI){cbTme.checked=false;ckTme?.classList.remove('on');const h=document.getElementById('h-up');if(h&&h.textContent==='Meta TME zero'){h.textContent='';}}}
 
   warn.textContent='';
-  if(!a.equipe&&!a.nota&&!a.volume&&!a.atividades){body.innerHTML='<div class="prev-empty">Preencha os campos para validar o impacto financeiro.</div>';return;}
+  if(!a.equipe&&!a.nota&&!a.volume&&!a.atividades&&!a.upgrades&&!a.extra&&!a.equipeExtra&&!a.diarias){body.innerHTML='<div class="prev-empty">Preencha os campos para validar o impacto financeiro.</div>';return;}
   if(!a.equipe){body.innerHTML='<div class="prev-empty" style="color:var(--amb)">⚠ Selecione o colaborador e a equipe para calcular.</div>';return;}
   // Warn if group volume not configured but volume entered
   const _vtChk=a.equipe==='i'?gi('f-vt-inf'):gi('f-vt-sup');
@@ -1287,7 +1304,8 @@ function calc(){
   if(a.volume>0&&(!_vtChk||!_nagChk)){
     warn.textContent='⚠ Configure Volume do grupo e Nº agentes para calcular a meta corretamente';
   }
-  if(!a.nota&&!a.volume&&!a.atividades){body.innerHTML='<div class="prev-empty">Preencha Nota, Volume ou Atividades para ver o cálculo.</div>';return;}
+  if(!isGestaoUI&&!a.nota&&!a.volume&&!a.atividades){body.innerHTML='<div class="prev-empty">Preencha Nota, Volume ou Atividades para ver o cálculo.</div>';return;}
+  if(isGestaoUI&&!a.upgrades&&!a.extra&&!a.equipeExtra&&!a.diarias){body.innerHTML='<div class="prev-empty">Gestão / Indicação: informe upgrade ou ganho extra para calcular.</div>';return;}
 
   const{rows,total}=calcBonus(a);
   let html=rows.map(r=>{
@@ -1318,13 +1336,14 @@ function saveAg(){
   if(!mes){toast('Selecione o mês de referência.',true);return;}
   if(!nome){toast('Selecione o colaborador.',true);return;}
   if(!gv('f-equipe')){toast('Selecione a equipe.',true);return;}
-  if(!gf('f-nota')){toast('Informe a Nota de Satisfação.',true);return;}
   const _eq=gv('f-equipe');
   const _isI=(_eq==='i');
+  const _isX=(_eq==='x');
+  if(!_isX&&!gf('f-nota')){toast('Informe a Nota de Satisfação.',true);return;}
   if(_isI&&!gi('f-vt-inf')){toast('Informe o Volume Total Infra.',true);return;}
   if(_isI&&!gi('f-nag-inf')){toast('Informe o Nº de agentes Infra.',true);return;}
-  if(!_isI&&!gi('f-vt-sup')){toast('Informe o Volume Total Suporte.',true);return;}
-  if(!_isI&&!gi('f-nag-sup')){toast('Informe o Nº de agentes Suporte.',true);return;}
+  if(!_isI&&!_isX&&!gi('f-vt-sup')){toast('Informe o Volume Total Suporte.',true);return;}
+  if(!_isI&&!_isX&&!gi('f-nag-sup')){toast('Informe o Nº de agentes Suporte.',true);return;}
   const fd=getFormData();
   // Store group volume fields for audit trail
   fd.vtSup=gi('f-vt-sup');fd.vtInf=gi('f-vt-inf');

@@ -1138,7 +1138,11 @@ export default {
       return handleBonusClosures(request, env, appUser);
     }
 
-    if (url.pathname.endsWith('/bonificacao.html') && !canUseBonus(appUser, env)) {
+    if (url.pathname === '/bonificacao') {
+      return redirectTo('/bonificacao.html');
+    }
+
+    if ((url.pathname === '/bonificacao' || url.pathname.endsWith('/bonificacao.html')) && !canUseBonus(appUser, env)) {
       return new Response('Acesso negado.', {
         status: 403,
         headers: {

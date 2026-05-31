@@ -374,6 +374,10 @@ canvas{cursor:pointer;}
 .pane.bonus-private.visible.active{display:block;}
 .bonus-legacy-mode > :not(.bonus-legacy-frame){display:none!important;}
 .bonus-legacy-frame{display:block;width:100%;height:calc(100vh - 128px);min-height:760px;border:0;border-radius:12px;background:#fff;box-shadow:var(--shadow);}
+.bonus-mode .global-filter{display:none;}
+.bonus-mode .page{max-width:none;padding:0;}
+.bonus-mode #pane-bonificacao{height:calc(100vh - 94px);}
+.bonus-mode .bonus-legacy-frame{height:calc(100vh - 94px);min-height:0;border-radius:0;box-shadow:none;}
 @media(max-width:1100px){.bonus-grid{grid-template-columns:1fr}.bonus-form{grid-template-columns:1fr;}}
 </style>
 </head>
@@ -255111,6 +255115,7 @@ function updateStaticBands(){
 // ════════ TABS ════════
 let chDl=null,chDcsat=null,chDowm=null,chTDbar=null,chAgRk=null;
 function go(id,el){
+  document.body.classList.toggle('bonus-mode',id==='bonificacao');
   document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
   el.classList.add('active');$('pane-'+id).classList.add('active');

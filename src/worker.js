@@ -863,6 +863,37 @@ async function hasValidSession(request, env) {
   }
 }
 
+async function currentAppUser(request, env) {
+  const token = parseCookies(request).gestao_session || '';
+  const separator = token.indexOf('.');
+  if (separator >= 0) {
+    const payload = token.slice(0, separator);
+    const signature = token.slice(separator + 1);
+    const expected = await signText(payload, appSessionSecret(env));
+    if (timingSafeEqual(signature, expected)) {
+      try {
+        const session = JSON.parse(fromBase64UrlUtf8(payload));
+        if (Number(session.expires || 0) > Date.now() && findAppUser(env, session.user)) {
+          return String(session.user);
+        }
+      } catch {}
+    }
+  }
+
+  const header = request.headers.get('Authorization') || '';
+  if (!header.startsWith('Basic ')) return '';
+  try {
+    const decoded = atob(header.slice(6));
+    const sep = decoded.indexOf(':');
+    if (sep < 0) return '';
+    const user = decoded.slice(0, sep);
+    const password = decoded.slice(sep + 1);
+    return findAppUser(env, user, password) ? user : '';
+  } catch {
+    return '';
+  }
+}
+
 function loginPage(error = '') {
   return new Response(
     `<!doctype html>
@@ -954,6 +985,23 @@ async function isAuthorized(request, env) {
 }
 
 const MANUAL_ADJUSTMENTS_KEY = 'manual-adjustments-v1';
+const BONUS_CLOSURES_KEY = 'bonus-closures-v1';
+
+function parseBonusUsers(env) {
+  const source = String(env.BONUS_USERS || env.BONUS_PRIVATE_USERS || '').trim();
+  if (!source) return [];
+  try {
+    const parsed = JSON.parse(source);
+    if (Array.isArray(parsed)) return parsed.map((x) => String(x).trim()).filter(Boolean);
+  } catch {}
+  return source.split(/[,\n;]+/).map((x) => x.trim()).filter(Boolean);
+}
+
+function canUseBonus(user, env) {
+  const allowed = parseBonusUsers(env);
+  if (!allowed.length) return true;
+  return allowed.some((item) => timingSafeEqual(String(item).toLowerCase(), String(user || '').toLowerCase()));
+}
 
 function cleanAdjustment(input) {
   const item = input && typeof input === 'object' ? input : {};
@@ -1010,6 +1058,47 @@ async function handleManualAdjustments(request, env) {
   return jsonResponse({ ok: true, adjustment: item, total: list.length });
 }
 
+function cleanBonusClosure(input, user) {
+  const item = input && typeof input === 'object' ? input : {};
+  const ym = String(item.ym || '').slice(0, 7);
+  const agent = String(item.agent || '').trim().slice(0, 160);
+  if (!/^\d{4}-\d{2}$/.test(ym) || !agent) return null;
+  return {
+    id: String(item.id || `${ym}|${agent}`).slice(0, 240),
+    ym,
+    month: String(item.month || '').slice(0, 80),
+    agent,
+    team: String(item.team || '').slice(0, 20),
+    nucleus: String(item.nucleus || '').slice(0, 80),
+    metrics: item.metrics && typeof item.metrics === 'object' ? item.metrics : {},
+    manual: item.manual && typeof item.manual === 'object' ? item.manual : {},
+    breakdown: Array.isArray(item.breakdown) ? item.breakdown.slice(0, 30) : [],
+    total: Number(item.total || 0),
+    updatedAt: String(item.updatedAt || new Date().toISOString()).slice(0, 40),
+    updatedBy: String(user || 'painel').slice(0, 120),
+  };
+}
+
+async function handleBonusClosures(request, env, user) {
+  if (!canUseBonus(user, env)) return jsonResponse({ error: 'Acesso negado' }, 403);
+  if (!env.ADJUSTMENTS) {
+    return jsonResponse({ closures: [], storage: false, message: 'ADJUSTMENTS_KV nao configurado' }, request.method === 'GET' ? 200 : 501);
+  }
+  if (request.method === 'GET') {
+    const list = (await env.ADJUSTMENTS.get(BONUS_CLOSURES_KEY, 'json')) || [];
+    return jsonResponse({ closures: Array.isArray(list) ? list : [], storage: true });
+  }
+  if (request.method !== 'POST') return jsonResponse({ error: 'Metodo nao permitido' }, 405);
+  const body = await request.json().catch(() => null);
+  const item = cleanBonusClosure(body, user);
+  if (!item) return jsonResponse({ error: 'Fechamento invalido' }, 400);
+  const current = (await env.ADJUSTMENTS.get(BONUS_CLOSURES_KEY, 'json')) || [];
+  const list = Array.isArray(current) ? current.filter((x) => String(x.id) !== String(item.id)) : [];
+  list.push(item);
+  await env.ADJUSTMENTS.put(BONUS_CLOSURES_KEY, JSON.stringify(list.slice(-3000)));
+  return jsonResponse({ ok: true, closure: item, total: list.length });
+}
+
 export default {
   async fetch(request, env) {
     if (!parseAppUsers(env).length) {
@@ -1031,6 +1120,11 @@ export default {
     if (!(await isAuthorized(request, env))) {
       return redirectTo('/login');
     }
+    const appUser = await currentAppUser(request, env);
+
+    if (url.pathname === '/api/session') {
+      return jsonResponse({ user: appUser, bonusPrivate: canUseBonus(appUser, env) });
+    }
 
     if (url.pathname === '/media') {
       return fetchMediaProxy(request, env);
@@ -1038,6 +1132,10 @@ export default {
 
     if (url.pathname === '/api/manual-adjustments') {
       return handleManualAdjustments(request, env);
+    }
+
+    if (url.pathname === '/api/bonus-closures') {
+      return handleBonusClosures(request, env, appUser);
     }
 
     const reportMatch = url.pathname.match(/^\/pdf-report\/([^/]+)$/);

@@ -354,6 +354,25 @@ canvas{cursor:pointer;}
 
 /* ——— PROTO ——— */
 .pid{font-family:'Geist Mono',monospace;font-size:.67rem;color:var(--moss);}
+.bonus-grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(360px,.55fr);gap:1rem;align-items:start;}
+.bonus-card{background:var(--w);border:1px solid var(--border);border-radius:10px;padding:1rem;box-shadow:var(--shadow);}
+.bonus-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem;}
+.bonus-form .full{grid-column:1/-1;}
+.bonus-preview{background:var(--foam);border:1px solid var(--mist);border-radius:8px;padding:.85rem;display:grid;gap:.35rem;}
+.bonus-row{display:grid;grid-template-columns:1fr auto;gap:.75rem;align-items:center;border-bottom:1px solid rgba(214,223,208,.7);padding:.35rem 0;font-size:.72rem;}
+.bonus-row:last-child{border-bottom:0;}
+.bonus-row small{display:block;font-family:'Geist Mono',monospace;color:var(--ghost);font-size:.58rem;margin-top:1px;}
+.bonus-val{font-family:'Geist Mono',monospace;font-weight:700;color:var(--moss);white-space:nowrap;}
+.bonus-total{display:flex;justify-content:space-between;align-items:center;border-top:2px solid var(--moss);margin-top:.5rem;padding-top:.7rem;font-family:'Fraunces',serif;font-weight:700;color:var(--ink);}
+.bonus-total strong{font-size:1.45rem;color:var(--moss);}
+.bonus-actions{display:flex;gap:.45rem;flex-wrap:wrap;margin-top:.8rem;}
+.bonus-agent-cell b{display:block;}
+.bonus-agent-cell span{font-family:'Geist Mono',monospace;font-size:.58rem;color:var(--ghost);}
+.bonus-private{display:none;}
+.ntab.bonus-private.visible{display:flex;}
+.pane.bonus-private.visible{display:none;}
+.pane.bonus-private.visible.active{display:block;}
+@media(max-width:1100px){.bonus-grid{grid-template-columns:1fr}.bonus-form{grid-template-columns:1fr;}}
 </style>
 </head>
 <body>
@@ -386,6 +405,7 @@ canvas{cursor:pointer;}
     <button class="ntab" onclick="go('atendimentos',this)"><span class="ico">▤</span> Atendimentos</button>
     <button class="ntab" onclick="go('tratamentos',this)"><span class="ico">✓</span> Tratamentos</button>
     <button class="ntab" onclick="go('diario',this)"><span class="ico">✎</span> Diário</button>
+    <button class="ntab bonus-private" id="bonus-tab" onclick="go('bonificacao',this)"><span class="ico">¤</span> Bonificação</button>
   </div>
 </nav>
 
@@ -1157,9 +1177,70 @@ canvas{cursor:pointer;}
     <span class="fl" style="margin-left:8px;">Agente:</span>
     <select class="fs" id="d-ag" onchange="renderDiary()"><option value="">Todos</option></select>
   </div>
-  <div class="card">
+<div class="card">
     <div id="diary-list"></div>
     <div style="margin-top:.7rem;font-family:'Geist Mono',monospace;font-size:.62rem;color:var(--ghost);" id="diary-count"></div>
+  </div>
+</div>
+
+<!-- ════════════════ BONIFICAÇÃO PRIVADA ════════════════ -->
+<div id="pane-bonificacao" class="pane bonus-private">
+  <div class="ctx">
+    <div>
+      <div class="ctx-title">Fechamento de Bonificação</div>
+      <div class="ctx-sub">Dados operacionais puxados do Gestão · ajustes manuais salvos em área privada</div>
+    </div>
+    <div class="ctx-actions">
+      <span class="ctx-badge" id="bonus-month-label">—</span>
+      <span class="ctx-badge" id="bonus-save-status">Privado</span>
+    </div>
+  </div>
+
+  <div class="kstrip">
+    <div class="kpi" style="--kc:var(--moss)"><div class="kl">Total Previsto</div><div class="kv" id="bonus-k-total">—</div><div class="ks">Mês selecionado</div></div>
+    <div class="kpi" style="--kc:var(--sage)"><div class="kl">Colaboradores</div><div class="kv" id="bonus-k-ag">—</div><div class="ks">Com volume no mês</div></div>
+    <div class="kpi" style="--kc:var(--amber)"><div class="kl">Cobertura Média</div><div class="kv" id="bonus-k-cov">—</div><div class="ks">Referência do time</div></div>
+    <div class="kpi" style="--kc:var(--sky)"><div class="kl">Fechados</div><div class="kv" id="bonus-k-saved">—</div><div class="ks">Registros salvos</div></div>
+  </div>
+
+  <div class="bonus-grid">
+    <div class="bonus-card">
+      <div class="ch">
+        <div><div class="ct">Colaboradores do mês</div><div class="cs">Volume, CSAT, cobertura e fechamento precisam bater com as outras visões</div></div>
+        <div class="ctx-actions">
+          <span class="fl">Dias úteis</span>
+          <input class="fs" id="bonus-du" type="number" min="1" max="31" value="22" oninput="renderBonus()">
+          <button class="rel-action" onclick="exportBonusJson()">Exportar</button>
+        </div>
+      </div>
+      <div class="tsc">
+        <table class="dt">
+          <thead><tr><th>Agente</th><th style="text-align:right">Atend.</th><th style="text-align:right">Aval.</th><th style="text-align:right">Cobert.</th><th style="text-align:right">CSAT</th><th style="text-align:right">TME</th><th style="text-align:right">Prévia</th><th>Status</th></tr></thead>
+          <tbody id="bonus-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="bonus-card">
+      <div class="ch"><div><div class="ct" id="bonus-form-title">Selecione um agente</div><div class="cs" id="bonus-form-sub">Os indicadores vêm preenchidos automaticamente</div></div></div>
+      <div class="bonus-form">
+        <label class="fl">Dias trabalhados<br><input class="fs" id="bonus-dt" type="number" min="0" max="31" oninput="bonusUpdatePreview()"></label>
+        <label class="fl">Demandas indevidas<br><input class="fs" id="bonus-dem" type="number" min="0" value="0" oninput="bonusUpdatePreview()"></label>
+        <label class="fl">Atividades extras (pts)<br><input class="fs" id="bonus-ati" type="number" min="0" value="0" oninput="bonusUpdatePreview()"></label>
+        <label class="fl">Upgrades WEB<br><input class="fs" id="bonus-up" type="number" min="0" value="0" oninput="bonusUpdatePreview()"></label>
+        <label class="fl">Extras gerais (R$)<br><input class="fs" id="bonus-extra" type="number" min="0" step="0.01" value="0" oninput="bonusUpdatePreview()"></label>
+        <label class="fl">Diárias<br><input class="fs" id="bonus-dia" type="number" min="0" value="0" oninput="bonusUpdatePreview()"></label>
+        <label class="fl full"><input id="bonus-tme" type="checkbox" onchange="bonusUpdatePreview()"> Meta TME zero &gt;1min</label>
+        <label class="fl full"><input id="bonus-mad" type="checkbox" onchange="bonusUpdatePreview()"> Madrinha / Padrinho</label>
+        <label class="fl full"><input id="bonus-rec" type="checkbox" onchange="bonusUpdatePreview()"> Reconhecimento Nota 10</label>
+        <label class="fl full">Observação / justificativa<br><textarea class="fs" id="bonus-obs" rows="3" oninput="bonusUpdatePreview()" placeholder="Férias, ajuste validado, observação do fechamento..."></textarea></label>
+      </div>
+      <div class="bonus-preview" id="bonus-preview" style="margin-top:.9rem"></div>
+      <div class="bonus-actions">
+        <button class="rel-action" onclick="saveBonusAgent()">Salvar fechamento</button>
+        <button class="rel-action" onclick="clearBonusAgent()">Limpar agente</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -255035,6 +255116,7 @@ function go(id,el){
   if(id==='historico')renderHistorico();
   if(id==='atendimentos')renderAtendimentos();
   if(id==='tratamentos')renderTreatments();
+  if(id==='bonificacao')renderBonus();
 }
 
 // ════════ OVERVIEW ════════
@@ -256686,6 +256768,134 @@ function renderFluxMonth(m){
   $('per-tbody').innerHTML=(pack.periodos||[]).map(p=>`<tr><td style="font-weight:500">${p.n}</td><td style="font-family:'Geist Mono',monospace;font-size:.67rem;color:var(--ghost)">${p.h}</td><td class="th">${p.at}</td><td class="tn">${fP(p.pct)}</td><td class="tn" style="${p.sat>=9.95?'color:var(--moss)':p.sat>=9.8?'color:var(--amber)':'color:var(--rust)'}">${p.sat.toFixed(2)}</td><td class="tn" style="${p.cob>.45?'color:var(--moss)':'color:var(--rust)'}">${fP(p.cob)}</td><td class="tn">${p.tma}</td></tr>`).join('');
 }
 
+// ════════ BONIFICAÇÃO PRIVADA ════════
+const BONUS_RULES={
+  r:{nota:180,vol:135,dem:45,ati:90},
+  e:{nota:180,vol:135,dem:45,ati:90},
+  i:{nota:180,vol:135,dem:0,ati:135}
+};
+let bonusClosures={}, bonusSelectedAgent='';
+const bonusMoney=n=>'R$ '+Number(n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const bonusYm=m=>`2026-${String(m+1).padStart(2,'0')}`;
+const bonusKey=(ym,agent)=>`${ym}|${agent}`;
+function bonusTeam(agent){const nuc=agentNucleus(agent);return nuc==='Infraestrutura'?'i':nuc==='Engorda'?'e':'r';}
+function bonusGroup(team){return team==='i'?'Infraestrutura':'Suporte';}
+function bonusDefaults(){return{diasTrab:null,demandas:0,atividades:0,upgrades:0,extra:0,diarias:0,metaTME:false,madrinha:false,reconhece:false,obs:''};}
+function bonusRecordsArray(){return Object.values(bonusClosures||{});}
+function bonusMonthRecords(ym){return bonusRecordsArray().filter(r=>r.ym===ym);}
+function bonusLoadLocal(){try{return JSON.parse(localStorage.getItem('gestao_bonus_closures_v1')||'{}')||{};}catch{return{};}}
+function bonusSaveLocal(){try{localStorage.setItem('gestao_bonus_closures_v1',JSON.stringify(bonusClosures));}catch{}}
+async function loadBonusClosures(){
+  bonusClosures=bonusLoadLocal();
+  try{
+    const r=await fetch('/api/bonus-closures',{cache:'no-store'});
+    if(r.ok){
+      const data=await r.json(), list=Array.isArray(data.closures)?data.closures:[];
+      bonusClosures=Object.fromEntries(list.map(x=>[bonusKey(x.ym,x.agent),x]));
+      bonusSaveLocal();
+      if($('bonus-save-status'))$('bonus-save-status').textContent=data.storage?'Privado · servidor':'Privado · navegador';
+    }
+  }catch{}
+  renderBonus();
+}
+async function saveBonusRemote(item){
+  bonusClosures[bonusKey(item.ym,item.agent)]=item;bonusSaveLocal();
+  try{
+    const r=await fetch('/api/bonus-closures',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(item)});
+    if(r.ok){$('bonus-save-status').textContent='Privado · salvo no servidor';return true;}
+  }catch{}
+  $('bonus-save-status').textContent='Privado · salvo no navegador';return false;
+}
+function bonusMonthAgents(m){
+  const rows=(D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===m+1), map={};
+  rows.forEach(r=>{
+    const agent=r[2]||'Sem agente';
+    if(/^sem agente$/i.test(agent)||/multisoft/i.test(agent))return;
+    if(!map[agent])map[agent]={agent,rows:[],ratings:[],tma:[],tme:[],over60:0};
+    const a=map[agent];a.rows.push(r);
+    if(r[6]!=null)a.ratings.push(Number(r[6]));
+    if(r[4]!=null)a.tma.push(Number(r[4]));
+    if(r[5]!=null){a.tme.push(Number(r[5]));if(Number(r[5])>60)a.over60++;}
+  });
+  const all=Object.values(map).map(a=>{const total=a.rows.length,aval=a.ratings.length,team=bonusTeam(a.agent);return{...a,total,aval,team,nuc:agentNucleus(a.agent),cov:total?aval/total:0,csat:avgArr(a.ratings)||0,tma:avgArr(a.tma)||0,tme:avgArr(a.tme)||0};}).filter(a=>a.total>0);
+  const teamStats={};
+  all.forEach(a=>{const g=bonusGroup(a.team);if(!teamStats[g])teamStats[g]={total:0,agents:0};teamStats[g].total+=a.total;teamStats[g].agents++;});
+  return all.map(a=>({...a,teamTotal:teamStats[bonusGroup(a.team)]?.total||0,teamAgents:teamStats[bonusGroup(a.team)]?.agents||1})).sort((a,b)=>b.total-a.total||a.agent.localeCompare(b.agent,'pt-BR'));
+}
+function bonusCalc(agentData,closure={}){
+  const d={...bonusDefaults(),...closure}, rules=BONUS_RULES[agentData.team]||BONUS_RULES.r;
+  const diasUteis=Math.max(1,Number($('bonus-du')?.value)||22), diasTrab=d.diasTrab==null?diasUteis:Math.max(0,Number(d.diasTrab)||0);
+  const metaVol=(agentData.teamTotal/Math.max(1,agentData.teamAgents)/diasUteis)*diasTrab, rows=[];let total=0;
+  const add=(label,value,detail,type='n')=>{value=Math.round((Number(value)||0)*100)/100;rows.push({label,value,detail,type});total+=value;};
+  const nota=agentData.csat||0, nv=nota>=9.85?rules.nota:nota>=9.7?rules.nota*.8:nota>=9.2?rules.nota*.6:0;
+  add('Nota de Satisfação',nv,nota?`${fS(nota)} na faixa`:'Sem CSAT');
+  let vv=0,vf='',vol=agentData.total;
+  const t10=metaVol*.9,t15=metaVol*.85,t20=metaVol*.8,t30=metaVol*.7,t40=metaVol*.6,t50=metaVol*.5;
+  if(vol>=t10){vv=rules.vol;vf=`Vol. ${vol} na faixa 10% (${t10.toFixed(1)}-${metaVol.toFixed(1)})`;}
+  else if(vol>=t15){vv=rules.vol*.8;vf=`Vol. ${vol} na faixa 15%`;}
+  else if(vol>=t20){vv=rules.vol*.6;vf=`Vol. ${vol} na faixa 20%`;}
+  else if(vol>=t30){vv=rules.vol*-.3;vf=`Vol. ${vol} na faixa 30%`;}
+  else if(vol>=t40){vv=rules.vol*-.5;vf=`Vol. ${vol} na faixa 40%`;}
+  else{vv=-rules.vol;vf=`Vol. ${vol} abaixo da faixa 50% (<${t50.toFixed(1)})`;}
+  const covRef=(D.cobert?.[appM]||0)*100,cov=agentData.cov*100;
+  if(vv>0&&covRef>0&&cov<covRef){const capPct=(cov/covRef)>=.8?.8:.6,cap=rules.vol*capPct;if(vv>cap){vv=cap;vf+=` · cobertura ${cov.toFixed(1)}% < média ${covRef.toFixed(1)}%: teto ${Math.round(capPct*100)}%`;}}
+  add('Volume',vv,vf);
+  if(agentData.team!=='i'){const dem=Number(d.demandas)||0;add('Demandas Indevidas',dem===0?rules.dem:dem===1?rules.dem*.6:0,dem===0?'0 demandas':dem===1?'1 demanda':'2+ demandas');}
+  const pts=Number(d.atividades)||0;let av=0,af='0 pts';
+  if(pts>=200){av=rules.ati+((pts-200)*(.2*rules.ati)/100);af=`${pts} pts progressivo`;}
+  else if(pts>=150){av=rules.ati*.8;af=`${pts} pts (150-199)`;}
+  else if(pts>=100){av=rules.ati*.6;af=`${pts} pts (100-149)`;}
+  else if(pts>0){af=`${pts} pts < 100`;}
+  add('Atividades Extras',av,af);
+  if(d.metaTME&&agentData.team!=='i')add('Meta TME zero',50,'Nenhum cliente >1min','bon');
+  if(d.madrinha)add('Madrinha / Padrinho',50,'Onboarding','bon');
+  if(d.reconhece)add('Reconhecimento Nota 10',50,'Nota máxima','bon');
+  if(Number(d.upgrades)>0)add(`Upgrades WEB ×${Number(d.upgrades)}`,Number(d.upgrades)*150,'R$150/un','bon');
+  if(Number(d.extra)>0)add('Ganhos extras gerais',Number(d.extra),'Ajuste manual','bon');
+  if(Number(d.diarias)>0)add(`Diárias × ${Number(d.diarias)}`,Number(d.diarias)*50,'R$50/dia','bon');
+  total=Math.max(0,Math.round(total*100)/100);return{rows,total,metaVol,diasTrab,diasUteis};
+}
+function currentBonusAgentData(){return bonusMonthAgents(appM).find(a=>a.agent===bonusSelectedAgent)||null;}
+function renderBonus(){
+  if(!$('bonus-tbody'))return;
+  const ym=bonusYm(appM),agents=bonusMonthAgents(appM),saved=bonusMonthRecords(ym);
+  $('bonus-month-label').textContent=D.mesNomes[appM];$('bonus-k-ag').textContent=agents.length;$('bonus-k-cov').textContent=pct1(D.cobert?.[appM]||0);$('bonus-k-saved').textContent=saved.length;
+  const totals=agents.map(a=>bonusCalc(a,bonusClosures[bonusKey(ym,a.agent)]||{}).total);
+  $('bonus-k-total').textContent=bonusMoney(totals.reduce((s,v)=>s+v,0));
+  $('bonus-tbody').innerHTML=agents.map(a=>{const item=bonusClosures[bonusKey(ym,a.agent)],calc=bonusCalc(a,item||{}),cs=a.csat>=9.85?'color:var(--moss);font-weight:800':a.csat>=9.7?'color:var(--amber);font-weight:800':'color:var(--rust);font-weight:800';return `<tr onclick="selectBonusAgent('${esc(a.agent)}')" style="cursor:pointer"><td class="bonus-agent-cell"><b>${esc(a.agent)}</b><span>${esc(a.nuc)} · ${bonusGroup(a.team)}</span></td><td class="th">${fN(a.total)}</td><td class="tn">${fN(a.aval)}</td><td class="tn">${pct1(a.cov)}</td><td class="tn" style="${cs}">${a.csat?fS(a.csat):'—'}</td><td class="tn">${fmtDur(a.tme)}</td><td class="th">${bonusMoney(calc.total)}</td><td><span class="kd ${item?'kup':'knt'}">${item?'Salvo':'Prévia'}</span></td></tr>`;}).join('');
+  if(!bonusSelectedAgent&&agents[0])selectBonusAgent(agents[0].agent);else bonusUpdatePreview();
+}
+function selectBonusAgent(agent){
+  bonusSelectedAgent=agent;const ym=bonusYm(appM),a=currentBonusAgentData();if(!a)return;
+  const item={...bonusDefaults(),...(bonusClosures[bonusKey(ym,agent)]?.manual||bonusClosures[bonusKey(ym,agent)]||{})};
+  $('bonus-form-title').textContent=a.agent;$('bonus-form-sub').textContent=`${a.nuc} · ${fN(a.total)} atend. · ${pct1(a.cov)} cobertura · CSAT ${a.csat?fS(a.csat):'—'}`;
+  $('bonus-dt').value=item.diasTrab??($('bonus-du').value||22);$('bonus-dem').value=item.demandas??0;$('bonus-ati').value=item.atividades??0;$('bonus-up').value=item.upgrades??0;$('bonus-extra').value=item.extra??0;$('bonus-dia').value=item.diarias??0;
+  $('bonus-tme').checked=!!item.metaTME;$('bonus-mad').checked=!!item.madrinha;$('bonus-rec').checked=!!item.reconhece;$('bonus-obs').value=item.obs||'';bonusUpdatePreview();
+}
+function bonusFormClosure(){return{diasTrab:Number($('bonus-dt').value)||0,demandas:Number($('bonus-dem').value)||0,atividades:Number($('bonus-ati').value)||0,upgrades:Number($('bonus-up').value)||0,extra:Number($('bonus-extra').value)||0,diarias:Number($('bonus-dia').value)||0,metaTME:$('bonus-tme').checked,madrinha:$('bonus-mad').checked,reconhece:$('bonus-rec').checked,obs:$('bonus-obs').value||''};}
+function bonusUpdatePreview(){
+  const a=currentBonusAgentData();if(!a){$('bonus-preview').innerHTML='<div class="op-empty">Selecione um agente.</div>';return;}
+  const calc=bonusCalc(a,bonusFormClosure());
+  $('bonus-preview').innerHTML=calc.rows.map(r=>`<div class="bonus-row"><div>${esc(r.label)}<small>${esc(r.detail||'')}</small></div><div class="bonus-val">${r.value>=0?'+':''}${bonusMoney(r.value)}</div></div>`).join('')+`<div class="bonus-total"><span>Total Bonificação</span><strong>${bonusMoney(calc.total)}</strong></div><div class="cs">Meta volume proporcional: ${calc.metaVol.toFixed(1)} · dias ${calc.diasTrab}/${calc.diasUteis}</div>`;
+}
+async function saveBonusAgent(){
+  const a=currentBonusAgentData();if(!a)return;
+  const ym=bonusYm(appM),manual=bonusFormClosure(),calc=bonusCalc(a,manual);
+  const item={id:bonusKey(ym,a.agent),ym,month:D.mesNomes[appM],agent:a.agent,team:a.team,nucleus:a.nuc,metrics:{volume:a.total,avaliacoes:a.aval,cobertura:a.cov,csat:a.csat,tmaSec:a.tma,tmeSec:a.tme,metaVol:calc.metaVol},manual,breakdown:calc.rows,total:calc.total,updatedAt:new Date().toISOString()};
+  await saveBonusRemote(item);renderBonus();
+}
+function clearBonusAgent(){const a=currentBonusAgentData();if(!a)return;delete bonusClosures[bonusKey(bonusYm(appM),a.agent)];bonusSaveLocal();renderBonus();}
+function exportBonusJson(){
+  const data=JSON.stringify({month:bonusYm(appM),closures:bonusMonthRecords(bonusYm(appM))},null,2);
+  const blob=new Blob([data],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`bonificacao-${bonusYm(appM)}.json`;a.click();URL.revokeObjectURL(url);
+}
+async function initBonusPrivate(){
+  let visible=location.protocol==='file:';
+  try{const r=await fetch('/api/session',{cache:'no-store'});if(r.ok){const s=await r.json();visible=!!s.bonusPrivate;}}catch{}
+  document.querySelectorAll('.bonus-private').forEach(el=>el.classList.toggle('visible',visible));
+  if(visible)loadBonusClosures();
+}
+
 function setGlobalMonth(m){
   syncMonthControls(m);
   updateOvKPIs(m);
@@ -256699,12 +256909,14 @@ function setGlobalMonth(m){
   renderAvalMonth(m);
   updateBandsForMonth(m);
   renderFluxMonth(m);
+  renderBonus();
   renderCal();
 }
 
 // ════════ INIT ════════
 populateCalFilters();
 initHistorico();
+initBonusPrivate();
 const urlMonth=parseInt(new URLSearchParams(location.search).get('mes')||'',10);
 setGlobalMonth(urlMonth>=1&&urlMonth<=D.meses.length?urlMonth-1:F);
 loadRemoteManualAdjustments();

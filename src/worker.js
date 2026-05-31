@@ -1121,9 +1121,16 @@ export default {
     }
 
     if (url.pathname === '/logout') {
-      return redirectTo('/login', {
-        'Set-Cookie': 'gestao_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0',
-      });
+      return new Response(
+        `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Sessão encerrada</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#edf5ef;font-family:Arial,sans-serif;color:#102817}.card{width:min(460px,calc(100vw - 32px));background:#fff;border:1px solid #d6e2d2;border-radius:12px;padding:28px;box-shadow:0 22px 70px rgba(31,61,42,.16)}a{display:inline-block;margin-top:18px;background:#2f6d45;color:#fff;text-decoration:none;border-radius:8px;padding:12px 16px;font-weight:800}</style></head><body><main class="card"><h1>Sessão encerrada</h1><p>Agora abra a Bonificação novamente. Seus dados locais não foram apagados.</p><a href="/bonificacao.html?fresh=1">Abrir Bonificação</a></main></body></html>`,
+        {
+          headers: {
+            'Content-Type': 'text/html; charset=UTF-8',
+            'Cache-Control': 'private, no-store',
+            'Set-Cookie': 'gestao_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0',
+          },
+        },
+      );
     }
 
     if (!(await isAuthorized(request, env))) {

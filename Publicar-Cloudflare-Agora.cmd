@@ -1,13 +1,10 @@
 @echo off
+setlocal
 cd /d "%~dp0"
-echo.
-echo Publicacao direta no Cloudflare Worker.
-echo Cole um CLOUDFLARE_API_TOKEN com permissao de editar Workers.
-echo O token nao sera salvo no Git.
-echo.
-set /p CLOUDFLARE_API_TOKEN=Token Cloudflare: 
-echo.
-set "PATH=%LOCALAPPDATA%\CodexTools\node-v22;%PATH%"
-npm exec --yes wrangler@latest -- deploy
-echo.
+where pwsh >nul 2>nul
+if %errorlevel%==0 (
+  pwsh -NoProfile -ExecutionPolicy Bypass -File "%~dp0Publicar-Cloudflare-Agora.ps1"
+) else (
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Publicar-Cloudflare-Agora.ps1"
+)
 pause

@@ -19,13 +19,27 @@ $token = [System.Net.NetworkCredential]::new('', $secureToken).Password
 $env:CLOUDFLARE_API_TOKEN = $token
 $env:PATH = "$env:LOCALAPPDATA\CodexTools\node-v22;$env:PATH"
 
+function Invoke-CheckedCommand {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$FilePath,
+    [Parameter(ValueFromRemainingArguments = $true)]
+    [string[]]$CommandArgs
+  )
+
+  & $FilePath @CommandArgs
+  if ($LASTEXITCODE -ne 0) {
+    throw "Comando falhou com codigo ${LASTEXITCODE}: $FilePath $($CommandArgs -join ' ')"
+  }
+}
+
 Write-Host ''
 Write-Host 'Validando token...'
-npm exec --yes wrangler@latest -- whoami
+Invoke-CheckedCommand npm exec --yes wrangler@latest -- whoami
 
 Write-Host ''
 Write-Host 'Publicando Worker...'
-npm exec --yes wrangler@latest -- deploy
+Invoke-CheckedCommand npm exec --yes wrangler@latest -- deploy
 
 Write-Host ''
 Write-Host 'Publicado com sucesso:'

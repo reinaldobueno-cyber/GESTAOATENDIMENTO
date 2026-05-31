@@ -33,6 +33,11 @@ function redirectTo(location, headers = {}) {
   });
 }
 
+function wantsHtml(request) {
+  const accept = request.headers.get('Accept') || '';
+  return accept.includes('text/html') || accept.includes('*/*');
+}
+
 function timingSafeEqual(a, b) {
   const encoder = new TextEncoder();
   const left = encoder.encode(a);
@@ -894,7 +899,8 @@ async function currentAppUser(request, env) {
   }
 }
 
-function loginPage(error = '') {
+function loginPage(error = '', next = '/') {
+  const safeNext = String(next || '/').startsWith('/') ? String(next || '/') : '/';
   return new Response(
     `<!doctype html>
 <html lang="pt-BR">
@@ -922,6 +928,7 @@ function loginPage(error = '') {
     <p>Use seu usuário para acessar os dados protegidos do atendimento.</p>
     ${error ? `<div class="error">${escapeHtml(error)}</div>` : ''}
     <form method="post" action="/login">
+      <input type="hidden" name="next" value="${escapeHtml(safeNext)}">
       <label for="user">Usuário</label>
       <input id="user" name="user" autocomplete="username" autofocus>
       <label for="password">Senha</label>
@@ -951,13 +958,15 @@ async function handleLogin(request, env) {
 
   const user = String(form.get('user') || '');
   const password = String(form.get('password') || '');
+  const next = String(form.get('next') || '/');
   const matched = findAppUser(env, user, password);
 
   if (!matched) {
-    return loginPage('Usuário ou senha inválidos.');
+    return loginPage('Usuário ou senha inválidos.', next);
   }
 
-  return redirectTo('/', {
+  const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/';
+  return redirectTo(safeNext, {
     'Set-Cookie': await createSessionCookie(matched.user, env),
   });
 }
@@ -1118,6 +1127,7 @@ export default {
     }
 
     if (!(await isAuthorized(request, env))) {
+      if (wantsHtml(request)) return loginPage('', `${url.pathname}${url.search}`);
       return redirectTo('/login');
     }
     const appUser = await currentAppUser(request, env);

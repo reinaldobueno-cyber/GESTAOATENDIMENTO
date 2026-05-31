@@ -372,6 +372,8 @@ canvas{cursor:pointer;}
 .ntab.bonus-private.visible{display:flex;}
 .pane.bonus-private.visible{display:none;}
 .pane.bonus-private.visible.active{display:block;}
+.bonus-legacy-mode > :not(.bonus-legacy-frame){display:none!important;}
+.bonus-legacy-frame{display:block;width:100%;height:calc(100vh - 128px);min-height:760px;border:0;border-radius:12px;background:#fff;box-shadow:var(--shadow);}
 @media(max-width:1100px){.bonus-grid{grid-template-columns:1fr}.bonus-form{grid-template-columns:1fr;}}
 </style>
 </head>
@@ -1184,7 +1186,8 @@ canvas{cursor:pointer;}
 </div>
 
 <!-- ════════════════ BONIFICAÇÃO PRIVADA ════════════════ -->
-<div id="pane-bonificacao" class="pane bonus-private">
+<div id="pane-bonificacao" class="pane bonus-private bonus-legacy-mode">
+  <iframe class="bonus-legacy-frame" src="bonificacao.html" title="Bonificação Customer Success"></iframe>
   <div class="ctx">
     <div>
       <div class="ctx-title">Fechamento de Bonificação</div>

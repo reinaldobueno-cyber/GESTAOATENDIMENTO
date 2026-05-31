@@ -1138,6 +1138,17 @@ export default {
       return handleBonusClosures(request, env, appUser);
     }
 
+    if (url.pathname.endsWith('/bonificacao.html') && !canUseBonus(appUser, env)) {
+      return new Response('Acesso negado.', {
+        status: 403,
+        headers: {
+          'Content-Type': 'text/plain; charset=UTF-8',
+          'Cache-Control': 'private, no-store',
+          'X-Robots-Tag': 'noindex, nofollow',
+        },
+      });
+    }
+
     const reportMatch = url.pathname.match(/^\/pdf-report\/([^/]+)$/);
     if (reportMatch) {
       return renderPdfReport(request, env, decodeURIComponent(reportMatch[1]));

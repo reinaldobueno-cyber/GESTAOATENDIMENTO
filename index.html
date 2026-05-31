@@ -256891,6 +256891,55 @@ function exportBonusJson(){
   const data=JSON.stringify({month:bonusYm(appM),closures:bonusMonthRecords(bonusYm(appM))},null,2);
   const blob=new Blob([data],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`bonificacao-${bonusYm(appM)}.json`;a.click();URL.revokeObjectURL(url);
 }
+function bonusReportRows(m=appM){
+  const ym=bonusYm(m);
+  return bonusMonthAgents(m).map(agent=>{
+    const saved=bonusClosures[bonusKey(ym,agent.agent)]||null;
+    const manual=saved?.manual||{};
+    const calc=saved?{rows:saved.breakdown||[],total:saved.total,metaVol:saved.metrics?.metaVol||0}:bonusCalc(agent,manual);
+    return {agent,saved,manual,calc,total:Number(calc.total||0)};
+  }).sort((a,b)=>b.total-a.total||a.agent.agent.localeCompare(b.agent.agent,'pt-BR'));
+}
+function exportBonusCsv(){
+  const rows=bonusReportRows(appM), ym=bonusYm(appM);
+  let csv='Mes;Agente;Nucleo;Equipe;Atendimentos;Avaliacoes;Cobertura;CSAT;TME;MetaVolume;DiasTrab;Demandas;Atividades;Obs;Total;Status\n';
+  csv+=rows.map(r=>[
+    D.mesNomes[appM],r.agent.agent,r.agent.nuc,bonusGroup(r.agent.team),r.agent.total,r.agent.aval,pct1(r.agent.cov),r.agent.csat?fS(r.agent.csat):'',fmtDur(r.agent.tme),(r.calc.metaVol||r.saved?.metrics?.metaVol||0).toFixed(1),r.manual.diasTrab||'',r.manual.demandas??'',r.manual.atividades??'',`"${String(r.manual.obs||'').replace(/"/g,'""')}"`,String(r.total.toFixed(2)).replace('.',','),r.saved?'Salvo':'Previa'
+  ].join(';')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=`bonificacao-${ym}.csv`;a.click();URL.revokeObjectURL(url);
+}
+function bonusPrevTotal(ym){
+  const prevIndex=appM-1;
+  if(prevIndex<0)return null;
+  const saved=bonusMonthRecords(bonusYm(prevIndex));
+  if(saved.length)return saved.reduce((s,r)=>s+Number(r.total||0),0);
+  return null;
+}
+function generateBonusPdf(){
+  const rows=bonusReportRows(appM), ym=bonusYm(appM);
+  if(!rows.length){alert('Sem agentes para gerar o PDF deste mês.');return;}
+  const total=rows.reduce((s,r)=>s+r.total,0), prevTotal=bonusPrevTotal(ym), delta=prevTotal!=null?total-prevTotal:null;
+  const byTeam={r:0,e:0,i:0}, byTeamCount={r:0,e:0,i:0};
+  rows.forEach(r=>{byTeam[r.agent.team]=(byTeam[r.agent.team]||0)+r.total;byTeamCount[r.agent.team]=(byTeamCount[r.agent.team]||0)+1;});
+  const now=new Date(), emitDate=now.toLocaleDateString('pt-BR'), emitTime=now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  const deltaColor=delta>0?'#1a7a3a':delta<0?'#c0392b':'#7a9b87';
+  const deltaText=delta!=null?`${delta>=0?'▲ +':'▼ -'}${bonusMoney(Math.abs(delta))} vs mês anterior`:'Sem mês anterior salvo';
+  const top=rows[0], savedCount=rows.filter(r=>r.saved).length, avg=rows.length?total/rows.length:0;
+  const teamBlocks=[
+    ['r','Núcleo Reprodução','#2e7d52'],['e','Núcleo Engorda','#9a6c1a'],['i','Núcleo Infraestrutura','#2563a8']
+  ].map(([k,label,color])=>`<div class="tblock" style="border-top:3px solid ${color}"><div class="tbn">${label}</div><div class="tbv">${bonusMoney(byTeam[k]||0)}</div><div class="tbm">${total?((byTeam[k]||0)/total*100).toFixed(1):'0,0'}% · ${byTeamCount[k]||0} pessoa(s) · média ${byTeamCount[k]?bonusMoney((byTeam[k]||0)/byTeamCount[k]):'—'}</div></div>`).join('');
+  const individualRows=rows.map((r,i)=>{
+    const m=r.manual||{}, a=r.agent, status=r.saved?'Salvo':'Prévia';
+    return `<tr><td class="rank">${i+1}</td><td class="tname">${esc(a.agent)}${m.obs?`<br><span>${esc(m.obs)}</span>`:''}</td><td><span class="teq ${a.team==='r'?'tr':a.team==='e'?'te':'ti'}">${esc(a.nuc)}</span></td><td>${a.csat?fS(a.csat):'—'}</td><td>${fN(a.total)}<br><small>meta ${(r.calc.metaVol||r.saved?.metrics?.metaVol||0).toFixed(1)}</small></td><td>${fN(a.aval)}<br><small>${pct1(a.cov)}</small></td><td>${m.atividades||0}</td><td>${status}</td><td class="tval">${bonusMoney(r.total)}</td></tr>`;
+  }).join('');
+  const obsRows=rows.filter(r=>r.manual?.obs).map(r=>`<div><strong>${esc(r.agent.agent)}:</strong> ${esc(r.manual.obs)}</div>`).join('')||'Nenhuma observação registrada.';
+  const validationRows=rows.map(r=>r.total), computed=validationRows.reduce((s,v)=>s+v,0), diff=Math.abs(computed-total);
+  const css=`*{box-sizing:border-box;margin:0;padding:0}body{font-family:Inter,Arial,sans-serif;color:#0d1f16;font-size:12px;background:#fff;padding:36px 44px}.hdr{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:18px;border-bottom:3px solid #2e7d52;margin-bottom:24px}.brand{display:flex;align-items:center;gap:10px;margin-bottom:5px}.sq{background:#2e7d52;width:28px;height:28px;border-radius:7px;display:grid;place-items:center;font-weight:800;font-size:11px;color:#fff}.co{font-size:10px;font-weight:700;color:#7a9b87;text-transform:uppercase;letter-spacing:1px}h2{font-family:Georgia,serif;font-size:20px;color:#245f3f}.hm{text-align:right;font-size:11px;color:#7a9b87}.hm strong{display:block;font-size:16px;color:#2e7d52;font-family:'Courier New',monospace}.sec{margin-bottom:20px}.sec-t{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#2e7d52;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #dae8e0}.krow{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}.kpi,.tblock,.val-box,.obs-box{background:#f2faf5;border:1px solid #dae8e0;border-radius:8px;padding:12px}.kpi label,.tbn{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#7a9b87;display:block;margin-bottom:5px}.kv,.tbv{font-size:15px;font-weight:600;color:#245f3f;font-family:'Courier New',monospace}.ks,.tbm{font-size:10px;color:#7a9b87;margin-top:3px}.tgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}table{width:100%;border-collapse:collapse;font-size:12px}thead tr{background:#f2faf5}th{padding:7px 10px;text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;color:#2e7d52;border-bottom:1px solid #dae8e0}td{padding:8px 10px;border-bottom:1px solid #ecf5ef}.rank{color:#7a9b87;font-family:'Courier New',monospace}.tname{font-weight:600}.tname span{font-size:10px;color:#7a9b87;font-style:italic}.tval{font-family:'Courier New',monospace;font-weight:700;color:#245f3f}.teq{font-size:9px;font-weight:700;text-transform:uppercase;padding:2px 5px;border-radius:5px}.tr{background:#dff0e7;color:#1a5c38}.te{background:#fdf7ee;color:#7a5820}.ti{background:#e5edf8;color:#1a3a7a}small{color:#7a9b87}.vrow{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #dae8e0}.vrow:last-child{border-bottom:none}.vok{color:#1a7a3a;font-weight:700}.footer{margin-top:32px;padding-top:14px;border-top:1px solid #dae8e0;display:flex;justify-content:space-between;font-size:10px;color:#7a9b87}.sign{border-top:1px solid #c3dece;width:180px;padding-top:4px;margin-top:42px}@media print{body{padding:20px}button{display:none!important}}`;
+  const doc=`<!doctype html><html><head><meta charset="UTF-8"><title>Bonificação ${D.mesNomes[appM]}</title><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><style>${css}</style></head><body><div class="hdr"><div><div class="brand"><div class="sq">MB</div><div class="co">Multbovinos</div></div><h2>Fechamento de Bonificação — ${D.mesNomes[appM]}</h2></div><div class="hm"><div>Emitido em ${emitDate}</div><strong>${bonusMoney(total)}</strong><div style="color:${deltaColor};font-family:'Courier New',monospace">${deltaText}</div></div></div><div class="sec"><div class="sec-t">Resumo Executivo</div><div class="krow"><div class="kpi"><label>Total do Mês</label><div class="kv">${bonusMoney(total)}</div><div class="ks">${rows.length} colaboradores ativos</div></div><div class="kpi"><label>Fechados</label><div class="kv">${savedCount}/${rows.length}</div><div class="ks">registros salvos</div></div><div class="kpi"><label>Maior Bonificação</label><div class="kv">${bonusMoney(top.total)}</div><div class="ks">${esc(top.agent.agent)}</div></div><div class="kpi"><label>Média por Colaborador</label><div class="kv">${bonusMoney(avg)}</div><div class="ks">cobertura média ${pct1(D.cobert?.[appM]||0)}</div></div></div></div><div class="sec"><div class="sec-t">Consolidação por Núcleo</div><div class="tgrid">${teamBlocks}</div></div><div class="sec"><div class="sec-t">Valores Individuais</div><table><thead><tr><th>#</th><th>Colaborador</th><th>Núcleo</th><th>CSAT</th><th>Volume</th><th>Aval.</th><th>Ativ.</th><th>Status</th><th>Total</th></tr></thead><tbody>${individualRows}</tbody><tfoot><tr><td colspan="8" style="text-align:right;font-weight:700;border-top:2px solid #2e7d52">Total Geral</td><td class="tval" style="border-top:2px solid #2e7d52">${bonusMoney(total)}</td></tr></tfoot></table></div><div class="sec"><div class="sec-t">Observações do Fechamento</div><div class="obs-box">${obsRows}</div></div><div class="sec"><div class="sec-t">Validação</div><div class="val-box"><div class="vrow"><span>Soma dos individuais</span><span class="vok">${bonusMoney(computed)} ${diff<0.01?'validado':'verificar'}</span></div><div class="vrow"><span>Reprodução + Engorda + Infra</span><span>${bonusMoney(byTeam.r||0)} + ${bonusMoney(byTeam.e||0)} + ${bonusMoney(byTeam.i||0)} = ${bonusMoney(total)}</span></div><div class="vrow"><span>Fonte operacional</span><span>GESTAOATENDIMENTO · ${D.mesNomes[appM]}</span></div></div></div><div class="footer"><div>Customer Success — Multbovinos · Gerado em ${emitDate} às ${emitTime}</div><div class="sign">Responsável pelo Fechamento</div></div><br><button onclick="window.print()" style="padding:9px 20px;background:#2e7d52;color:#fff;border:0;border-radius:7px;font-weight:700">Imprimir / Salvar como PDF</button></body></html>`;
+  const blob=new Blob([doc],{type:'text/html'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.target='_blank';a.rel='noopener';document.body.appendChild(a);a.click();setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
+}
 async function initBonusPrivate(){
   let visible=location.protocol==='file:';
   try{const r=await fetch('/api/session',{cache:'no-store'});if(r.ok){const s=await r.json();visible=!!s.bonusPrivate;}}catch{}

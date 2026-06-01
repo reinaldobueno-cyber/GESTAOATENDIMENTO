@@ -11,6 +11,12 @@
     "binding": "ASSETS",
     "run_worker_first": true
   },
+  "kv_namespaces": [
+    {
+      "binding": "ADJUSTMENTS",
+      "id": "f5322e1c79514687ab28ebbf91837c25"
+    }
+  ],
   "compatibility_flags": [
     "nodejs_compat"
   ]

@@ -258327,9 +258327,32 @@ async function loadRemoteManualAdjustments(){
     if(!res.ok)return;
     const data=await res.json();
     window.MANUAL_ADJUSTMENTS_REMOTE=Array.isArray(data.adjustments)?data.adjustments:[];
+    if(data.storage)await syncLocalManualAdjustmentsToRemote(window.MANUAL_ADJUSTMENTS_REMOTE);
     applyManualAdjustments();
     setGlobalMonth(appM);
   }catch{}
+}
+async function syncLocalManualAdjustmentsToRemote(remoteItems=[]){
+  const local=localManualAdjustments();
+  if(!local.length)return;
+  const remoteIds=new Set((remoteItems||[]).map(a=>String(a.id||'')));
+  const missing=local.filter(a=>a&&a.protocolo&&!remoteIds.has(String(a.id||'')));
+  if(!missing.length)return;
+  let changed=false;
+  for(const adj of missing){
+    try{
+      const res=await fetch('/api/manual-adjustments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(adj)});
+      const data=await res.json().catch(()=>({}));
+      if(res.ok&&data.ok===true)changed=true;
+    }catch{}
+  }
+  if(changed){
+    const res=await fetch('/api/manual-adjustments',{cache:'no-store'});
+    if(res.ok){
+      const data=await res.json();
+      window.MANUAL_ADJUSTMENTS_REMOTE=Array.isArray(data.adjustments)?data.adjustments:[];
+    }
+  }
 }
 function parseBrDateTime(value){
   const m=String(value||'').match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/);

@@ -160,8 +160,9 @@ button,input,select,textarea{font-family:var(--f)}
 .g4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px}
 .fg{display:flex;flex-direction:column;gap:4px;position:relative}
 .fg label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--ink4);display:flex;align-items:center;gap:5px}
-.fg input,.fg select{background:var(--sur2);border:1.5px solid var(--line);color:var(--ink);padding:9px 12px;border-radius:var(--r2);font-size:14px;outline:none;transition:border .12s,background .12s;width:100%}
-.fg input:focus,.fg select:focus{border-color:var(--g);background:#fff}
+.fg input,.fg select,.fg textarea{background:var(--sur2);border:1.5px solid var(--line);color:var(--ink);padding:9px 12px;border-radius:var(--r2);font-size:14px;outline:none;transition:border .12s,background .12s;width:100%}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--g);background:#fff}
+.fg textarea{min-height:92px;resize:vertical;line-height:1.45}
 .fg .hint{font-size:11px;margin-top:3px;line-height:1.3}
 .hok{color:#1a7a3a}.hwarn{color:var(--amb)}.herr{color:var(--red)}.hmut{color:var(--ink4)}
 .fg input::placeholder,.fg select option[value=""]{color:var(--ink4)}
@@ -707,9 +708,18 @@ button,input,select,textarea{font-family:var(--f)}
   <div class="ph"><div class="ph-l"><div class="pt">Relatório Formal em PDF</div><div class="ps">Documento gerencial por mês · CSV e backup de dados</div></div></div>
   <div class="fcard" style="max-width:320px;margin-bottom:16px">
     <div class="fh">Selecionar mês</div>
-    <div class="fg"><select id="sel-exp"></select></div>
+    <div class="fg"><select id="sel-exp" onchange="loadMonthNotes()"></select></div>
+  </div>
+  <div class="fcard" style="margin-bottom:16px">
+    <div class="fh">Análise das variações do mês</div>
+    <div class="fg">
+      <label>Variações positivas e negativas para constar no relatório</label>
+      <textarea id="f-var-note" placeholder="Ex: queda por afastamentos, colaborador sem atuação no mês, aumento por upgrades, mudança na regra de tickets avaliados..."></textarea>
+      <span class="hint hmut">Esse texto entra no PDF gerencial e fica salvo no backup JSON.</span>
+    </div>
   </div>
   <div class="exp-item" onclick="gerarPDF('exp')"><div class="exp-icon">📄</div><div class="exp-t"><h4>Versão completa — PDF Gerencial</h4><p>Resumo executivo, equipes, individuais, observações e validação</p></div><div class="exp-a"><button class="btn bp bsm" onclick="gerarPDF('exp');event.stopPropagation()">Gerar PDF</button></div></div>
+  <div class="exp-item" onclick="gerarPDFAgentes()"><div class="exp-icon">👤</div><div class="exp-t"><h4>Fechamentos individuais</h4><p>Uma página por agente, com cálculo, variação e regra de tickets avaliados</p></div><div class="exp-a"><button class="btn bp bsm" onclick="gerarPDFAgentes();event.stopPropagation()">Gerar PDFs</button></div></div>
   <div class="exp-item" onclick="window.print()"><div class="exp-icon">🖨</div><div class="exp-t"><h4>Imprimir relatório</h4><p>Ctrl+P para imprimir ou salvar como PDF do navegador</p></div><div class="exp-a"><button class="btn bs bsm" onclick="window.print();event.stopPropagation()">Imprimir</button></div></div>
   <div class="exp-item" onclick="expCSV()"><div class="exp-icon">📊</div><div class="exp-t"><h4>Exportar CSV</h4><p>Para Excel ou Google Sheets</p></div><div class="exp-a"><button class="btn bs bsm" onclick="expCSV();event.stopPropagation()">Baixar CSV</button></div></div>
   <div class="exp-item" onclick="expJSON()"><div class="exp-icon">💾</div><div class="exp-t"><h4>Backup JSON</h4><p>Salvar todos os dados para restauração</p></div><div class="exp-a"><button class="btn bs bsm" onclick="expJSON();event.stopPropagation()">Baixar</button></div></div>
@@ -1131,6 +1141,71 @@ const gi=id=>parseInt(document.getElementById(id)?.value)||0;
 const gf=id=>parseFloat(document.getElementById(id)?.value)||0;
 const gc=id=>document.getElementById(id)?.checked||false;
 const gfn=id=>{const v=document.getElementById(id)?.value??'';return v===''?0:Math.max(0,parseFloat(v)||0);};
+const NA='NÃO APLICOU';
+const NUCLEI=[
+  ['r','Núcleo Reprodução','#2e7d52'],
+  ['e','Núcleo Engorda','#9a6c1a'],
+  ['i','Núcleo Infraestrutura','#2563a8'],
+  ['x','Gestão / Indicação','#4a6655'],
+];
+
+function didNotApply(a){
+  const obs=(a?.obs||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  return obs.includes('nao atuou')||obs.includes('nao aplicou')||obs.includes('sem atuacao')||obs.includes('sem atendimento');
+}
+function fmtMetric(a,key){
+  const v=a?.[key];
+  if(key==='nota'&&didNotApply(a)&&Number(v)<=0.1)return NA;
+  if((v===undefined||v===null||v===''||Number(v)===0)&&didNotApply(a))return NA;
+  if(v===undefined||v===null||v==='')return '—';
+  if(Number(v)===0&&key!=='demandas')return didNotApply(a)?NA:'—';
+  return String(v);
+}
+function fmtDays(a){
+  if(a?.diasTrab&&a?.diasUteis)return a.diasTrab+'/'+a.diasUteis;
+  return didNotApply(a)?NA:'—';
+}
+function fmtDelta(v){
+  if(v===null||v===undefined)return '—';
+  return (v>=0?'+':'')+R(v);
+}
+function prevAgent(prevM,a){
+  return prevM?.agents?.find(p=>p.nome===a.nome)||null;
+}
+function agentDelta(prevM,a){
+  const p=prevAgent(prevM,a);
+  return p?a.total-p.total:null;
+}
+function sortedAgentsByNucleus(ags){
+  const rank=a=>didNotApply(a)?-1:Number(a.total)||0;
+  return NUCLEI.map(([key,label,color])=>({
+    key,label,color,
+    agents:ags.filter(a=>(a.equipe||getEq(a.nome)||'x')===key).sort((a,b)=>rank(b)-rank(a)||a.nome.localeCompare(b.nome,'pt-BR'))
+  })).filter(g=>g.agents.length);
+}
+function monthNote(mes){
+  return String(DB.months?.[mes]?.variationNote||'').trim();
+}
+function saveMonthNotes(){
+  const mes=gv('sel-exp')||gv('sel-exec')||months().pop();
+  if(!mes||!DB.months[mes])return;
+  const el=document.getElementById('f-var-note');
+  if(el)DB.months[mes].variationNote=el.value.trim();
+  save();
+}
+function loadMonthNotes(){
+  const mes=gv('sel-exp')||gv('sel-exec')||months().pop();
+  const el=document.getElementById('f-var-note');
+  if(el)el.value=mes&&DB.months[mes]?monthNote(mes):'';
+}
+function coverageExplanation(a){
+  const ap=Number(a.avalPct)||0, at=Number(a.avalTeam)||0;
+  const ref=at>0?Math.max(45,at):0;
+  if(!ap||!ref)return 'Cobertura de tickets avaliados não informada; volume calculado pela faixa de atendimento registrada.';
+  if(ap>=ref)return `Cobertura de tickets avaliados: ${ap.toFixed(1)}%, na média/referência (${ref.toFixed(1)}%). Volume pode pagar 100% da faixa atingida.`;
+  const ratio=ap/ref;
+  return `Cobertura de tickets avaliados: ${ap.toFixed(1)}%, abaixo da referência ${ref.toFixed(1)}%. Neste primeiro mês da regra, o pagamento de volume foi limitado a ${ratio>=0.8?'80':'60'}% quando aplicável.`;
+}
 
 function toast(msg,err=false){
   const t=document.getElementById('toast');
@@ -1428,8 +1503,7 @@ function agHTML(a,mes,actions=true){
     <div class="av ${avC(a.nome)}" style="width:34px;height:34px">${ini(a.nome)}</div>
     <div class="ag-info">
       <div class="ag-name">${a.nome} ${tag}</div>
-      ${a.nota||a.volume||a.atividades?`<div class="ag-meta">${[a.nota?'Nota '+a.nota:'',a.volume?'Vol '+a.volume+(a.metaVol?' (meta '+Math.round(a.metaVol*10)/10+')':''):'',a.atividades?'Ativ '+a.atividades+'pts':'',a.demandas!=null?'Dem '+a.demandas:'',a.diasTrab&&a.diasUteis&&a.diasTrab<a.diasUteis?'Dias '+a.diasTrab+'/'+a.diasUteis:''].filter(Boolean).join(' · ')}</div>`:''}
-      ${a.obs?`<div class="ag-obs">${a.obs}</div>`:''}
+      ${didNotApply(a)?`<div class="ag-meta">${NA}</div>`:(a.nota||a.volume||a.atividades?`<div class="ag-meta">${[a.nota?'Nota '+a.nota:'',a.volume?'Vol '+a.volume+(a.metaVol?' (meta '+Math.round(a.metaVol*10)/10+')':''):'',a.atividades?'Ativ '+a.atividades+'pts':'',a.demandas!=null?'Dem '+a.demandas:'',a.diasTrab&&a.diasUteis&&a.diasTrab<a.diasUteis?'Dias '+a.diasTrab+'/'+a.diasUteis:''].filter(Boolean).join(' · ')}</div>`:'')}
     </div>
     <div class="ag-val">${R(a.total)}</div>
     ${btns}
@@ -1717,8 +1791,8 @@ function renderHist(){
       return `<tr onclick="togDet('${did}')">
         <td><div style="display:flex;align-items:center;gap:7px"><div class="av ${avC(a.nome)}" style="width:20px;height:20px;font-size:8px;flex-shrink:0">${ini(a.nome)}</div><span class="td-name">${a.nome}</span></div></td>
         <td>${eq?`<span class="eq-tag ${EQCSS[eq]}" style="font-size:9px">${EQL[eq]||eq}</span>`:'—'}</td>
-        <td>${a.nota||'—'}</td><td>${a.volume||'—'}</td><td>${a.atividades||'—'}</td><td>${a.demandas!=null?a.demandas:'—'}</td>
-        <td>${a.diasTrab&&a.diasUteis?a.diasTrab+'/'+a.diasUteis:'—'}</td>
+        <td>${fmtMetric(a,'nota')}</td><td>${fmtMetric(a,'volume')}</td><td>${fmtMetric(a,'atividades')}</td><td>${a.demandas!=null?a.demandas:(didNotApply(a)?NA:'—')}</td>
+        <td>${fmtDays(a)}</td>
         <td style="max-width:120px;color:var(--ink4);font-size:11px">${a.obs||'—'}</td>
         <td class="td-val">${R(a.total)}</td></tr>
       <tr id="${did}" style="display:none"><td colspan="9" class="det-row"><div class="chips">${chips||'<span class="chip">Histórico importado — sem breakdown</span>'}</div></td></tr>`;
@@ -1746,6 +1820,7 @@ function togManual(id){document.getElementById(id).classList.toggle('open');}
 function gerarPDF(origem='auto'){
   const mes=origem==='exp'?(gv('sel-exp')||gv('sel-exec')||months().pop()):origem==='exec'?(gv('sel-exec')||gv('sel-exp')||months().pop()):(gv('sel-exp')||gv('sel-exec')||months().pop());
   if(!mes||!DB.months[mes]){toast('Selecione um mês para gerar o PDF.',true);return;}
+  saveMonthNotes();
   const m=DB.months[mes];
   const ags=[...m.agents].sort((a,b)=>b.total-a.total);
   const tot=m.total||ags.reduce((s,a)=>s+a.total,0);
@@ -1753,7 +1828,7 @@ function gerarPDF(origem='auto'){
   const prevM=prev?DB.months[prev]:null;
   const prevTot=prevM?(prevM.total||prevM.agents.reduce((s,a)=>s+a.total,0)):null;
   const delta=prevTot!==null?tot-prevTot:null;
-  const tms={r:0,e:0,i:0};
+  const tms={r:0,e:0,i:0,x:0};
   ags.forEach(a=>{const eq=a.equipe||getEq(a.nome)||'x';if(tms[eq]!==undefined)tms[eq]+=a.total;});
   const val=validate(mes);
 
@@ -1763,25 +1838,26 @@ function gerarPDF(origem='auto'){
   const prevLabel=prev?ML(prev):'Anterior';
 
   let agRows='';
-  ags.forEach((a,i)=>{
-    const eq=a.equipe||getEq(a.nome);
-    const eqc={r:'tr',e:'te',i:'ti'}[eq]||'';
-    const eqLabel=EQL[eq]||'—';
-    const pAg=prevM?prevM.agents.find(p=>p.nome===a.nome):null;
-    const d=pAg?a.total-pAg.total:null;
-    const dc=d>0?'#1a7a3a':d<0?'#c0392b':'#7a9b87';
-    const dText=d!==null?(d>=0?'+':'')+R(d):'—';
-    agRows+='<tr>';
-    agRows+='<td style="color:#7a9b87;font-family:DM Mono,monospace">'+(i+1)+'</td>';
-    agRows+='<td class="tname">'+a.nome+(a.obs?'<br><span style="font-size:10px;color:#7a9b87;font-style:italic">'+a.obs+'</span>':'')+'</td>';
-    agRows+='<td><span class="teq '+eqc+'">'+eqLabel+'</span></td>';
-    agRows+='<td>'+(a.nota||'—')+'</td>';
-    agRows+='<td>'+(a.volume||'—')+'</td>';
-    agRows+='<td>'+(a.atividades||'—')+'</td>';
-    agRows+='<td style="font-size:10px;color:#7a9b87;max-width:100px">'+(a.obs||'')+'</td>';
-    agRows+='<td class="tdelta" style="color:'+dc+'">'+dText+'</td>';
-    agRows+='<td class="tval">'+R(a.total)+'</td>';
-    agRows+='</tr>';
+  sortedAgentsByNucleus(ags).forEach(group=>{
+    const gTot=group.agents.reduce((s,a)=>s+a.total,0);
+    agRows+='<tr class="nuc-row"><td colspan="9">'+group.label+' · '+R(gTot)+' · '+group.agents.length+' pessoa(s)</td></tr>';
+    group.agents.forEach((a,i)=>{
+      const eq=a.equipe||getEq(a.nome);
+      const eqc={r:'tr',e:'te',i:'ti',x:'tx'}[eq]||'';
+      const d=agentDelta(prevM,a);
+      const dc=d>0?'#1a7a3a':d<0?'#c0392b':'#7a9b87';
+      agRows+='<tr>';
+      agRows+='<td style="color:#7a9b87;font-family:Courier New,monospace">'+(i+1)+'</td>';
+      agRows+='<td class="tname">'+a.nome+'</td>';
+      agRows+='<td><span class="teq '+eqc+'">'+(EQL[eq]||'—')+'</span></td>';
+      agRows+='<td>'+fmtMetric(a,'nota')+'</td>';
+      agRows+='<td>'+fmtMetric(a,'volume')+'</td>';
+      agRows+='<td>'+fmtMetric(a,'atividades')+'</td>';
+      agRows+='<td style="font-size:10px;color:#7a9b87;max-width:118px">'+(a.obs||'')+'</td>';
+      agRows+='<td class="tdelta" style="color:'+dc+'">'+fmtDelta(d)+'</td>';
+      agRows+='<td class="tval">'+R(a.total)+'</td>';
+      agRows+='</tr>';
+    });
   });
 
   let nucRows='';
@@ -1804,6 +1880,7 @@ function gerarPDF(origem='auto'){
   let obsContent=ags.filter(a=>a.obs).map(a=>'<div style="margin-bottom:5px;color:#253d2c"><strong style="color:#245f3f">'+a.nome+':</strong> '+a.obs+'</div>').join('');
   if(!obsContent)obsContent='Nenhuma observação registrada.';
   if(m.note)obsContent+='<div style="margin-top:8px;color:#9a6c1a;border-top:1px solid #dae8e0;padding-top:6px"><strong>Nota da planilha:</strong> '+m.note+'</div>';
+  const varNote=monthNote(mes);
 
   const valOk=val&&val.ok;
   const valComp=val?R(val.computed):R(tot);
@@ -1840,8 +1917,9 @@ tbody tr:last-child td{border-bottom:none}
 .tfoot td{font-weight:700;color:#245f3f;border-top:2px solid #2e7d52!important;font-family:'Courier New',monospace}
 .tname{font-weight:600}.tval{font-family:'Courier New',monospace;font-weight:700;color:#245f3f}
 .teq{font-size:9px;font-weight:700;text-transform:uppercase;padding:2px 5px;border-radius:5px}
-.tr{background:#dff0e7;color:#1a5c38}.te{background:#fdf7ee;color:#7a5820}.ti{background:#e5edf8;color:#1a3a7a}
+.tr{background:#dff0e7;color:#1a5c38}.te{background:#fdf7ee;color:#7a5820}.ti{background:#e5edf8;color:#1a3a7a}.tx{background:#ecf5ef;color:#4a6655}
 .tdelta{font-family:'Courier New',monospace;font-size:11px}
+.nuc-row td{background:#e8f5ee!important;color:#245f3f;font-weight:800;text-transform:uppercase;font-size:10px;letter-spacing:.4px;border-top:2px solid #c3dece}
 .tgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 .tblock{background:#f2faf5;border:1px solid #dae8e0;border-radius:8px;padding:12px}
 .tbn{font-size:9px;font-weight:700;text-transform:uppercase;color:#7a9b87;margin-bottom:5px}
@@ -1891,6 +1969,8 @@ tbody tr:last-child td{border-bottom:none}
   // Observações
   doc+='<div class="sec"><div class="sec-t">Observações do Fechamento</div>';
   doc+='<div class="obs-box">'+obsContent+'</div></div>';
+  doc+='<div class="sec"><div class="sec-t">Análise das Variações</div>';
+  doc+='<div class="obs-box">'+(varNote||'Nenhuma análise de variação registrada.')+'</div></div>';
 
   // Validação
   doc+='<div class="sec"><div class="sec-t">Validação do Fechamento</div><div class="val-box">';
@@ -1918,6 +1998,79 @@ tbody tr:last-child td{border-bottom:none}
     toast('Erro ao gerar PDF: '+e.message,true);
     console.error(e);
   }
+}
+
+function gerarPDFAgentes(){
+  const mes=gv('sel-exp')||gv('sel-exec')||months().pop();
+  if(!mes||!DB.months[mes]){toast('Selecione um mês para gerar os fechamentos individuais.',true);return;}
+  saveMonthNotes();
+  const m=DB.months[mes];
+  const prev=prevMes(mes);
+  const prevM=prev?DB.months[prev]:null;
+  const now=new Date();
+  const emitDate=now.toLocaleDateString('pt-BR');
+  const emitTime=now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  const groups=sortedAgentsByNucleus([...m.agents]);
+
+  const css=`*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Inter,Arial,sans-serif;color:#0d1f16;background:#fff;font-size:12px;padding:26px}
+.page{page-break-after:always;min-height:calc(100vh - 52px);padding:10px 6px 22px}
+.page:last-child{page-break-after:auto}
+.hdr{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;border-bottom:3px solid #2e7d52;padding-bottom:16px;margin-bottom:18px}
+.brand{font-size:10px;font-weight:800;color:#7a9b87;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px}
+h1{font-family:Georgia,serif;font-size:22px;color:#245f3f;margin-bottom:3px}
+.sub{font-size:12px;color:#7a9b87}.total{text-align:right}.total strong{display:block;font-family:'Courier New',monospace;color:#245f3f;font-size:24px}
+.pill{display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;border-radius:6px;padding:3px 7px;background:#e8f5ee;color:#245f3f;margin-top:5px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:14px 0}
+.k{background:#f2faf5;border:1px solid #dae8e0;border-radius:8px;padding:10px}.k label{display:block;font-size:9px;font-weight:800;text-transform:uppercase;color:#7a9b87;margin-bottom:5px}.k b{font-family:'Courier New',monospace;font-size:14px;color:#245f3f}
+.sec{margin-top:16px}.sec-t{font-size:10px;font-weight:800;text-transform:uppercase;color:#2e7d52;border-bottom:1px solid #dae8e0;padding-bottom:6px;margin-bottom:8px;letter-spacing:.5px}
+table{width:100%;border-collapse:collapse}th{background:#f2faf5;color:#2e7d52;font-size:9px;text-transform:uppercase;text-align:left;padding:7px;border-bottom:1px solid #dae8e0}td{padding:8px 7px;border-bottom:1px solid #ecf5ef;vertical-align:top}
+.val{font-family:'Courier New',monospace;font-weight:800;color:#245f3f;text-align:right}.explain{background:#f7faf8;border:1px solid #dae8e0;border-radius:8px;padding:10px;line-height:1.55;color:#253d2c}
+.warn{background:#fdf7ee;border-color:#f0d080;color:#7a5820}.footer{margin-top:20px;color:#7a9b87;font-size:10px;display:flex;justify-content:space-between;border-top:1px solid #dae8e0;padding-top:10px}
+@media print{body{padding:0}.page{min-height:auto}button{display:none!important}}`;
+
+  let pages='';
+  groups.forEach(group=>{
+    group.agents.forEach((a,idx)=>{
+      const eq=a.equipe||getEq(a.nome)||'x';
+      const d=agentDelta(prevM,a);
+      const prevVal=prevAgent(prevM,a)?.total;
+      const rows=(a.breakdown&&a.breakdown.length?a.breakdown:calcBonus(a).rows)||[];
+      const rowsHtml=rows.map(r=>{
+        const sign=r.v>0?'+':'';
+        return `<tr><td><b>${r.l}</b>${r.f?`<br><span style="color:#7a9b87;font-size:11px">${r.f}</span>`:''}</td><td class="val">${sign}${R(r.v)}</td></tr>`;
+      }).join('')||'<tr><td colspan="2">Sem detalhamento importado.</td></tr>';
+      const varText=d!==null
+        ? `${d>=0?'Aumentou':'Reduziu'} ${R(Math.abs(d))} em relação a ${ML(prev)}${prevVal!==undefined?` (${R(prevVal)} → ${R(a.total)})`:''}.`
+        : `Sem comparação individual com ${prev?ML(prev):'mês anterior'} nesta base.`;
+      const note=didNotApply(a)
+        ? `${a.nome} consta como ${NA}. A observação registrada explica a condição do mês e o valor foi tratado conforme regra/decisão de fechamento.`
+        : coverageExplanation(a);
+      pages+=`<section class="page">
+        <div class="hdr"><div><div class="brand">Multbovinos · Customer Success</div><h1>${a.nome}</h1><div class="sub">Fechamento individual · ${ML(mes)} · ${EQL[eq]||'—'}</div><span class="pill">${group.label} · posição ${idx+1}</span></div><div class="total"><span>Total a receber</span><strong>${R(a.total)}</strong><div style="color:${d>0?'#1a7a3a':d<0?'#c0392b':'#7a9b87'}">${fmtDelta(d)} vs ${prev?ML(prev):'mês anterior'}</div></div></div>
+        <div class="grid">
+          <div class="k"><label>Nota</label><b>${fmtMetric(a,'nota')}</b></div>
+          <div class="k"><label>Volume</label><b>${fmtMetric(a,'volume')}</b></div>
+          <div class="k"><label>Atividades</label><b>${fmtMetric(a,'atividades')}</b></div>
+          <div class="k"><label>Dias</label><b>${fmtDays(a)}</b></div>
+        </div>
+        <div class="sec"><div class="sec-t">Como o valor foi calculado</div><table><thead><tr><th>Critério</th><th style="text-align:right">Valor</th></tr></thead><tbody>${rowsHtml}</tbody><tfoot><tr><td style="text-align:right;font-weight:800">Total</td><td class="val">${R(a.total)}</td></tr></tfoot></table></div>
+        <div class="sec"><div class="sec-t">Variação</div><div class="explain">${varText}</div></div>
+        <div class="sec"><div class="sec-t">Regra de tickets avaliados</div><div class="explain warn">${note}</div></div>
+        ${a.obs?`<div class="sec"><div class="sec-t">Observação do fechamento</div><div class="explain">${a.obs}</div></div>`:''}
+        <div class="footer"><div>Gerado em ${emitDate} às ${emitTime}</div><div>Transparência de cálculo · primeiro mês da regra de % avaliados</div></div>
+      </section>`;
+    });
+  });
+
+  const doc=`<!doctype html><html><head><meta charset="UTF-8"><title>Fechamentos individuais — ${ML(mes)}</title><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><style>${css}</style></head><body>${pages}<button onclick="window.print()" style="position:fixed;right:18px;bottom:18px;padding:10px 16px;background:#2e7d52;color:#fff;border:0;border-radius:7px;font-weight:800">Imprimir / Salvar PDF</button></body></html>`;
+  const blob=new Blob([doc],{type:'text/html'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.target='_blank';a.rel='noopener';
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
+  toast('Fechamentos individuais abertos — use Ctrl+P para salvar');
 }
 
 // ════════════════════════════════════════════════════
@@ -2044,6 +2197,7 @@ function updSels(){
     sel.innerHTML=blank+ms.map(m=>`<option value="${m}" ${m===cur?'selected':''}>${ML(m)}</option>`).join('');
   });
   renderCurList();
+  loadMonthNotes();
 }
 
 function expCSV(){
@@ -2052,7 +2206,7 @@ function expCSV(){
   ms.forEach(m=>{DB.months[m].agents.forEach(a=>{const eq=a.equipe||getEq(a.nome);csv+=[ML(m),a.nome,EQL[eq]||eq||'',a.nota||'',a.volume||'',a.atividades||'',a.demandas!=null?a.demandas:'',a.diasTrab||'',a.diasUteis||'',`"${(a.obs||'').replace(/"/g,'""')}"`,a.total].join(',')+'\n';});});
   dl('bonificacao_cs.csv',csv,'text/csv');toast('CSV exportado!');
 }
-function expJSON(){dl('bonificacao_backup.json',JSON.stringify(DB,null,2),'application/json');toast('Backup exportado!');}
+function expJSON(){saveMonthNotes();dl('bonificacao_backup.json',JSON.stringify(DB,null,2),'application/json');toast('Backup exportado!');}
 function impJSON(inp){const r=new FileReader();r.onload=e=>{try{const i=JSON.parse(e.target.result);if(!i.months)throw 0;if(!i.rules)i.rules=ruleClone();DB=i;save();renderAll();toast('Backup importado!');}catch{toast('Arquivo inválido.',true);}};r.readAsText(inp.files[0]);}
 function dl(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();}
 
@@ -2077,7 +2231,7 @@ function clrAll(){
 }
 
 
-function renderAll(){loadRulesForm();updSels();renderExec();renderHist();}
+function renderAll(){loadRulesForm();updSels();loadMonthNotes();renderExec();renderHist();}
 
 // ════════════════════════════════════════════════════
 // INIT

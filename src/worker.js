@@ -1,3 +1,5 @@
+import { BONUS_HTML_BASE64 } from './bonus-html.js';
+
 function setupRequired() {
   return new Response(
     'Proteção pendente: configure APP_USERS ou APP_USER e APP_PASSWORD nas variáveis do Worker na Cloudflare.',
@@ -1012,18 +1014,23 @@ function canUseBonus(user, env) {
   return allowed.some((item) => timingSafeEqual(String(item).toLowerCase(), String(user || '').toLowerCase()));
 }
 
-async function serveBonusPage(request, env) {
-  const assetUrl = new URL('/bonificacao.html', request.url);
-  const response = await env.ASSETS.fetch(new Request(assetUrl, request));
-  const headers = new Headers(response.headers);
+let bonusHtmlCache = '';
+
+function bonusHtml() {
+  if (bonusHtmlCache) return bonusHtmlCache;
+  const binary = atob(BONUS_HTML_BASE64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  bonusHtmlCache = new TextDecoder().decode(bytes);
+  return bonusHtmlCache;
+}
+
+function serveBonusPage() {
+  const headers = new Headers();
   headers.set('Content-Type', 'text/html; charset=UTF-8');
   headers.set('Cache-Control', 'private, no-store');
   headers.set('X-Robots-Tag', 'noindex, nofollow');
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
-  });
+  return new Response(bonusHtml(), { status: 200, headers });
 }
 
 function isBonusPagePath(pathname) {
@@ -1188,7 +1195,7 @@ export default {
           },
         });
       }
-      return serveBonusPage(request, env);
+      return serveBonusPage();
     }
 
     const reportMatch = url.pathname.match(/^\/pdf-report\/([^/]+)$/);

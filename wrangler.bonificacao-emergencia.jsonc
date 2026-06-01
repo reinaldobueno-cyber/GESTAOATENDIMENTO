@@ -1,0 +1,9 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "gestao-bonificacao-fechamento",
+  "main": "src/bonus-emergency-worker.js",
+  "compatibility_date": "2026-05-26",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ]
+}

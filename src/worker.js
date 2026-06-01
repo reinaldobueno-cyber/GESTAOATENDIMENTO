@@ -1116,20 +1116,6 @@ export default {
 
     const url = new URL(request.url);
 
-    if (url.pathname === '/bonificacao' || url.pathname === '/bonificacao.html') {
-      const assetUrl = new URL('/bonificacao.html', request.url);
-      const response = await env.ASSETS.fetch(new Request(assetUrl, request));
-      const headers = new Headers(response.headers);
-      headers.set('Content-Type', 'text/html; charset=UTF-8');
-      headers.set('Cache-Control', 'private, no-store');
-      headers.set('X-Robots-Tag', 'noindex, nofollow');
-      return new Response(response.body, {
-        status: response.status,
-        statusText: response.statusText,
-        headers,
-      });
-    }
-
     if (url.pathname === '/login') {
       if (request.method === 'POST') return handleLogin(request, env);
       return loginPage();
@@ -1174,14 +1160,27 @@ export default {
       return redirectTo('/bonificacao.html');
     }
 
-    if ((url.pathname === '/bonificacao' || url.pathname.endsWith('/bonificacao.html')) && !canUseBonus(appUser, env)) {
-      return new Response('Acesso negado.', {
-        status: 403,
-        headers: {
-          'Content-Type': 'text/plain; charset=UTF-8',
-          'Cache-Control': 'private, no-store',
-          'X-Robots-Tag': 'noindex, nofollow',
-        },
+    if (url.pathname.endsWith('/bonificacao.html')) {
+      if (!canUseBonus(appUser, env)) {
+        return new Response('Acesso negado.', {
+          status: 403,
+          headers: {
+            'Content-Type': 'text/plain; charset=UTF-8',
+            'Cache-Control': 'private, no-store',
+            'X-Robots-Tag': 'noindex, nofollow',
+          },
+        });
+      }
+      const assetUrl = new URL('/bonificacao.html', request.url);
+      const response = await env.ASSETS.fetch(new Request(assetUrl, request));
+      const headers = new Headers(response.headers);
+      headers.set('Content-Type', 'text/html; charset=UTF-8');
+      headers.set('Cache-Control', 'private, no-store');
+      headers.set('X-Robots-Tag', 'noindex, nofollow');
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
       });
     }
 

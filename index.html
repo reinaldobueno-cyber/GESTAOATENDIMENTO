@@ -257372,6 +257372,11 @@ function validatedTmaSec(row){
   if(sameDay&&diff>=0&&diff<=4*3600)return Math.round(diff);
   return raw;
 }
+function validatedTmeSec(row){
+  const raw=Number(row?.[5]||0);
+  if(raw<=8*3600)return raw;
+  return 0;
+}
 function applyManualAdjustments(){
   const adjustments=mergedManualAdjustments();
   if(!D.rawRows)D.rawRows=(D.rows||[]).map(r=>Array.isArray(r)?r.slice():r);
@@ -257384,6 +257389,11 @@ function applyManualAdjustments(){
     if(checkedTma!==Number(copy[4]||0)){
       copy._tmaAutoCorrection={from:Number(copy[4]||0),to:checkedTma,reason:'TMA bruto acima de 8h com início e encerramento no mesmo dia'};
       copy[4]=checkedTma;
+    }
+    const checkedTme=validatedTmeSec(copy);
+    if(checkedTme!==Number(copy[5]||0)){
+      copy._tmeAutoCorrection={from:Number(copy[5]||0),to:checkedTme,reason:'TME bruto acima de 8h contaminado por virada de dia/fim de semana'};
+      copy[5]=checkedTme;
     }
     const adj=byProtocol.get(String(copy[7]||'').trim().toUpperCase());
     if(!adj)return copy;

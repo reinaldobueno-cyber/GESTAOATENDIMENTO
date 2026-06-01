@@ -411,7 +411,7 @@ canvas{cursor:pointer;}
     <button class="ntab" onclick="go('atendimentos',this)"><span class="ico">▤</span> Atendimentos</button>
     <button class="ntab" onclick="go('tratamentos',this)"><span class="ico">✓</span> Tratamentos</button>
     <button class="ntab" onclick="go('diario',this)"><span class="ico">✎</span> Diário</button>
-    <button class="ntab bonus-private" id="bonus-tab" onclick="location.href='/bonificacao-app'"><span class="ico">¤</span> Bonificação</button>
+    <button class="ntab bonus-private" id="bonus-tab" onclick="openBonusFromPanel(this)"><span class="ico">¤</span> Bonificação</button>
   </div>
 </nav>
 
@@ -257549,6 +257549,11 @@ function go(id,el){
   if(id==='atendimentos')renderAtendimentos();
   if(id==='tratamentos')renderTreatments();
   if(id==='bonificacao')renderBonus();
+}
+function openBonusFromPanel(el){
+  go('bonificacao',el);
+  const frame=document.querySelector('#pane-bonificacao iframe');
+  if(frame)frame.src='/bonificacao-app?painel='+Date.now();
 }
 
 // ════════ OVERVIEW ════════

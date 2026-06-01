@@ -1151,7 +1151,15 @@ const NUCLEI=[
 
 function didNotApply(a){
   const obs=(a?.obs||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
-  return obs.includes('nao atuou')||obs.includes('nao aplicou')||obs.includes('sem atuacao')||obs.includes('sem atendimento');
+  return obs.includes('nao atuou')
+    ||obs.includes('nao aplicou')
+    ||obs.includes('sem atuacao')
+    ||obs.includes('sem atendimento')
+    ||obs.includes('nao vai receber')
+    ||obs.includes('nao receber')
+    ||obs.includes('sem bonificacao')
+    ||obs.includes('viajou o mes todo')
+    ||obs.includes('nao atuou no suporte');
 }
 function fmtMetric(a,key){
   const v=a?.[key];

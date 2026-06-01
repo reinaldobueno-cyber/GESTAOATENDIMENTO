@@ -1012,6 +1012,27 @@ function canUseBonus(user, env) {
   return allowed.some((item) => timingSafeEqual(String(item).toLowerCase(), String(user || '').toLowerCase()));
 }
 
+async function serveBonusPage(request, env) {
+  const assetUrl = new URL('/bonificacao.html', request.url);
+  const response = await env.ASSETS.fetch(new Request(assetUrl, request));
+  const headers = new Headers(response.headers);
+  headers.set('Content-Type', 'text/html; charset=UTF-8');
+  headers.set('Cache-Control', 'private, no-store');
+  headers.set('X-Robots-Tag', 'noindex, nofollow');
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+function isBonusPagePath(pathname) {
+  return pathname === '/bonificacao'
+    || pathname === '/fechamento-bonificacao'
+    || pathname === '/bonificacao-novo'
+    || pathname.endsWith('/bonificacao.html');
+}
+
 function cleanAdjustment(input) {
   const item = input && typeof input === 'object' ? input : {};
   const protocolo = String(item.protocolo || '').trim().toUpperCase();
@@ -1156,11 +1177,7 @@ export default {
       return handleBonusClosures(request, env, appUser);
     }
 
-    if (url.pathname === '/bonificacao') {
-      return redirectTo('/bonificacao.html');
-    }
-
-    if (url.pathname.endsWith('/bonificacao.html')) {
+    if (isBonusPagePath(url.pathname)) {
       if (!canUseBonus(appUser, env)) {
         return new Response('Acesso negado.', {
           status: 403,
@@ -1171,17 +1188,7 @@ export default {
           },
         });
       }
-      const assetUrl = new URL('/bonificacao.html', request.url);
-      const response = await env.ASSETS.fetch(new Request(assetUrl, request));
-      const headers = new Headers(response.headers);
-      headers.set('Content-Type', 'text/html; charset=UTF-8');
-      headers.set('Cache-Control', 'private, no-store');
-      headers.set('X-Robots-Tag', 'noindex, nofollow');
-      return new Response(response.body, {
-        status: response.status,
-        statusText: response.statusText,
-        headers,
-      });
+      return serveBonusPage(request, env);
     }
 
     const reportMatch = url.pathname.match(/^\/pdf-report\/([^/]+)$/);

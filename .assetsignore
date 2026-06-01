@@ -1,0 +1,15 @@
+.git
+.git/**
+.assetsignore
+.github
+.github/**
+.wrangler
+.wrangler/**
+secrets
+secrets/**
+node_modules
+node_modules/**
+*.log
+*.ps1
+*.cmd
+*.md

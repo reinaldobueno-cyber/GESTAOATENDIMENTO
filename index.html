@@ -258722,10 +258722,33 @@ function tempoRows(m,{agent='',bin=null,period='' }={}){
 }
 
 function closeRelModal(){$('rel-modal').classList.remove('open');}
+window.CLIENTE_PRIVADO_OVERRIDES = {
+  ...(window.CLIENTE_PRIVADO_OVERRIDES||{}),
+  'Cliente #791': {nome:'VALERIO ALVES DE FARIAS', total:1, origem:'ajuste_manual', exemplo:'Jardson - VALERIO ALVES DE FARIAS'}
+};
 function clientCode(r){return r?.[18]||String(r?.[12]||'').split(' · ')[0]||'';}
 function clientLabel(r){return r?.[12]||clientCode(r)||'Cliente não informado';}
+function clientCodeAliases(code){
+  const raw=String(code||'').trim();
+  const aliases=raw?[raw]:[];
+  const m=raw.match(/(?:Cliente\s*#|CLIENTE:C|C)(\d+)/i);
+  if(m){
+    const n=String(m[1]).padStart(3,'0');
+    aliases.push(`Cliente #${n}`,`C${n}`,`CLIENTE:C${n}`);
+  }
+  return [...new Set(aliases)];
+}
+function clientPrivateInfo(code){
+  const maps=[window.CLIENTE_PRIVADO_OVERRIDES||{},window.CLIENTE_PRIVADO||{}];
+  for(const alias of clientCodeAliases(code)){
+    for(const map of maps){
+      if(map[alias])return map[alias];
+    }
+  }
+  return null;
+}
 function clientNameOrLabel(r){
-  const code=clientCode(r), info=(window.CLIENTE_PRIVADO||{})[code]||null;
+  const code=clientCode(r), info=clientPrivateInfo(code);
   return info?.nome||clientLabel(r);
 }
 function clientButton(r){
@@ -258745,7 +258768,7 @@ function encodeReportPayload(payload){
 function openNeppoPdf(protocol){
   const r=(D.rows||[]).find(x=>Array.isArray(x)&&String(x[7]||'')===String(protocol||''))||null;
   if(!r)return;
-  const code=clientCode(r), info=(window.CLIENTE_PRIVADO||{})[code]||null;
+  const code=clientCode(r), info=clientPrivateInfo(code);
   const payload=encodeReportPayload({row:r,code,clientName:info?.nome||'',fallbackText:attendanceText(r)});
   const url=`${workerBaseUrl()}/pdf-report/${encodeURIComponent(protocol)}?r=${encodeURIComponent(payload)}`;
   window.open(url,'_blank');
@@ -258757,7 +258780,7 @@ function copyProtocol(protocol){
 }
 function attendanceDetailHtml(r){
   const pdfProtocol=attendanceProtocol(r), text=attendanceText(r);
-  const code=clientCode(r), info=(window.CLIENTE_PRIVADO||{})[code]||null;
+  const code=clientCode(r), info=clientPrivateInfo(code);
   const displayClient=info?.nome||clientLabel(r);
   return `
     <div class="attendance-detail">
@@ -258802,7 +258825,7 @@ function showAttendanceDetail(code,protocol){
 }
 function renderClientPopup(code,month=appM+1,group=''){
   const rows=(D.rows||[]).filter(r=>Array.isArray(r)&&clientCode(r)===code);
-  const info=(window.CLIENTE_PRIVADO||{})[code]||null;
+  const info=clientPrivateInfo(code);
   const rated=rows.filter(r=>r[6]!=null);
   const byMonth=D.meses.map((m,i)=>({m,v:rows.filter(r=>r[0]===i+1).length}));
   const monthRows=rows.filter(r=>r[0]===month);
@@ -259024,7 +259047,7 @@ function renderGroupSeasonality(){
 }
 
 function clientDisplayName(code){
-  const info=(window.CLIENTE_PRIVADO||{})[code];
+  const info=clientPrivateInfo(code);
   return info?.nome||code;
 }
 function updateClientPrivateStatus(){

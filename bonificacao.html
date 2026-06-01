@@ -1234,7 +1234,7 @@ function statusArrow(ok){
 function fmtNotaMeta(a){
   if(didNotApply(a)||activeCalcEq(a)==='x')return NA;
   const nota=Number(a?.nota)||0;
-  return `${statusArrow(nota>=9.85)} <b>${nota?nota.toFixed(2).replace(/\.?0+$/,''):'—'}</b><br><span class="mini">Meta 9,85</span>`;
+  return `${statusArrow(nota>=9.85)} <b>${nota?nota.toFixed(2):'—'}</b><br><span class="mini">Meta 9,85</span>`;
 }
 function fmtVolumeMeta(a,mes){
   if(didNotApply(a)||activeCalcEq(a)==='x')return NA;

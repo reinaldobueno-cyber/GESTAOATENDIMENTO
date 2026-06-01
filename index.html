@@ -424,13 +424,7 @@ canvas{cursor:pointer;}
   </div>
   <div class="gf-fields">
     <span class="fl">Mês de análise</span>
-    <select class="fs" id="global-month" onchange="setGlobalMonth(parseInt(this.value,10))">
-      <option value="0">Janeiro 2026</option>
-      <option value="1">Fevereiro 2026</option>
-      <option value="2">Março 2026</option>
-      <option value="3" selected>Abril 2026</option>
-      <option value="4">Maio 2026 · parcial</option>
-    </select>
+    <select class="fs" id="global-month" onchange="setGlobalMonth(parseInt(this.value,10))"></select>
   </div>
 </section>
 
@@ -259413,6 +259407,11 @@ initAtendimentos();
 initTreatments();
 
 // ════════ FILTRO GLOBAL ════════
+function buildGlobalMonthSelect(){
+  const sel=$('global-month');
+  if(!sel)return;
+  sel.innerHTML=D.mesNomes.map((name,i)=>`<option value="${i}">${esc(name)}${monthIsPartial(i+1)?' · parcial':''}</option>`).join('');
+}
 function syncMonthControls(m){
   appM=m;ovM=m;agM=m;
   if($('global-month'))$('global-month').value=String(m);
@@ -260426,6 +260425,7 @@ async function initBonusPrivate(){
 }
 
 function setGlobalMonth(m){
+  m=Number.isFinite(m)?Math.max(0,Math.min(D.meses.length-1,m)):F;
   syncMonthControls(m);
   updateOvKPIs(m);
   updateDailyChart(m);
@@ -260446,6 +260446,7 @@ function setGlobalMonth(m){
 populateCalFilters();
 initHistorico();
 initBonusPrivate();
+buildGlobalMonthSelect();
 const urlMonth=parseInt(new URLSearchParams(location.search).get('mes')||'',10);
 setGlobalMonth(urlMonth>=1&&urlMonth<=D.meses.length?urlMonth-1:F);
 loadRemoteManualAdjustments();

@@ -1035,6 +1035,7 @@ function serveBonusPage() {
 
 function isBonusPagePath(pathname) {
   return pathname === '/bonificacao'
+    || pathname === '/bonificacao-app'
     || pathname === '/fechamento-bonificacao'
     || pathname === '/bonificacao-novo'
     || pathname.endsWith('/bonificacao.html');

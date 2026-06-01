@@ -411,7 +411,7 @@ canvas{cursor:pointer;}
     <button class="ntab" onclick="go('atendimentos',this)"><span class="ico">▤</span> Atendimentos</button>
     <button class="ntab" onclick="go('tratamentos',this)"><span class="ico">✓</span> Tratamentos</button>
     <button class="ntab" onclick="go('diario',this)"><span class="ico">✎</span> Diário</button>
-    <button class="ntab bonus-private" id="bonus-tab" onclick="location.href='/bonificacao'"><span class="ico">¤</span> Bonificação</button>
+    <button class="ntab bonus-private" id="bonus-tab" onclick="location.href='/bonificacao-app'"><span class="ico">¤</span> Bonificação</button>
   </div>
 </nav>
 
@@ -1191,7 +1191,7 @@ canvas{cursor:pointer;}
 
 <!-- ════════════════ BONIFICAÇÃO PRIVADA ════════════════ -->
 <div id="pane-bonificacao" class="pane bonus-private bonus-legacy-mode">
-  <iframe class="bonus-legacy-frame" src="/bonificacao" title="Bonificação Customer Success"></iframe>
+  <iframe class="bonus-legacy-frame" src="/bonificacao-app" title="Bonificação Customer Success"></iframe>
   <div class="ctx">
     <div>
       <div class="ctx-title">Fechamento de Bonificação</div>
@@ -257223,6 +257223,20 @@ async function loadRemoteManualAdjustments(){
     setGlobalMonth(appM);
   }catch{}
 }
+function parseBrDateTime(value){
+  const m=String(value||'').match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/);
+  if(!m)return null;
+  return new Date(Number(m[3]),Number(m[2])-1,Number(m[1]),Number(m[4]),Number(m[5]),0,0);
+}
+function validatedTmaSec(row){
+  const raw=Number(row?.[4]||0);
+  const start=parseBrDateTime(row?.[10]), end=parseBrDateTime(row?.[11]);
+  if(!start||!end||raw<=8*3600)return raw;
+  const sameDay=start.toDateString()===end.toDateString();
+  const diff=(end-start)/1000;
+  if(sameDay&&diff>=0&&diff<=4*3600)return Math.round(diff);
+  return raw;
+}
 function applyManualAdjustments(){
   const adjustments=mergedManualAdjustments();
   if(!D.rawRows)D.rawRows=(D.rows||[]).map(r=>Array.isArray(r)?r.slice():r);
@@ -257231,6 +257245,11 @@ function applyManualAdjustments(){
   D.rows=D.rawRows.map(r=>{
     if(!Array.isArray(r))return r;
     const copy=r.slice();
+    const checkedTma=validatedTmaSec(copy);
+    if(checkedTma!==Number(copy[4]||0)){
+      copy._tmaAutoCorrection={from:Number(copy[4]||0),to:checkedTma,reason:'TMA bruto acima de 8h com início e encerramento no mesmo dia'};
+      copy[4]=checkedTma;
+    }
     const adj=byProtocol.get(String(copy[7]||'').trim().toUpperCase());
     if(!adj)return copy;
     copy._manualAdjustment=adj;

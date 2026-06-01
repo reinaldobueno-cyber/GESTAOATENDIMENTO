@@ -818,6 +818,13 @@ function parseAppUsers(env) {
     });
   }
 
+  if (env.EVELYN_PASSWORD) {
+    users.push({
+      user: 'evelyn',
+      password: String(env.EVELYN_PASSWORD),
+    });
+  }
+
   return users.filter((item) => item.user && item.password);
 }
 

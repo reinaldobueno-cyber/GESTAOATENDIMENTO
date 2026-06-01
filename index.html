@@ -691,6 +691,16 @@ canvas{cursor:pointer;}
     </div>
   </div>
 
+  <div class="card" style="margin-bottom:1rem;">
+    <div class="ch"><div><div class="ct">Fração de Agentes por Grupo</div><div class="cs">Participação de cada agente dentro do núcleo/grupo no mês</div></div></div>
+    <div class="tsc">
+      <table class="dt">
+        <thead><tr><th>Grupo</th><th>Agente</th><th style="text-align:right">Atend.</th><th style="text-align:right">% do grupo</th><th style="text-align:right">Fração agentes</th></tr></thead>
+        <tbody id="grp-agent-fraction-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
   <div class="sh"><span class="sh-title">Heatmap · Agente × Dia</span><span class="sh-sub">Cada célula = atendimentos naquele dia · intensidade = volume</span><div class="sh-line"></div></div>
   <div class="card" style="margin-bottom:1rem;">
     <div class="hm-wrap"><table class="hm" id="ag-heatmap"></table></div>
@@ -828,16 +838,7 @@ canvas{cursor:pointer;}
     </div>
   </div>
 
-  <div class="g2" style="margin-bottom:1rem;">
-    <div class="card">
-      <div class="ch"><div><div class="ct">Fração de Agentes por Grupo</div><div class="cs">Participação de cada agente dentro do núcleo/grupo no mês</div></div></div>
-      <div class="tsc">
-        <table class="dt">
-          <thead><tr><th>Grupo</th><th>Agente</th><th style="text-align:right">Atend.</th><th style="text-align:right">% do grupo</th><th style="text-align:right">Fração agentes</th></tr></thead>
-          <tbody id="grp-agent-fraction-tbody"></tbody>
-        </table>
-      </div>
-    </div>
+  <div style="margin-bottom:1rem;">
     <div class="card">
       <div class="ch"><div><div class="ct">Tendência por Sazonalidade Pecuária</div><div class="cs">Mini séries por grupo · leitura operacional Jan → Mai</div></div></div>
       <div id="grp-season-grid" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem;"></div>
@@ -258414,6 +258415,7 @@ function buildAgentes(m){
     return `<div class="acard" style="--ac:${APAL[i%APAL.length]}22"><div class="acard-hd"><div class="ava" style="background:${APAL[i%APAL.length]}">${ini}</div><div><div class="aname">${a.nm}</div><div class="atma">TMA ${a.tma}</div></div></div><div class="astats"><div class="ast"><div class="av">${a.at}</div><div class="al">Atend.</div></div><div class="ast"><div class="av" style="${sc}">${a.sat>0?fS(a.sat):'—'}</div><div class="al">CSAT</div></div><div class="ast"><div class="av">${a.av>0?Math.round(a.av/a.at*100)+'%':'—'}</div><div class="al">Cobert.</div></div></div><div class="pb"><div class="pf" style="width:${(a.at/mx*100).toFixed(0)}%;background:${APAL[i%APAL.length]}"></div></div></div>`;
   }).join('');
   renderAgentSummary(m);
+  renderGroupFractions(m);
 
   // Heatmap agente × dia
   {

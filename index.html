@@ -805,7 +805,7 @@ canvas{cursor:pointer;}
             <option value="delta_abs">Maior variação</option>
             <option value="delta_up">Maior alta</option>
             <option value="delta_down">Maior queda</option>
-            <option value="may_desc">Maior volume em Mai</option>
+            <option value="may_desc">Maior volume no mês</option>
             <option value="total_desc">Maior volume geral</option>
             <option value="name_asc">Cliente A-Z</option>
           </select>
@@ -813,7 +813,7 @@ canvas{cursor:pointer;}
       </div>
       <div class="tsc">
         <table class="dt">
-          <thead><tr><th>Cliente</th><th style="text-align:right">Jan</th><th style="text-align:right">Fev</th><th style="text-align:right">Mar</th><th style="text-align:right">Abr</th><th style="text-align:right">Mai</th><th style="text-align:right">Mai vs Abr</th></tr></thead>
+          <thead id="cli-var-head"></thead>
           <tbody id="cli-var-tbody"></tbody>
         </table>
       </div>
@@ -822,7 +822,7 @@ canvas{cursor:pointer;}
       <div class="ch"><div><div class="ct">Variação Mensal por Grupo</div><div class="cs">Leitura de alta e queda por núcleo operacional</div></div></div>
       <div class="tsc">
         <table class="dt">
-          <thead><tr><th>Grupo</th><th style="text-align:right">Jan</th><th style="text-align:right">Fev</th><th style="text-align:right">Mar</th><th style="text-align:right">Abr</th><th style="text-align:right">Mai</th><th style="text-align:right">Mai vs Abr</th></tr></thead>
+          <thead id="grp-var-head"></thead>
           <tbody id="grp-var-tbody"></tbody>
         </table>
       </div>
@@ -840,7 +840,7 @@ canvas{cursor:pointer;}
     <div class="ch"><div><div class="ct">Carteira de Clientes</div><div class="cs" id="cli-private-status">Clique em um cliente para abrir a ficha com meses e atendimentos</div></div></div>
     <div class="tsc">
       <table class="dt">
-        <thead><tr><th>#</th><th>Cliente</th><th style="text-align:right">Jan</th><th style="text-align:right">Fev</th><th style="text-align:right">Mar</th><th style="text-align:right">Abr</th><th style="text-align:right">Mai</th><th style="text-align:right">Total</th><th>Grupo principal</th><th style="text-align:right">CSAT</th></tr></thead>
+        <thead id="cli-main-head"></thead>
         <tbody id="cli-tbody"></tbody>
       </table>
     </div>
@@ -259804,10 +259804,13 @@ function renderGroupFractions(m){
 function renderGroupVariationTable(){
   const host=$('grp-var-tbody');
   if(!host)return;
+  const idx=appM, prev=Math.max(0,idx-1);
+  const head=$('grp-var-head');
+  if(head)head.innerHTML=`<tr><th>Grupo</th>${D.meses.map(m=>`<th style="text-align:right">${esc(m)}</th>`).join('')}<th style="text-align:right">${esc(D.meses[idx])} vs ${esc(D.meses[prev])}</th></tr>`;
   const rows=D.grupos.nomes.map((n,i)=>({n,vals:monthKeys.map(k=>D.grupos[k][i]||0)}))
-    .sort((a,b)=>Math.abs((b.vals[4]||0)-(b.vals[3]||0))-Math.abs((a.vals[4]||0)-(a.vals[3]||0)))
+    .sort((a,b)=>Math.abs((b.vals[idx]||0)-(b.vals[prev]||0))-Math.abs((a.vals[idx]||0)-(a.vals[prev]||0)))
     .slice(0,16);
-  host.innerHTML=rows.map(g=>`<tr onclick="chartDrill('${esc(g.n)}','Variação mensal por grupo',drillRows(appM,{group:'${esc(g.n)}'}))" style="cursor:pointer"><td><b>${esc(g.n)}</b><br><span class="op-mono">${esc(SEASON_HINTS[g.n]||'monitorar comportamento mensal')}</span></td>${g.vals.map((v,i)=>`<td class="tn"><b>${fN(v)}</b>${i?`<br>${deltaBadge(v,g.vals[i-1])}`:''}</td>`).join('')}<td class="th">${deltaBadge(g.vals[4]||0,g.vals[3]||0)}</td></tr>`).join('');
+  host.innerHTML=rows.map(g=>`<tr onclick="chartDrill('${esc(g.n)}','Variação mensal por grupo',drillRows(appM,{group:'${esc(g.n)}'}))" style="cursor:pointer"><td><b>${esc(g.n)}</b><br><span class="op-mono">${esc(SEASON_HINTS[g.n]||'monitorar comportamento mensal')}</span></td>${g.vals.map((v,i)=>`<td class="tn"><b>${fN(v)}</b>${i?`<br>${deltaBadge(v,g.vals[i-1])}`:''}</td>`).join('')}<td class="th">${deltaBadge(g.vals[idx]||0,g.vals[prev]||0)}</td></tr>`).join('');
 }
 
 function renderGroupSeasonality(){
@@ -259852,10 +259855,10 @@ function clientSummaries(){
     if(!Array.isArray(r))return;
     const code=clientCode(r);
     if(!code)return;
-    if(!map[code])map[code]={code,rows:[],months:[0,0,0,0,0],groups:{},ratings:[]};
+    if(!map[code])map[code]={code,rows:[],months:Array(D.meses.length).fill(0),groups:{},ratings:[]};
     const c=map[code];
     c.rows.push(r);
-    if(r[0]>=1&&r[0]<=5)c.months[r[0]-1]++;
+    if(r[0]>=1&&r[0]<=D.meses.length)c.months[r[0]-1]++;
     c.groups[r[3]||'Sem grupo']=(c.groups[r[3]||'Sem grupo']||0)+1;
     if(r[6]!=null)c.ratings.push(r[6]);
   });
@@ -259880,22 +259883,25 @@ function showClientList(title,subtitle,clients){
 function renderClientVariationTable(all){
   const host=$('cli-var-tbody');
   if(!host)return;
+  const idx=appM, prev=Math.max(0,idx-1);
+  const head=$('cli-var-head');
+  if(head)head.innerHTML=`<tr><th>Cliente</th>${D.meses.map(m=>`<th style="text-align:right">${esc(m)}</th>`).join('')}<th style="text-align:right">${esc(D.meses[idx])} vs ${esc(D.meses[prev])}</th></tr>`;
   const q=($('cli-var-q')?.value||'').trim().toLowerCase();
   const sort=$('cli-var-sort')?.value||'delta_abs';
   const coll=new Intl.Collator('pt-BR',{numeric:true,sensitivity:'base'});
-  const rows=all.map(c=>({...c,deltaLast:(c.months[4]||0)-(c.months[3]||0),swing:c.months.slice(1).reduce((s,v,i)=>s+Math.abs(v-(c.months[i]||0)),0)}))
+  const rows=all.map(c=>({...c,deltaLast:(c.months[idx]||0)-(c.months[prev]||0),swing:c.months.slice(1).reduce((s,v,i)=>s+Math.abs(v-(c.months[i]||0)),0)}))
     .filter(c=>c.total>0)
     .filter(c=>!q||[c.name,c.code,c.group].some(v=>String(v||'').toLowerCase().includes(q)))
     .sort((a,b)=>{
-      if(sort==='delta_up')return b.deltaLast-a.deltaLast||b.months[4]-a.months[4]||coll.compare(a.name,b.name);
-      if(sort==='delta_down')return a.deltaLast-b.deltaLast||b.months[4]-a.months[4]||coll.compare(a.name,b.name);
-      if(sort==='may_desc')return b.months[4]-a.months[4]||Math.abs(b.deltaLast)-Math.abs(a.deltaLast)||coll.compare(a.name,b.name);
-      if(sort==='total_desc')return b.total-a.total||b.months[4]-a.months[4]||coll.compare(a.name,b.name);
+      if(sort==='delta_up')return b.deltaLast-a.deltaLast||b.months[idx]-a.months[idx]||coll.compare(a.name,b.name);
+      if(sort==='delta_down')return a.deltaLast-b.deltaLast||b.months[idx]-a.months[idx]||coll.compare(a.name,b.name);
+      if(sort==='may_desc')return b.months[idx]-a.months[idx]||Math.abs(b.deltaLast)-Math.abs(a.deltaLast)||coll.compare(a.name,b.name);
+      if(sort==='total_desc')return b.total-a.total||b.months[idx]-a.months[idx]||coll.compare(a.name,b.name);
       if(sort==='name_asc')return coll.compare(a.name,b.name)||b.total-a.total;
       return Math.abs(b.deltaLast)-Math.abs(a.deltaLast)||b.swing-a.swing||b.total-a.total||coll.compare(a.name,b.name);
     })
     .slice(0,18);
-  host.innerHTML=rows.length?rows.map(c=>`<tr onclick="showClientPopup('${esc(c.code)}')" style="cursor:pointer"><td><button class="rel-client" onclick="event.stopPropagation();showClientPopup('${esc(c.code)}')">${esc(c.name)}</button><br><span class="op-mono">${esc(c.code)} · ${esc(c.group)}</span></td>${c.months.map((v,i)=>`<td class="tn"><b>${fN(v)}</b>${i?`<br>${deltaBadge(v,c.months[i-1])}`:''}</td>`).join('')}<td class="th">${deltaBadge(c.months[4]||0,c.months[3]||0)}</td></tr>`).join(''):`<tr><td colspan="7"><div class="op-empty">Nenhum cliente encontrado para esse filtro.</div></td></tr>`;
+  host.innerHTML=rows.length?rows.map(c=>`<tr onclick="showClientPopup('${esc(c.code)}')" style="cursor:pointer"><td><button class="rel-client" onclick="event.stopPropagation();showClientPopup('${esc(c.code)}')">${esc(c.name)}</button><br><span class="op-mono">${esc(c.code)} · ${esc(c.group)}</span></td>${c.months.map((v,i)=>`<td class="tn"><b>${fN(v)}</b>${i?`<br>${deltaBadge(v,c.months[i-1])}`:''}</td>`).join('')}<td class="th">${deltaBadge(c.months[idx]||0,c.months[prev]||0)}</td></tr>`).join(''):`<tr><td colspan="${D.meses.length+2}"><div class="op-empty">Nenhum cliente encontrado para esse filtro.</div></td></tr>`;
 }
 function renderClientsMonth(m){
   updateClientPrivateStatus();
@@ -259963,6 +259969,8 @@ function renderClientsMonth(m){
   ];
   chart('ch-cli-dist',{type:'bar',data:{labels:bins.map(b=>b.l),datasets:[{label:'Clientes',data:bins.map(b=>active.filter(b.fn).length),backgroundColor:['#c8dece','#9ec4a8','#6a9e78','#9a6b1a','#a83232'],borderRadius:5}]},options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}},onClick:chartClick(el=>{const b=bins[el.index];showClientList(`Clientes com ${b.l} atendimentos`,D.mesNomes[m],active.filter(b.fn));})}});
 
+  const mainHead=$('cli-main-head');
+  if(mainHead)mainHead.innerHTML=`<tr><th>#</th><th>Cliente</th>${D.meses.map(m=>`<th style="text-align:right">${esc(m)}</th>`).join('')}<th style="text-align:right">Total</th><th>Grupo principal</th><th style="text-align:right">CSAT</th></tr>`;
   $('cli-tbody').innerHTML=all.map((c,i)=>{const rc=i===0?'r1':i===1?'r2':i===2?'r3':'rn';return`<tr><td><span class="rb ${rc}">${i+1}</span></td><td><button class="rel-client" onclick="showClientPopup('${esc(c.code)}')">${esc(c.name)}</button><br><span class="op-mono">${esc(c.code)}</span></td>${c.months.map(v=>`<td class="tn">${fN(v)}</td>`).join('')}<td class="th">${fN(c.total)}</td><td>${esc(c.group)}</td><td class="tn">${c.csat!=null?fS(c.csat):'—'}</td></tr>`;}).join('');
 }
 

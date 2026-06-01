@@ -2149,8 +2149,9 @@ body{font-family:Inter,Arial,sans-serif;color:#0d1f16;background:#fff;font-size:
 h1{font-family:Georgia,serif;font-size:22px;color:#245f3f;margin-bottom:3px}
 .sub{font-size:12px;color:#7a9b87}.total{text-align:right}.total strong{display:block;font-family:'Courier New',monospace;color:#245f3f;font-size:24px}
 .pill{display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;border-radius:6px;padding:3px 7px;background:#e8f5ee;color:#245f3f;margin-top:5px}
-.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:14px 0}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:14px 0}.grid.g3{grid-template-columns:repeat(3,1fr)}
 .k{background:#f2faf5;border:1px solid #dae8e0;border-radius:8px;padding:10px}.k label{display:block;font-size:9px;font-weight:800;text-transform:uppercase;color:#7a9b87;margin-bottom:5px}.k b{font-family:'Courier New',monospace;font-size:14px;color:#245f3f}
+.mini{font-size:10px;color:#7a9b87}.okarr{color:#1a7a3a;font-weight:900;margin-right:4px}.badarr{color:#c0392b;font-weight:900;margin-right:4px}
 .sec{margin-top:16px}.sec-t{font-size:10px;font-weight:800;text-transform:uppercase;color:#2e7d52;border-bottom:1px solid #dae8e0;padding-bottom:6px;margin-bottom:8px;letter-spacing:.5px}
 table{width:100%;border-collapse:collapse}th{background:#f2faf5;color:#2e7d52;font-size:9px;text-transform:uppercase;text-align:left;padding:7px;border-bottom:1px solid #dae8e0}td{padding:8px 7px;border-bottom:1px solid #ecf5ef;vertical-align:top}
 .val{font-family:'Courier New',monospace;font-weight:800;color:#245f3f;text-align:right}.explain{background:#f7faf8;border:1px solid #dae8e0;border-radius:8px;padding:10px;line-height:1.55;color:#253d2c}
@@ -2177,16 +2178,15 @@ table{width:100%;border-collapse:collapse}th{background:#f2faf5;color:#2e7d52;fo
       pages+=`<section class="page">
         <div class="hdr"><div><div class="brand">Multbovinos · Customer Success</div><h1>${a.nome}</h1><div class="sub">Fechamento individual · ${ML(mes)} · ${EQL[eq]||'—'}</div><span class="pill">${group.label} · posição ${idx+1}</span></div><div class="total"><span>Total a receber</span><strong>${R(a.total)}</strong><div style="color:${d>0?'#1a7a3a':d<0?'#c0392b':'#7a9b87'}">${fmtDelta(d)} vs ${prev?ML(prev):'mês anterior'}</div></div></div>
         <div class="grid">
-          <div class="k"><label>Nota</label><b>${fmtMetric(a,'nota')}</b></div>
-          <div class="k"><label>Volume</label><b>${fmtMetric(a,'volume')}</b></div>
-          <div class="k"><label>Atividades</label><b>${fmtMetric(a,'atividades')}</b></div>
+          <div class="k"><label>Nota</label><b>${fmtNotaMeta(a)}</b></div>
+          <div class="k"><label>Volume</label><b>${fmtVolumeMeta(a,mes)}</b></div>
+          <div class="k"><label>Atividades</label><b>${fmtAtivMeta(a)}</b></div>
           <div class="k"><label>Dias</label><b>${fmtDays(a)}</b></div>
         </div>
-        <div class="grid">
+        <div class="grid g3">
           <div class="k"><label>Meta de volume</label><b>${fmtMetaVol(a,mes)}</b></div>
           <div class="k"><label>Distância da meta</label><b>${fmtDistMeta(a,mes)}</b></div>
           <div class="k"><label>% tickets avaliados</label><b>${fmtAval(a)}</b></div>
-          <div class="k"><label>Referência</label><b>${didNotApply(a)?NA:'Média time'}</b></div>
         </div>
         <div class="sec"><div class="sec-t">Como o valor foi calculado</div><table><thead><tr><th>Critério</th><th style="text-align:right">Valor</th></tr></thead><tbody>${rowsHtml}</tbody><tfoot><tr><td style="text-align:right;font-weight:800">Total</td><td class="val">${R(a.total)}</td></tr></tfoot></table></div>
         <div class="sec"><div class="sec-t">Variação</div><div class="explain">${varText}</div></div>

@@ -796,7 +796,20 @@ canvas{cursor:pointer;}
 
   <div class="g2" style="margin-bottom:1rem;">
     <div class="card">
-      <div class="ch"><div><div class="ct">Variação Mensal por Cliente</div><div class="cs">Diferença ponto a ponto entre os meses</div></div></div>
+      <div class="ch">
+        <div><div class="ct">Variação Mensal por Cliente</div><div class="cs">Diferença ponto a ponto entre os meses</div></div>
+        <div class="fbar" style="margin-bottom:0;justify-content:flex-end">
+          <input class="fs search" id="cli-var-q" oninput="renderClientsMonth(appM)" placeholder="Filtrar cliente, código ou grupo..." />
+          <select class="fs" id="cli-var-sort" onchange="renderClientsMonth(appM)">
+            <option value="delta_abs">Maior variação</option>
+            <option value="delta_up">Maior alta</option>
+            <option value="delta_down">Maior queda</option>
+            <option value="may_desc">Maior volume em Mai</option>
+            <option value="total_desc">Maior volume geral</option>
+            <option value="name_asc">Cliente A-Z</option>
+          </select>
+        </div>
+      </div>
       <div class="tsc">
         <table class="dt">
           <thead><tr><th>Cliente</th><th style="text-align:right">Jan</th><th style="text-align:right">Fev</th><th style="text-align:right">Mar</th><th style="text-align:right">Abr</th><th style="text-align:right">Mai</th><th style="text-align:right">Mai vs Abr</th></tr></thead>
@@ -259376,11 +259389,22 @@ function showClientList(title,subtitle,clients){
 function renderClientVariationTable(all){
   const host=$('cli-var-tbody');
   if(!host)return;
+  const q=($('cli-var-q')?.value||'').trim().toLowerCase();
+  const sort=$('cli-var-sort')?.value||'delta_abs';
+  const coll=new Intl.Collator('pt-BR',{numeric:true,sensitivity:'base'});
   const rows=all.map(c=>({...c,deltaLast:(c.months[4]||0)-(c.months[3]||0),swing:c.months.slice(1).reduce((s,v,i)=>s+Math.abs(v-(c.months[i]||0)),0)}))
     .filter(c=>c.total>0)
-    .sort((a,b)=>Math.abs(b.deltaLast)-Math.abs(a.deltaLast)||b.swing-a.swing||b.total-a.total)
+    .filter(c=>!q||[c.name,c.code,c.group].some(v=>String(v||'').toLowerCase().includes(q)))
+    .sort((a,b)=>{
+      if(sort==='delta_up')return b.deltaLast-a.deltaLast||b.months[4]-a.months[4]||coll.compare(a.name,b.name);
+      if(sort==='delta_down')return a.deltaLast-b.deltaLast||b.months[4]-a.months[4]||coll.compare(a.name,b.name);
+      if(sort==='may_desc')return b.months[4]-a.months[4]||Math.abs(b.deltaLast)-Math.abs(a.deltaLast)||coll.compare(a.name,b.name);
+      if(sort==='total_desc')return b.total-a.total||b.months[4]-a.months[4]||coll.compare(a.name,b.name);
+      if(sort==='name_asc')return coll.compare(a.name,b.name)||b.total-a.total;
+      return Math.abs(b.deltaLast)-Math.abs(a.deltaLast)||b.swing-a.swing||b.total-a.total||coll.compare(a.name,b.name);
+    })
     .slice(0,18);
-  host.innerHTML=rows.map(c=>`<tr onclick="showClientPopup('${esc(c.code)}')" style="cursor:pointer"><td><button class="rel-client" onclick="event.stopPropagation();showClientPopup('${esc(c.code)}')">${esc(c.name)}</button><br><span class="op-mono">${esc(c.code)} · ${esc(c.group)}</span></td>${c.months.map((v,i)=>`<td class="tn"><b>${fN(v)}</b>${i?`<br>${deltaBadge(v,c.months[i-1])}`:''}</td>`).join('')}<td class="th">${deltaBadge(c.months[4]||0,c.months[3]||0)}</td></tr>`).join('');
+  host.innerHTML=rows.length?rows.map(c=>`<tr onclick="showClientPopup('${esc(c.code)}')" style="cursor:pointer"><td><button class="rel-client" onclick="event.stopPropagation();showClientPopup('${esc(c.code)}')">${esc(c.name)}</button><br><span class="op-mono">${esc(c.code)} · ${esc(c.group)}</span></td>${c.months.map((v,i)=>`<td class="tn"><b>${fN(v)}</b>${i?`<br>${deltaBadge(v,c.months[i-1])}`:''}</td>`).join('')}<td class="th">${deltaBadge(c.months[4]||0,c.months[3]||0)}</td></tr>`).join(''):`<tr><td colspan="7"><div class="op-empty">Nenhum cliente encontrado para esse filtro.</div></td></tr>`;
 }
 function renderClientsMonth(m){
   updateClientPrivateStatus();

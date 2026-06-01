@@ -2024,7 +2024,7 @@ tbody tr:last-child td{border-bottom:none}
 .vrow:last-child{border-bottom:none}
 .vok{color:#1a7a3a;font-weight:700}.verr{color:#c0392b;font-weight:700}
 .footer{margin-top:32px;padding-top:14px;border-top:1px solid #dae8e0;display:flex;justify-content:space-between;font-size:10px;color:#7a9b87}
-.sign{border-top:1px solid #c3dece;width:180px;padding-top:4px;font-size:10px;color:#7a9b87;margin-top:42px}
+.sign{border-top:1px solid #c3dece;width:220px;padding-top:5px;font-size:10px;color:#245f3f;margin-top:42px;text-align:center;font-weight:700}.sign span{display:block;color:#7a9b87;font-weight:500;margin-top:2px}
 @media print{body{padding:20px}button{display:none!important}}`;
 
   let doc='<!DOCTYPE html><html><head><meta charset="UTF-8">';
@@ -2075,7 +2075,7 @@ tbody tr:last-child td{border-bottom:none}
 
   // Footer
   doc+='<div class="footer"><div>Customer Success — Multbovinos · Gerado em '+emitDate+' às '+emitTime+'</div>';
-  doc+='<div style="text-align:right"><div class="sign">Responsável pelo Fechamento</div></div></div>';
+  doc+='<div style="text-align:right"><div class="sign">Reinaldo Bueno<span>Gerente CS</span></div></div></div>';
   doc+='<br><button onclick="window.print()" style="margin-top:14px;padding:9px 20px;background:#2e7d52;color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer">🖨 Imprimir / Salvar como PDF</button>';
   doc+='</body></html>';
 
@@ -2121,7 +2121,7 @@ h1{font-family:Georgia,serif;font-size:22px;color:#245f3f;margin-bottom:3px}
 .sec{margin-top:16px}.sec-t{font-size:10px;font-weight:800;text-transform:uppercase;color:#2e7d52;border-bottom:1px solid #dae8e0;padding-bottom:6px;margin-bottom:8px;letter-spacing:.5px}
 table{width:100%;border-collapse:collapse}th{background:#f2faf5;color:#2e7d52;font-size:9px;text-transform:uppercase;text-align:left;padding:7px;border-bottom:1px solid #dae8e0}td{padding:8px 7px;border-bottom:1px solid #ecf5ef;vertical-align:top}
 .val{font-family:'Courier New',monospace;font-weight:800;color:#245f3f;text-align:right}.explain{background:#f7faf8;border:1px solid #dae8e0;border-radius:8px;padding:10px;line-height:1.55;color:#253d2c}
-.warn{background:#fdf7ee;border-color:#f0d080;color:#7a5820}.footer{margin-top:20px;color:#7a9b87;font-size:10px;display:flex;justify-content:space-between;border-top:1px solid #dae8e0;padding-top:10px}
+.warn{background:#fdf7ee;border-color:#f0d080;color:#7a5820}.footer{margin-top:20px;color:#7a9b87;font-size:10px;display:flex;justify-content:space-between;align-items:flex-end;border-top:1px solid #dae8e0;padding-top:10px}.agent-sign{border-top:1px solid #c3dece;width:200px;padding-top:5px;text-align:center;color:#245f3f;font-weight:700}.agent-sign span{display:block;color:#7a9b87;font-weight:500;margin-top:2px}
 @media print{body{padding:0}.page{min-height:auto}button{display:none!important}}`;
 
   let pages='';
@@ -2159,7 +2159,7 @@ table{width:100%;border-collapse:collapse}th{background:#f2faf5;color:#2e7d52;fo
         <div class="sec"><div class="sec-t">Variação</div><div class="explain">${varText}</div></div>
         <div class="sec"><div class="sec-t">Regra de tickets avaliados</div><div class="explain warn">${note}</div></div>
         ${a.obs?`<div class="sec"><div class="sec-t">Observação do fechamento</div><div class="explain">${a.obs}</div></div>`:''}
-        <div class="footer"><div>Gerado em ${emitDate} às ${emitTime}</div><div>Transparência de cálculo · primeiro mês da regra de % avaliados</div></div>
+        <div class="footer"><div>Gerado em ${emitDate} às ${emitTime}<br>Transparência de cálculo · primeiro mês da regra de % avaliados</div><div class="agent-sign">Reinaldo Bueno<span>Gerente CS</span></div></div>
       </section>`;
     });
   });

@@ -754,7 +754,7 @@ canvas{cursor:pointer;}
   <div class="card">
     <div class="tsc">
       <table class="dt">
-        <thead><tr><th>#</th><th>Grupo</th><th style="text-align:right">Jan</th><th style="text-align:right">Fev</th><th style="text-align:right">Mar</th><th style="text-align:right">Abr</th><th style="text-align:right">Mai</th><th style="text-align:right">Total</th><th style="text-align:right" id="grp-var-head">Var Mar→Abr</th></tr></thead>
+        <thead id="grp-main-head"></thead>
         <tbody id="grp-tbody"></tbody>
       </table>
     </div>
@@ -259741,7 +259741,8 @@ function renderGroupsMonth(m){
     return {n,focus:vals[m]||0,prev:m>0?(vals[m-1]||0):0,tot:vals.reduce((s,v)=>s+v,0),vals};
   }).filter(g=>g.tot>0).sort((a,b)=>b.focus-a.focus||b.tot-a.tot||a.n.localeCompare(b.n,'pt-BR'));
   const monthRows=groupScopeRows(m);
-  $('grp-var-head').textContent=m>0?`Var ${D.meses[m-1]}→${D.meses[m]}`:'Var mês';
+  const grpMainHead=$('grp-main-head');
+  if(grpMainHead)grpMainHead.innerHTML=`<tr><th>#</th><th>Grupo</th>${D.meses.map(mm=>`<th style="text-align:right">${esc(mm)}</th>`).join('')}<th style="text-align:right">Total</th><th style="text-align:right">${m>0?`Var ${esc(D.meses[m-1])}→${esc(D.meses[m])}`:'Var mês'}</th></tr>`;
   $('grp-period-summary').textContent=`${D.mesNomes[m]} · ${periodLabel} · ${fN(monthRows.length)} atendimento(s)`;
   $('title-grp-rank-sub').textContent=`${D.mesNomes[m]} · ${periodLabel} · largura = participação`;
   $('grp-blist').innerHTML=rows.map((g,i)=>{

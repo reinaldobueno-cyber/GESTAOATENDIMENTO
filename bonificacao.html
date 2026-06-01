@@ -1288,6 +1288,32 @@ function coverageExplanation(a){
   const ratio=ap/ref;
   return `Cobertura de tickets avaliados: ${ap.toFixed(1)}%, abaixo da referência ${Math.round(ref)}%. Neste primeiro mês da regra, o pagamento de volume foi limitado a ${ratio>=0.8?'80':'60'}% quando aplicável.`;
 }
+function trendSvgForPdf(activeMes){
+  const ms=months().slice(-14);
+  const vals=ms.map(m=>{
+    const md=DB.months[m];
+    return md?(Number(md.total)||md.agents.reduce((s,a)=>s+a.total,0)):0;
+  });
+  if(!ms.length||!vals.some(Boolean))return '';
+  const w=980,h=250,padL=58,padR=24,padT=26,padB=54;
+  const min=Math.min(...vals),max=Math.max(...vals);
+  const span=Math.max(1,max-min);
+  const x=i=>padL+(i*(w-padL-padR)/Math.max(1,ms.length-1));
+  const y=v=>padT+((max-v)/span)*(h-padT-padB);
+  const pts=vals.map((v,i)=>`${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const area=`${padL},${h-padB} ${pts} ${w-padR},${h-padB}`;
+  const grid=[0,.25,.5,.75,1].map(t=>{
+    const yy=padT+t*(h-padT-padB);
+    const val=max-(t*span);
+    return `<line x1="${padL}" y1="${yy}" x2="${w-padR}" y2="${yy}" stroke="#e4efe8"/><text x="8" y="${yy+4}" font-size="10" fill="#7a9b87">${R(val).replace('R$\u202f','R$')}</text>`;
+  }).join('');
+  const labels=ms.map((m,i)=>{
+    const xx=x(i), yy=y(vals[i]);
+    const active=m===activeMes;
+    return `<g><circle cx="${xx}" cy="${yy}" r="${active?5:4}" fill="${active?'#9a6c1a':'#2e7d52'}"/><text x="${xx}" y="${Math.max(12,yy-9)}" text-anchor="middle" font-size="9" font-weight="700" fill="#245f3f">${R(vals[i]).replace('R$\u202f','')}</text><text x="${xx}" y="${h-22}" text-anchor="end" transform="rotate(-45 ${xx} ${h-22})" font-size="9" fill="#7a9b87">${ML(m)}</text></g>`;
+  }).join('');
+  return `<svg class="trend-svg" viewBox="0 0 ${w} ${h}" role="img" aria-label="Evolução mensal total"><polygon points="${area}" fill="#e8f5ee"/><polyline points="${pts}" fill="none" stroke="#2e7d52" stroke-width="3"/>${grid}${labels}</svg>`;
+}
 
 function toast(msg,err=false){
   const t=document.getElementById('toast');
@@ -1978,13 +2004,14 @@ function gerarPDF(origem='auto'){
   const valDecl=val&&val.declared?R(val.declared):'—';
   const valDiff=val?R(val.diff):'R$\u202f0,00';
   const teamSum=val?R(val.tms.r+val.tms.e+val.tms.i+(val.tms.x||0)):'—';
+  const trendSvg=trendSvgForPdf(mes);
 
   const now=new Date();
   const emitDate=now.toLocaleDateString('pt-BR');
   const emitTime=now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
 
-  const css=`*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Inter',sans-serif;color:#0d1f16;font-size:12px;background:#fff;padding:36px 44px}
+  const css=`@page{size:A4 landscape;margin:8mm}*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;color:#0d1f16;font-size:10.5px;background:#fff;padding:14px}
 .hdr{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:18px;border-bottom:3px solid #2e7d52;margin-bottom:24px}
 .brand-mark{display:flex;align-items:center;gap:10px;margin-bottom:5px}
 .sq{background:linear-gradient(135deg,#4db87a,#2e7d52);width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;color:#fff}
@@ -1992,17 +2019,17 @@ body{font-family:'Inter',sans-serif;color:#0d1f16;font-size:12px;background:#fff
 h2{font-family:'Georgia',serif;font-size:20px;font-weight:700;color:#245f3f}
 .hm{text-align:right;font-size:11px;color:#7a9b87}
 .hm strong{display:block;font-size:16px;font-weight:600;color:#2e7d52;font-family:'Courier New',monospace}
-.sec{margin-bottom:20px}
+.sec{margin-bottom:16px;page-break-inside:avoid}
 .sec-t{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#2e7d52;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #dae8e0}
 .krow{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
 .kpi{background:#f2faf5;border:1px solid #dae8e0;border-radius:8px;padding:12px}
 .kpi label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#7a9b87;display:block;margin-bottom:5px}
 .kv{font-size:15px;font-weight:600;color:#245f3f;font-family:'Courier New',monospace}
 .ks{font-size:10px;color:#7a9b87;margin-top:3px}
-table{width:100%;border-collapse:collapse;font-size:12px}
+table{width:100%;border-collapse:collapse;font-size:10px;table-layout:fixed}
 thead tr{background:#f2faf5}
-th{padding:7px 10px;text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#2e7d52;border-bottom:1px solid #dae8e0}
-td{padding:8px 10px;border-bottom:1px solid #ecf5ef}
+th{padding:6px 6px;text-align:left;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:#2e7d52;border-bottom:1px solid #dae8e0}
+td{padding:6px 6px;border-bottom:1px solid #ecf5ef;word-break:normal;overflow-wrap:anywhere}
 tbody tr:last-child td{border-bottom:none}
 .tfoot{background:#f2faf5}
 .tfoot td{font-weight:700;color:#245f3f;border-top:2px solid #2e7d52!important;font-family:'Courier New',monospace}
@@ -2018,14 +2045,15 @@ tbody tr:last-child td{border-bottom:none}
 .tbn{font-size:9px;font-weight:700;text-transform:uppercase;color:#7a9b87;margin-bottom:5px}
 .tbv{font-size:15px;font-weight:600;font-family:'Courier New',monospace;color:#245f3f}
 .tbm{font-size:10px;color:#7a9b87;margin-top:3px}
-.obs-box{background:#f7faf8;border:1px solid #dae8e0;border-radius:8px;padding:12px;min-height:60px;font-size:12px}
+.obs-box{background:#f7faf8;border:1px solid #dae8e0;border-radius:8px;padding:12px;min-height:48px;font-size:11px}
+.trend-svg{width:100%;height:235px;display:block;background:#fff;border:1px solid #dae8e0;border-radius:8px;padding:6px}
 .val-box{background:#f2faf5;border:1px solid #dae8e0;border-radius:8px;padding:12px}
 .vrow{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #dae8e0;font-size:12px}
 .vrow:last-child{border-bottom:none}
 .vok{color:#1a7a3a;font-weight:700}.verr{color:#c0392b;font-weight:700}
 .footer{margin-top:32px;padding-top:14px;border-top:1px solid #dae8e0;display:flex;justify-content:space-between;font-size:10px;color:#7a9b87}
 .sign{border-top:1px solid #c3dece;width:220px;padding-top:5px;font-size:10px;color:#245f3f;margin-top:42px;text-align:center;font-weight:700}.sign span{display:block;color:#7a9b87;font-weight:500;margin-top:2px}
-@media print{body{padding:20px}button{display:none!important}}`;
+@media print{body{padding:0}button{display:none!important}.sec{break-inside:avoid}}`;
 
   let doc='<!DOCTYPE html><html><head><meta charset="UTF-8">';
   doc+='<title>Fechamento CS — '+ML(mes)+'</title>';
@@ -2051,6 +2079,10 @@ tbody tr:last-child td{border-bottom:none}
   // Núcleos
   doc+='<div class="sec"><div class="sec-t">Consolidação por Núcleo</div>';
   doc+='<div class="tgrid">'+nucRows+'</div></div>';
+
+  if(trendSvg){
+    doc+='<div class="sec"><div class="sec-t">Evolução Mensal Total</div>'+trendSvg+'</div>';
+  }
 
   // Individuais
   doc+='<div class="sec"><div class="sec-t">Valores Individuais — '+ML(mes)+'</div>';

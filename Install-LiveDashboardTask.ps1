@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
   [string]$TaskName = 'Atualizar Dashboard NEPPO',
-  [int]$IntervalMinutes = 30,
+  [int]$IntervalMinutes = 5,
   [switch]$ResetToken
 )
 

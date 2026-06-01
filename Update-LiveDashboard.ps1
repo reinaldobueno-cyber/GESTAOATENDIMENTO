@@ -4,6 +4,7 @@ param(
   [int]$StartMonth = 1,
   [int]$EndMonth = 0,
   [string]$ExportDir = 'exports',
+  [switch]$DeployCloudflare,
   [switch]$SkipPush
 )
 
@@ -76,6 +77,17 @@ if (-not $hasChanges) {
 & $git config user.name 'reinaldobueno-cyber'
 & $git config user.email 'actions@users.noreply.github.com'
 & $git commit -m 'Atualiza dashboard NEPPO ao vivo'
+
+if ($DeployCloudflare -or -not [string]::IsNullOrWhiteSpace($env:CLOUDFLARE_API_TOKEN)) {
+  Write-Host 'Publicando dashboard atualizado no Cloudflare...'
+  $env:CLOUDFLARE_API_KEY = ''
+  $env:CLOUDFLARE_EMAIL = ''
+  $env:PATH = "$env:LOCALAPPDATA\CodexTools\node-v22;$env:PATH"
+  & npm exec --yes wrangler@latest -- deploy
+  if ($LASTEXITCODE -ne 0) {
+    throw "Deploy Cloudflare falhou com codigo $LASTEXITCODE."
+  }
+}
 
 if ($SkipPush) {
   Write-Host 'Commit criado. Push ignorado por -SkipPush.'

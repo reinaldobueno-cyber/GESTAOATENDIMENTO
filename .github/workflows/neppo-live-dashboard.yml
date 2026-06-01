@@ -2,6 +2,8 @@ name: Atualizar dashboard NEPPO
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
 
 permissions:
   contents: write
@@ -21,6 +23,7 @@ jobs:
           NEPPO_CLIENT_SECRET: ${{ secrets.NEPPO_CLIENT_SECRET }}
           NEPPO_USERNAME: ${{ secrets.NEPPO_USERNAME }}
           NEPPO_PASSWORD: ${{ secrets.NEPPO_PASSWORD }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           $month = [int](Get-Date).Month
           ./sync-neppo-data.ps1 -Year 2026 -StartMonth 1 -EndMonth $month -ExportDir exports -NoMirrorRoot
@@ -35,6 +38,9 @@ jobs:
           if (-not (git diff --cached --quiet)) {
             git commit -m "Atualiza dashboard NEPPO ao vivo"
             git push
+            if ($env:CLOUDFLARE_API_TOKEN) {
+              npm exec --yes wrangler@latest -- deploy
+            }
           } else {
             Write-Output "Sem alterações para publicar."
           }

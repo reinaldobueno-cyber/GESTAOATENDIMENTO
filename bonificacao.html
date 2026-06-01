@@ -624,6 +624,11 @@ button,input,select,textarea{font-family:var(--f)}
         <div class="ck-l"><div style="font-size:12px;font-weight:500">Reconhecimento Nota 10</div><div style="font-size:10px;color:var(--ink4);margin-top:1px">Nota máxima no mês</div></div>
         <span class="ck-v">+R$50</span>
       </div>
+      <div class="ck" id="ci3" onclick="togCk('cb3')">
+        <input type="checkbox" id="cb3" onchange="calc()">
+        <div class="ck-l"><div style="font-size:12px;font-weight:500">Não aplicou no mês</div><div style="font-size:10px;color:var(--ink4);margin-top:1px">Sem atuação/sem regra aplicável neste fechamento</div></div>
+        <span class="ck-v">N/A</span>
+      </div>
     </div>
     <div class="sep"></div>
     <div class="g4">
@@ -1150,6 +1155,7 @@ const NUCLEI=[
 ];
 
 function didNotApply(a){
+  if(a?.naoAplicou)return true;
   const obs=(a?.obs||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   return obs.includes('nao atuou')
     ||obs.includes('nao aplicou')
@@ -1273,6 +1279,7 @@ function getFormData(){
     atividades:gi('f-ati'),
     diasTrab:dt,diasUteis:du,
     metaTME:gc('cb0'),madrinha:gc('cb1'),reconhece:gc('cb2'),
+    naoAplicou:gc('cb3'),
     upgrades:gi('f-up'),
     extra:gfn('f-extra'),equipeExtra:gfn('f-equipe-extra'),
     diarias:gi('f-dia'),
@@ -1372,6 +1379,7 @@ function calc(){
   // Regras específicas Infra
   const isInfraUI=(a.equipe==='i');
   const isGestaoUI=(a.equipe==='x');
+  const isNA=!!a.naoAplicou;
   const demEl=document.getElementById('f-dem');
   if(demEl){demEl.disabled=isInfraUI||isGestaoUI;if(isInfraUI||isGestaoUI){demEl.value='';const hd=document.getElementById('h-dem');if(hd){hd.textContent=isGestaoUI?'Gestão: não aplica demandas indevidas':'Infra: não aplica demandas indevidas';hd.className='hint hmut';}}}
   const cbTme=document.getElementById('cb0');
@@ -1379,8 +1387,12 @@ function calc(){
   if(cbTme){cbTme.disabled=isGestaoUI;if(isGestaoUI){cbTme.checked=false;ckTme?.classList.remove('on');const h=document.getElementById('h-up');if(h&&h.textContent==='Meta TME zero'){h.textContent='';}}}
 
   warn.textContent='';
-  if(!a.equipe&&!a.nota&&!a.volume&&!a.atividades&&!a.upgrades&&!a.extra&&!a.equipeExtra&&!a.diarias){body.innerHTML='<div class="prev-empty">Preencha os campos para validar o impacto financeiro.</div>';return;}
+  if(!a.equipe&&!a.nota&&!a.volume&&!a.atividades&&!a.upgrades&&!a.extra&&!a.equipeExtra&&!a.diarias&&!isNA){body.innerHTML='<div class="prev-empty">Preencha os campos para validar o impacto financeiro.</div>';return;}
   if(!a.equipe){body.innerHTML='<div class="prev-empty" style="color:var(--amb)">⚠ Selecione o colaborador e a equipe para calcular.</div>';return;}
+  if(isNA){
+    body.innerHTML='<div class="prev-empty" style="color:var(--amb)">NÃO APLICOU no mês. Salve com a observação/justificativa do fechamento.</div>';
+    return;
+  }
   // Warn if group volume not configured but volume entered
   const _vtChk=a.equipe==='i'?gi('f-vt-inf'):gi('f-vt-sup');
   const _nagChk=a.equipe==='i'?gi('f-nag-inf'):gi('f-nag-sup');
@@ -1422,7 +1434,9 @@ function saveAg(){
   const _eq=gv('f-equipe');
   const _isI=(_eq==='i');
   const _isX=(_eq==='x');
-  if(!_isX&&!gf('f-nota')){toast('Informe a Nota de Satisfação.',true);return;}
+  const _isNA=gc('cb3');
+  if(!_isX&&!_isNA&&!gf('f-nota')){toast('Informe a Nota de Satisfação.',true);return;}
+  if(_isNA&&!gv('f-obs').trim()){toast('Informe a observação do motivo de não aplicação.',true);return;}
   if(_isI&&!gi('f-vt-inf')){toast('Informe o Volume Total Infra.',true);return;}
   if(_isI&&!gi('f-nag-inf')){toast('Informe o Nº de agentes Infra.',true);return;}
   if(!_isI&&!_isX&&!gi('f-vt-sup')){toast('Informe o Volume Total Suporte.',true);return;}
@@ -1448,7 +1462,7 @@ function clrFields(){
   ['f-up','f-dia'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='0';});
   ['f-extra','f-equipe-extra'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='0';});
   ['f-ov-nota','f-ov-vol','f-ov-dem','f-ov-ati'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  ['cb0','cb1','cb2'].forEach(id=>{const el=document.getElementById(id);if(el){el.checked=false;el.closest('.ck').classList.remove('on');}});
+  ['cb0','cb1','cb2','cb3'].forEach(id=>{const el=document.getElementById(id);if(el){el.checked=false;el.closest('.ck').classList.remove('on');}});
   document.getElementById('f-nome').value='';
   document.getElementById('f-equipe').value='';
   ['h-du','h-dt','h-nota','h-vol','h-dem','h-ati','h-up','h-extra','h-nome','h-eq'].forEach(id=>{const el=document.getElementById(id);if(el){el.textContent='';el.className='hint';}});
@@ -1493,7 +1507,7 @@ function editAg(mes,id){
   document.getElementById('f-ov-dem').value=a.overrideDemandas??'';
   document.getElementById('f-ov-ati').value=a.overrideAtividades??'';
   document.getElementById('f-obs').value=a.obs||'';
-  ['cb0','cb1','cb2'].forEach((cbId,i)=>{const props=['metaTME','madrinha','reconhece'];const el=document.getElementById(cbId);el.checked=!!a[props[i]];el.closest('.ck').classList.toggle('on',!!a[props[i]]);});
+  ['cb0','cb1','cb2','cb3'].forEach((cbId,i)=>{const props=['metaTME','madrinha','reconhece','naoAplicou'];const el=document.getElementById(cbId);el.checked=!!a[props[i]];el.closest('.ck').classList.toggle('on',!!a[props[i]]);});
   DB.months[mes].agents=DB.months[mes].agents.filter(x=>x.id!==id);
   DB.months[mes].total=Math.round(DB.months[mes].agents.reduce((s,x)=>s+x.total,0)*100)/100;
   save();syncMes();calc();
@@ -1506,7 +1520,7 @@ function editAg(mes,id){
 function agHTML(a,mes,actions=true){
   const eq=a.equipe||getEq(a.nome);
   const tag=eq?`<span class="eq-tag ${EQCSS[eq]||'eq-x'}">${EQL[eq]||eq}</span>`:'<span class="eq-tag eq-x">—</span>';
-  const btns=actions&&a.id?`<div class="aact"><button class="abt" onclick="editAg('${mes}',${a.id})" title="Editar">✎</button><button class="abt del" onclick="delAg('${mes}',${a.id})" title="Remover">✕</button></div>`:'';
+  const btns=actions&&a.id?`<div class="aact"><button class="abt" onclick="gerarPDFAgentes('${mes}',${a.id})" title="PDF individual">▣</button><button class="abt" onclick="editAg('${mes}',${a.id})" title="Editar">✎</button><button class="abt del" onclick="delAg('${mes}',${a.id})" title="Remover">✕</button></div>`:'';
   return `<div class="agi">
     <div class="av ${avC(a.nome)}" style="width:34px;height:34px">${ini(a.nome)}</div>
     <div class="ag-info">
@@ -2008,8 +2022,8 @@ tbody tr:last-child td{border-bottom:none}
   }
 }
 
-function gerarPDFAgentes(){
-  const mes=gv('sel-exp')||gv('sel-exec')||months().pop();
+function gerarPDFAgentes(mesArg='',idArg=null){
+  const mes=mesArg||gv('sel-exp')||gv('sel-exec')||months().pop();
   if(!mes||!DB.months[mes]){toast('Selecione um mês para gerar os fechamentos individuais.',true);return;}
   saveMonthNotes();
   const m=DB.months[mes];
@@ -2018,7 +2032,9 @@ function gerarPDFAgentes(){
   const now=new Date();
   const emitDate=now.toLocaleDateString('pt-BR');
   const emitTime=now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-  const groups=sortedAgentsByNucleus([...m.agents]);
+  const sourceAgents=idArg!==null?m.agents.filter(a=>String(a.id)===String(idArg)):[...m.agents];
+  if(!sourceAgents.length){toast('Colaborador não encontrado neste mês.',true);return;}
+  const groups=sortedAgentsByNucleus(sourceAgents);
 
   const css=`*{box-sizing:border-box;margin:0;padding:0}
 body{font-family:Inter,Arial,sans-serif;color:#0d1f16;background:#fff;font-size:12px;padding:26px}
@@ -2071,7 +2087,8 @@ table{width:100%;border-collapse:collapse}th{background:#f2faf5;color:#2e7d52;fo
     });
   });
 
-  const doc=`<!doctype html><html><head><meta charset="UTF-8"><title>Fechamentos individuais — ${ML(mes)}</title><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><style>${css}</style></head><body>${pages}<button onclick="window.print()" style="position:fixed;right:18px;bottom:18px;padding:10px 16px;background:#2e7d52;color:#fff;border:0;border-radius:7px;font-weight:800">Imprimir / Salvar PDF</button></body></html>`;
+  const title=idArg!==null?`Fechamento individual — ${sourceAgents[0].nome}`:`Fechamentos individuais — ${ML(mes)}`;
+  const doc=`<!doctype html><html><head><meta charset="UTF-8"><title>${title}</title><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><style>${css}</style></head><body>${pages}<button onclick="window.print()" style="position:fixed;right:18px;bottom:18px;padding:10px 16px;background:#2e7d52;color:#fff;border:0;border-radius:7px;font-weight:800">Imprimir / Salvar PDF</button></body></html>`;
   const blob=new Blob([doc],{type:'text/html'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');

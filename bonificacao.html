@@ -1295,7 +1295,7 @@ function trendSvgForPdf(activeMes){
     return md?(Number(md.total)||md.agents.reduce((s,a)=>s+a.total,0)):0;
   });
   if(!ms.length||!vals.some(Boolean))return '';
-  const w=980,h=250,padL=58,padR=24,padT=26,padB=54;
+  const w=980,h=275,padL=68,padR=34,padT=34,padB=78;
   const min=Math.min(...vals),max=Math.max(...vals);
   const span=Math.max(1,max-min);
   const x=i=>padL+(i*(w-padL-padR)/Math.max(1,ms.length-1));
@@ -1310,7 +1310,8 @@ function trendSvgForPdf(activeMes){
   const labels=ms.map((m,i)=>{
     const xx=x(i), yy=y(vals[i]);
     const active=m===activeMes;
-    return `<g><circle cx="${xx}" cy="${yy}" r="${active?5:4}" fill="${active?'#9a6c1a':'#2e7d52'}"/><text x="${xx}" y="${Math.max(12,yy-9)}" text-anchor="middle" font-size="9" font-weight="700" fill="#245f3f">${R(vals[i]).replace('R$\u202f','')}</text><text x="${xx}" y="${h-22}" text-anchor="end" transform="rotate(-45 ${xx} ${h-22})" font-size="9" fill="#7a9b87">${ML(m)}</text></g>`;
+    const valueY=yy<48?yy+17:yy-10;
+    return `<g><circle cx="${xx}" cy="${yy}" r="${active?5:4}" fill="${active?'#9a6c1a':'#2e7d52'}"/><text x="${xx}" y="${valueY}" text-anchor="middle" font-size="10" font-weight="800" fill="#245f3f">${R(vals[i]).replace('R$\u202f','')}</text><text x="${xx}" y="${h-38}" text-anchor="end" transform="rotate(-35 ${xx} ${h-38})" font-size="10" font-weight="700" fill="#7a9b87">${ML(m)}</text></g>`;
   }).join('');
   return `<svg class="trend-svg" viewBox="0 0 ${w} ${h}" role="img" aria-label="Evolução mensal total"><polygon points="${area}" fill="#e8f5ee"/><polyline points="${pts}" fill="none" stroke="#2e7d52" stroke-width="3"/>${grid}${labels}</svg>`;
 }
@@ -2020,7 +2021,7 @@ h2{font-family:'Georgia',serif;font-size:20px;font-weight:700;color:#245f3f}
 .hm{text-align:right;font-size:11px;color:#7a9b87}
 .hm strong{display:block;font-size:16px;font-weight:600;color:#2e7d52;font-family:'Courier New',monospace}
 .sec{margin-bottom:16px;page-break-inside:avoid}
-.sec-t{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#2e7d52;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #dae8e0}
+.sec-t{font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.8px;color:#0f6b3d;margin-bottom:12px;padding:8px 10px 7px;border-left:5px solid #2e7d52;border-bottom:1px solid #c3dece;background:#f2faf5}
 .krow{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
 .kpi{background:#f2faf5;border:1px solid #dae8e0;border-radius:8px;padding:12px}
 .kpi label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#7a9b87;display:block;margin-bottom:5px}
@@ -2046,7 +2047,7 @@ tbody tr:last-child td{border-bottom:none}
 .tbv{font-size:15px;font-weight:600;font-family:'Courier New',monospace;color:#245f3f}
 .tbm{font-size:10px;color:#7a9b87;margin-top:3px}
 .obs-box{background:#f7faf8;border:1px solid #dae8e0;border-radius:8px;padding:12px;min-height:48px;font-size:11px}
-.trend-svg{width:100%;height:235px;display:block;background:#fff;border:1px solid #dae8e0;border-radius:8px;padding:6px}
+.trend-svg{width:100%;height:270px;display:block;background:#fff;border:1px solid #dae8e0;border-radius:8px;padding:6px}
 .val-box{background:#f2faf5;border:1px solid #dae8e0;border-radius:8px;padding:12px}
 .vrow{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #dae8e0;font-size:12px}
 .vrow:last-child{border-bottom:none}

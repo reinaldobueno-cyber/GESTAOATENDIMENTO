@@ -1191,7 +1191,7 @@ canvas{cursor:pointer;}
 
 <!-- ════════════════ BONIFICAÇÃO PRIVADA ════════════════ -->
 <div id="pane-bonificacao" class="pane bonus-private bonus-legacy-mode">
-  <iframe class="bonus-legacy-frame" src="/bonificacao-app" title="Bonificação Customer Success"></iframe>
+  <iframe class="bonus-legacy-frame" src="about:blank" title="Bonificação Customer Success"></iframe>
   <div class="ctx">
     <div>
       <div class="ctx-title">Fechamento de Bonificação</div>
@@ -257768,10 +257768,13 @@ function go(id,el){
   if(id==='tratamentos')renderTreatments();
   if(id==='bonificacao')renderBonus();
 }
+function bonusFrameUrl(){
+  return location.protocol==='file:'?'bonificacao.html':'/bonificacao-app';
+}
 function openBonusFromPanel(el){
   go('bonificacao',el);
   const frame=document.querySelector('#pane-bonificacao iframe');
-  if(frame)frame.src='/bonificacao-app?painel='+Date.now();
+  if(frame)frame.src=bonusFrameUrl()+(location.protocol==='file:'?'':'?painel='+Date.now());
 }
 
 // ════════ OVERVIEW ════════

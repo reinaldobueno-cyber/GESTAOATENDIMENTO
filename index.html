@@ -597,10 +597,7 @@ canvas{cursor:pointer;}
 <div id="pane-calendario" class="pane">
   <div class="fbar">
     <span class="fl">Mês:</span>
-    <select class="fs" id="cal-mes" onchange="renderCal()">
-      <option value="1">Janeiro</option><option value="2">Fevereiro</option>
-      <option value="3">Março</option><option value="4" selected>Abril</option><option value="5">Maio</option>
-    </select>
+    <select class="fs" id="cal-mes" onchange="setGlobalMonth(parseInt(this.value,10)-1)"></select>
     <span class="fl" style="margin-left:8px;">Métrica:</span>
     <select class="fs" id="cal-mode" onchange="renderCal()">
       <option value="vol">Volume de atendimentos</option>
@@ -258724,6 +258721,9 @@ function hc(p,mode){
 function tc(bg){return['#3d6b47','#4f8562','#2d5038'].includes(bg)?'#fff':'#2d5038';}
 
 function populateCalFilters(){
+  if($('cal-mes')&&$('cal-mes').options.length!==D.mesNomes.length){
+    $('cal-mes').innerHTML=D.mesNomes.map((name,i)=>`<option value="${i+1}">${esc(name.replace(' 2026',''))}${monthIsPartial(i+1)?' · parcial':''}</option>`).join('');
+  }
   if($('cal-agent').options.length<=1){
     D.agentList.forEach(a=>{const o=document.createElement('option');o.value=a;o.textContent=a;$('cal-agent').appendChild(o);});
   }

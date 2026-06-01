@@ -1764,7 +1764,7 @@ function renderExec(){
       <div class="vr"><span class="vl">Total declarado</span><div class="vright"><span class="vnum">${val.declared?R(val.declared):'—'}</span>${!val.declared?wr:val.ok?ok:er}</div></div>
       <div class="vr"><span class="vl">Diferença</span><div class="vright"><span class="vnum" style="color:${val.diff>0.1?'var(--red)':'var(--g1)'}">${R(val.diff)}</span>${val.diff<0.01?ok:wr}</div></div>
       <div class="vr"><span class="vl">Colaboradores</span><div class="vright"><span class="vnum">${val.n}</span>${ok}</div></div>
-      <div class="vr"><span class="vl">Reprodução + Engorda + Infra</span><div class="vright"><span style="font-size:11px;color:var(--ink4)">${R(val.tms.r)} + ${R(val.tms.e)} + ${R(val.tms.i)} = ${R(val.teamSum)}</span>${Math.abs(val.teamSum-val.computed)<0.1?ok:wr}</div></div>`;
+      <div class="vr"><span class="vl">Reprodução + Engorda + Infra + Indicação/Venda Gestão</span><div class="vright"><span style="font-size:11px;color:var(--ink4)">${R(val.tms.r)} + ${R(val.tms.e)} + ${R(val.tms.i)} + ${R(val.tms.x||0)} = ${R(val.teamSum)}</span>${Math.abs(val.teamSum-val.computed)<0.1?ok:wr}</div></div>`;
   } else document.getElementById('exec-val').innerHTML='<div class="prev-empty">Sem dados para validar.</div>';
 }
 
@@ -1977,7 +1977,7 @@ function gerarPDF(origem='auto'){
   const valComp=val?R(val.computed):R(tot);
   const valDecl=val&&val.declared?R(val.declared):'—';
   const valDiff=val?R(val.diff):'R$\u202f0,00';
-  const teamSum=val?R(val.tms.r+val.tms.e+val.tms.i):'—';
+  const teamSum=val?R(val.tms.r+val.tms.e+val.tms.i+(val.tms.x||0)):'—';
 
   const now=new Date();
   const emitDate=now.toLocaleDateString('pt-BR');
@@ -2070,7 +2070,7 @@ tbody tr:last-child td{border-bottom:none}
   doc+='<div class="vrow"><span>Soma dos individuais</span><span class="'+(valOk?'vok':'verr')+'">'+valComp+' '+(valOk?'✓ validado':'✕ diverge')+'</span></div>';
   doc+='<div class="vrow"><span>Total declarado</span><span>'+valDecl+'</span></div>';
   doc+='<div class="vrow"><span>Diferença</span><span class="'+(val&&val.diff<0.1?'vok':'verr')+'">'+valDiff+'</span></div>';
-  doc+='<div class="vrow"><span>Reprodução + Engorda + Infra</span><span>'+R(tms.r)+' + '+R(tms.e)+' + '+R(tms.i)+' = '+teamSum+'</span></div>';
+  doc+='<div class="vrow"><span>Reprodução + Engorda + Infra + Indicação/Venda Gestão</span><span>'+R(tms.r)+' + '+R(tms.e)+' + '+R(tms.i)+' + '+R(tms.x||0)+' = '+teamSum+'</span></div>';
   doc+='</div></div>';
 
   // Footer

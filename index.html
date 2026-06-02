@@ -236,7 +236,8 @@ canvas{cursor:pointer;}
 .hour-hm{display:grid;gap:2px;}
 .hour-row{display:flex;gap:2px;align-items:center;}
 .hour-lbl{font-family:'Geist Mono',monospace;font-size:.55rem;color:var(--ghost);width:28px;text-align:right;flex-shrink:0;}
-.hour-cell{flex:1;height:24px;border-radius:3px;position:relative;cursor:default;transition:transform .1s;}
+.hour-cell{flex:1;height:24px;border-radius:3px;position:relative;cursor:default;transition:transform .1s;display:flex;align-items:center;justify-content:center;}
+.hour-cell span{display:block;text-align:center;line-height:1;}
 .hour-cell:hover{transform:scale(1.05);z-index:5;}
 .dow-lbl{font-family:'Geist Mono',monospace;font-size:.56rem;color:var(--ghost);text-align:center;flex:1;}
 
@@ -260828,10 +260829,27 @@ function renderAvalMonth(m){
   chart('ch-cob-ag',{type:'bar',data:{labels:cobAgs.map(a=>a.nm),datasets:[{label:'Cobertura %',data:cobAgs.map(a=>+(a.cob*100).toFixed(1)),backgroundColor:cobAgs.map(a=>a.cob>.5?'#3d6b47':a.cob>.35?'#6a9e78':'#a83232'),borderRadius:5}]},options:{...cDef,scales:{...cDef.scales,y:{...cDef.scales.y,max:80}},plugins:{...cDef.plugins,legend:{display:false}}}});
   Chart.getChart($('ch-cob-ag')).options.onClick=chartClick(el=>{const agent=cobAgs[el.index]?.agent;if(agent)chartDrill(`Cobertura · ${agent}`,`${D.mesNomes[m]} · atendimentos avaliados e sem avaliação`,drillRows(m,{agent}));});
   Chart.getChart($('ch-cob-ag')).update();
-  const baixa=Object.entries(pack.avBaixa||{}).sort((a,b)=>b[1]-a[1]);
-  chart('ch-baixa-ag',{type:'bar',data:{labels:baixa.map(([nm])=>nm.split(' ')[0]),datasets:[{label:'Notas < 9',data:baixa.map(([,v])=>v),backgroundColor:baixa.map(([,v])=>v>=3?'#a83232':v>=2?'#9a6b1a':'#c8a048'),borderRadius:5}]},options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}},onClick:(evt,els)=>{if(!els.length)return;const agent=baixa[els[0].index]?.[0];if(!agent)return;const rows=(D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===m+1&&r[2]===agent&&r[6]!=null&&r[6]<9).sort((a,b)=>(a[6]??99)-(b[6]??99)||String(b[10]||'').localeCompare(String(a[10]||'')));showTempoPopup(`Notas abaixo de 9 · ${agent}`,`${D.mesNomes[m]} · ${fN(rows.length)} atendimento(s)`,rows);}}});
-  const dow=pack.csatDow||[];
-  chart('ch-csat-dow',{type:'bar',data:{labels:['Seg','Ter','Qua','Qui','Sex'],datasets:[{label:'CSAT Médio',data:dow,backgroundColor:dow.map(v=>v>=9.95?'#3d6b47':v>=9.8?'#6a9e78':'#a83232'),borderRadius:6}]},options:{...cDef,scales:{...cDef.scales,y:{...cDef.scales.y,min:9.75,max:10.05}},plugins:{...cDef.plugins,legend:{display:false}},onClick:chartClick(el=>{chartDrill(`CSAT · ${['Segunda','Terça','Quarta','Quinta','Sexta'][el.index]}`,`${D.mesNomes[m]} · avaliações por dia da semana`,drillRows(m,{dow:el.index,rated:true}));})}});
+  const monthRows=(D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===m+1);
+  const lowMap={};
+  monthRows.filter(r=>r[6]!=null&&Number(r[6])<9).forEach(r=>{const a=r[2]||'Sem agente';lowMap[a]=(lowMap[a]||0)+1;});
+  const baixa=Object.entries(lowMap).sort((a,b)=>b[1]-a[1]);
+  const baixaLabels=baixa.length?baixa.map(([nm])=>nm.split(' ')[0]):['Sem notas < 9'];
+  const baixaData=baixa.length?baixa.map(([,v])=>v):[0];
+  chart('ch-baixa-ag',{type:'bar',data:{labels:baixaLabels,datasets:[{label:'Notas < 9',data:baixaData,backgroundColor:baixa.length?baixa.map(([,v])=>v>=3?'#a83232':v>=2?'#9a6b1a':'#c8a048'):['#e8f2eb'],borderRadius:5}]},options:{...cDef,scales:{...cDef.scales,y:{...cDef.scales.y,beginAtZero:true,suggestedMax:baixa.length?undefined:1}},plugins:{...cDef.plugins,legend:{display:false},tooltip:{...cDef.plugins.tooltip,callbacks:{label:ctx=>baixa.length?`${ctx.raw} nota(s) abaixo de 9`:'Nenhuma nota abaixo de 9 no mês'}}},onClick:(evt,els)=>{if(!els.length||!baixa.length)return;const agent=baixa[els[0].index]?.[0];if(!agent)return;const rows=monthRows.filter(r=>r[2]===agent&&r[6]!=null&&r[6]<9).sort((a,b)=>(a[6]??99)-(b[6]??99)||String(b[10]||'').localeCompare(String(a[10]||'')));showTempoPopup(`Notas abaixo de 9 · ${agent}`,`${D.mesNomes[m]} · ${fN(rows.length)} atendimento(s)`,rows);}}});
+  const dowBuckets=[[],[],[],[],[]];
+  monthRows.filter(r=>r[6]!=null).forEach(r=>{
+    const ts=parseBrDate(r[10]||'');
+    if(!ts)return;
+    const jsDow=new Date(ts).getDay();
+    const monFirst=jsDow===0?6:jsDow-1;
+    if(monFirst>=0&&monFirst<5)dowBuckets[monFirst].push(Number(r[6]));
+  });
+  const dow=dowBuckets.map(arr=>arr.length?+avgArr(arr).toFixed(2):null);
+  const dowVals=dow.filter(v=>v!=null);
+  const dowData=dowVals.length?dow:[0,0,0,0,0];
+  const yMin=dowVals.length?Math.max(0,Math.floor((Math.min(...dowVals)-.08)*20)/20):0;
+  const yMax=dowVals.length?Math.min(10.05,Math.ceil((Math.max(...dowVals)+.08)*20)/20):1;
+  chart('ch-csat-dow',{type:'bar',data:{labels:['Seg','Ter','Qua','Qui','Sex'],datasets:[{label:'CSAT Médio',data:dowData,backgroundColor:dowData.map(v=>v==null?'#e8f2eb':v>=9.95?'#3d6b47':v>=9.8?'#6a9e78':'#a83232'),borderRadius:6}]},options:{...cDef,scales:{...cDef.scales,y:{...cDef.scales.y,min:yMin,max:yMax,ticks:{...cDef.scales.y.ticks,callback:v=>dowVals.length?Number(v).toFixed(2).replace('.',','):v}}},plugins:{...cDef.plugins,legend:{display:false},tooltip:{...cDef.plugins.tooltip,callbacks:{label:ctx=>dowVals.length&&ctx.raw!=null?`CSAT ${fS(ctx.raw)} · ${dowBuckets[ctx.dataIndex].length} avaliação(ões)`:'Sem avaliações no dia'}}},onClick:chartClick(el=>{if(!dowBuckets[el.index]?.length)return;chartDrill(`CSAT · ${['Segunda','Terça','Quarta','Quinta','Sexta'][el.index]}`,`${D.mesNomes[m]} · avaliações por dia da semana`,drillRows(m,{dow:el.index,rated:true}));})}});
 }
 
 function renderFluxMonth(m){
@@ -261109,6 +261127,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

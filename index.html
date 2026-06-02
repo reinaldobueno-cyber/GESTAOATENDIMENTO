@@ -376,6 +376,13 @@ canvas{cursor:pointer;}
 .ntab.bonus-private.visible{display:flex;}
 .pane.bonus-private.visible{display:none;}
 .pane.bonus-private.visible.active{display:block;}
+.admin-only{display:none!important;}
+.admin-only.visible{display:block!important;}
+.user-admin-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:1rem;align-items:start;}
+.user-admin-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem;}
+.user-admin-form .full{grid-column:1/-1;}
+.user-admin-form .actions{grid-column:1/-1;display:flex;gap:.5rem;justify-content:flex-end;flex-wrap:wrap;}
+@media(max-width:900px){.user-admin-grid{grid-template-columns:1fr}.user-admin-form{grid-template-columns:1fr}}
 .bonus-legacy-mode > :not(.bonus-legacy-frame){display:none!important;}
 .bonus-legacy-frame{display:block;width:100%;height:calc(100vh - 128px);min-height:760px;border:0;border-radius:12px;background:#fff;box-shadow:var(--shadow);}
 .bonus-mode .global-filter{display:none;}
@@ -522,6 +529,33 @@ canvas{cursor:pointer;}
     <div class="kpi" style="--kc:var(--moss2)"><div class="kl">Gargalos de Grupo</div><div class="kv" id="mgr-k3">—</div><div class="ks">Alta vs mês anterior</div></div>
     <div class="kpi" style="--kc:var(--sage)"><div class="kl">Agentes Atenção</div><div class="kv" id="mgr-k4">—</div><div class="ks">CSAT, cobertura ou tempo</div></div>
     <div class="kpi" style="--kc:var(--moss3)"><div class="kl">Sem Avaliação</div><div class="kv" id="mgr-k5">—</div><div class="ks">Atendimentos sem CSAT</div></div>
+  </div>
+
+  <div class="card admin-only" id="mgr-users-card" style="margin-bottom:1rem;">
+    <div class="ch">
+      <div><div class="ct">Usuários e Permissões</div><div class="cs">Admin acessa tudo, agente acessa o painel sem Bonificação</div></div>
+      <button class="rel-action" onclick="loadUsersAdmin()">Atualizar usuários</button>
+    </div>
+    <div class="user-admin-grid">
+      <form class="user-admin-form" onsubmit="saveManagedUser(event)">
+        <input type="hidden" id="user-editing">
+        <label class="fl">Nome<br><input class="fs" id="user-name" placeholder="Ex: Evelyn Souza"></label>
+        <label class="fl">Usuário<br><input class="fs" id="user-login" placeholder="Ex: evelyn" autocomplete="off"></label>
+        <label class="fl">Perfil<br><select class="fs" id="user-role"><option value="agente">Agente</option><option value="admin">Admin</option></select></label>
+        <label class="fl">Senha<br><input class="fs" id="user-password" type="password" placeholder="Obrigatória no novo cadastro" autocomplete="new-password"></label>
+        <label class="fl full"><input type="checkbox" id="user-active" checked> Usuário ativo</label>
+        <div class="actions">
+          <button type="button" class="rel-action" onclick="clearUserForm()">Limpar</button>
+          <button type="submit" class="rel-action">Salvar usuário</button>
+        </div>
+      </form>
+      <div class="tsc">
+        <table class="dt">
+          <thead><tr><th>Usuário</th><th>Perfil</th><th>Status</th><th></th></tr></thead>
+          <tbody id="users-admin-tbody"><tr><td colspan="4">Carregando usuários...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <div class="card" style="margin-bottom:1rem;">
@@ -261220,11 +261254,125 @@ function generateBonusPdf(){
   const blob=new Blob([doc],{type:'text/html'}),url=URL.createObjectURL(blob),a=document.createElement('a');
   a.href=url;a.target='_blank';a.rel='noopener';document.body.appendChild(a);a.click();setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
 }
+
+let APP_SESSION={user:'',name:'',role:'agente',admin:false,bonusPrivate:false};
+let MANAGED_USERS_CACHE=[];
+
+function applySessionPermissions(session={}){
+  APP_SESSION={...APP_SESSION,...session};
+  const isAdmin=!!APP_SESSION.admin||APP_SESSION.role==='admin';
+  document.querySelectorAll('.admin-only').forEach(el=>el.classList.toggle('visible',isAdmin));
+  document.querySelectorAll('.bonus-private').forEach(el=>el.classList.toggle('visible',!!APP_SESSION.bonusPrivate));
+  if(isAdmin)loadUsersAdmin();
+}
+
+async function loadAppSession(){
+  if(location.protocol==='file:'){
+    applySessionPermissions({user:'local',name:'Local',role:'admin',admin:true,bonusPrivate:true});
+    return APP_SESSION;
+  }
+  try{
+    const r=await fetch('/api/session',{cache:'no-store'});
+    if(r.ok){
+      const s=await r.json();
+      applySessionPermissions(s);
+      return APP_SESSION;
+    }
+  }catch{}
+  applySessionPermissions({admin:false,bonusPrivate:false});
+  return APP_SESSION;
+}
+
+function clearUserForm(){
+  ['user-editing','user-name','user-login','user-password'].forEach(id=>{const el=$(id);if(el)el.value='';});
+  if($('user-role'))$('user-role').value='agente';
+  if($('user-active'))$('user-active').checked=true;
+  if($('user-login'))$('user-login').disabled=false;
+}
+
+function editManagedUser(user){
+  const item=MANAGED_USERS_CACHE.find(u=>String(u.user)===String(user));
+  if(!item||item.source==='ambiente')return;
+  $('user-editing').value=item.user;
+  $('user-login').value=item.user;
+  $('user-login').disabled=true;
+  $('user-name').value=item.name||item.user;
+  $('user-role').value=item.role||'agente';
+  $('user-active').checked=item.active!==false;
+  $('user-password').value='';
+  $('user-password').placeholder='Deixe em branco para manter a senha';
+}
+
+function renderUsersAdmin(users=[]){
+  MANAGED_USERS_CACHE=users;
+  const tbody=$('users-admin-tbody');
+  if(!tbody)return;
+  tbody.innerHTML=users.map(u=>{
+    const env=u.source==='ambiente';
+    const status=u.active===false?'Inativo':'Ativo';
+    return `<tr>
+      <td><b>${esc(u.name||u.user)}</b><br><span class="op-mono">${esc(u.user)} · ${esc(env?'ambiente':'cadastro')}</span></td>
+      <td><span class="kd ${u.role==='admin'?'kup':'knt'}">${u.role==='admin'?'Admin':'Agente'}</span></td>
+      <td><span class="kd ${u.active===false?'kdn':'kup'}">${status}</span></td>
+      <td style="text-align:right">${env?'<span class="op-mono">fixo</span>':`<button class="rel-action" onclick="editManagedUser('${esc(u.user)}')">Editar</button><button class="rel-action" onclick="deleteManagedUser('${esc(u.user)}')">Excluir</button>`}</td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="4">Nenhum usuário cadastrado.</td></tr>';
+}
+
+async function loadUsersAdmin(){
+  if(!APP_SESSION.admin&&APP_SESSION.role!=='admin')return;
+  const tbody=$('users-admin-tbody');
+  if(tbody)tbody.innerHTML='<tr><td colspan="4">Carregando usuários...</td></tr>';
+  try{
+    const r=await fetch('/api/users',{cache:'no-store'});
+    const data=await r.json();
+    if(!r.ok)throw new Error(data.error||'Falha ao carregar usuários.');
+    renderUsersAdmin(data.users||[]);
+  }catch(err){
+    if(tbody)tbody.innerHTML=`<tr><td colspan="4">${esc(err.message||err)}</td></tr>`;
+  }
+}
+
+async function saveManagedUser(ev){
+  ev.preventDefault();
+  const editing=$('user-editing').value.trim();
+  const payload={
+    user: editing||$('user-login').value.trim(),
+    name: $('user-name').value.trim(),
+    role: $('user-role').value,
+    active: $('user-active').checked
+  };
+  const password=$('user-password').value;
+  if(password)payload.password=password;
+  try{
+    const r=await fetch('/api/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const data=await r.json();
+    if(!r.ok)throw new Error(data.error||'Não consegui salvar o usuário.');
+    renderUsersAdmin(data.users||[]);
+    clearUserForm();
+    toast('Usuário salvo com sucesso.');
+  }catch(err){
+    toast(err.message||String(err),true);
+  }
+}
+
+async function deleteManagedUser(user){
+  if(!confirm(`Excluir o usuário ${user}?`))return;
+  try{
+    const r=await fetch('/api/users',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({user})});
+    const data=await r.json();
+    if(!r.ok)throw new Error(data.error||'Não consegui excluir o usuário.');
+    renderUsersAdmin(data.users||[]);
+    clearUserForm();
+    toast('Usuário excluído.');
+  }catch(err){
+    toast(err.message||String(err),true);
+  }
+}
+
 async function initBonusPrivate(){
-  let visible=location.protocol==='file:';
-  try{const r=await fetch('/api/session',{cache:'no-store'});if(r.ok){const s=await r.json();visible=!!s.bonusPrivate;}}catch{}
-  document.querySelectorAll('.bonus-private').forEach(el=>el.classList.toggle('visible',visible));
-  if(visible)loadBonusClosures();
+  const session=await loadAppSession();
+  if(session.bonusPrivate)loadBonusClosures();
 }
 
 function setGlobalMonth(m){
@@ -261266,6 +261414,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

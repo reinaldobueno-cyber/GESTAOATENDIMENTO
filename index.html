@@ -1381,7 +1381,7 @@ const D = {
                    1945,
                    1691,
                    1866,
-                   166
+                   168
                ],
     "open":  [
                  0,
@@ -1389,7 +1389,7 @@ const D = {
                  0,
                  0,
                  0,
-                 5
+                 3
              ],
     "cobert":  [
                    0.4908,
@@ -1397,7 +1397,7 @@ const D = {
                    0.4571,
                    0.5009,
                    0.515,
-                   0.5602
+                   0.5536
                ],
     "sat":  [
                 9.817,
@@ -1413,7 +1413,7 @@ const D = {
                 "00:27:12",
                 "00:36:11",
                 "00:43:05",
-                "00:22:33"
+                "00:22:40"
             ],
     "tme":  [
                 "00:05:30",
@@ -2606,7 +2606,7 @@ const D = {
                                              6,
                                              3,
                                              9.33,
-                                             "00:37:50"
+                                             "00:32:41"
                                          ]
                                      ],
                     "Multisoft_Pesquisa":  [
@@ -2720,7 +2720,7 @@ const D = {
                                                19,
                                                10,
                                                10,
-                                               "00:26:58"
+                                               "00:28:36"
                                            ]
                                        ],
                     "Sem agente":  [
@@ -2908,7 +2908,7 @@ const D = {
                      2,
                      "Marcus Silva",
                      "Financeiro",
-                     0,
+                     415,
                      5,
                      null,
                      "WA00000123451",
@@ -2919,7 +2919,7 @@ const D = {
                      "Cliente #179 · 22 atendimentos",
                      "",
                      "WHATSAPP",
-                     "OPEN",
+                     "CLOSED",
                      123451,
                      "MODELO",
                      "Cliente #179",
@@ -3124,18 +3124,18 @@ const D = {
                      2,
                      "Raissa Ribeiro",
                      "Reproducao",
-                     0,
+                     3482,
                      5,
                      null,
                      "WA00000123435",
                      "2 Periodo",
                      11,
                      "02/06/2026 11:06",
-                     "",
+                     "02/06/2026 12:04",
                      "Cliente #160 · 17 atendimentos",
                      "",
                      "WHATSAPP",
-                     "OPEN",
+                     "CLOSED",
                      123435,
                      "MODELO",
                      "Cliente #160",
@@ -254870,7 +254870,7 @@ const D = {
                                          11
                                      ],
                   "Marcus Silva":  [
-                                       31.5,
+                                       32.7,
                                        21.8,
                                        97.7,
                                        6
@@ -254882,8 +254882,8 @@ const D = {
                                          12
                                      ],
                   "Raissa Ribeiro":  [
-                                         25.5,
-                                         24.1,
+                                         28.6,
+                                         26.4,
                                          78.2,
                                          19
                                      ],
@@ -254895,11 +254895,11 @@ const D = {
                                      ]
               },
     "tmaDist":  [
-                    40,
+                    39,
                     53,
                     39,
                     29,
-                    3,
+                    4,
                     7
                 ],
     "avDist":  {
@@ -259824,7 +259824,7 @@ const D = {
                                                                      11
                                                                  ],
                                               "Marcus Silva":  [
-                                                                   31.5,
+                                                                   32.7,
                                                                    21.8,
                                                                    97.7,
                                                                    6
@@ -259836,8 +259836,8 @@ const D = {
                                                                      12
                                                                  ],
                                               "Raissa Ribeiro":  [
-                                                                     25.5,
-                                                                     24.1,
+                                                                     28.6,
+                                                                     26.4,
                                                                      78.2,
                                                                      19
                                                                  ],
@@ -259849,11 +259849,11 @@ const D = {
                                                                  ]
                                           },
                                 "tmaDist":  [
-                                                40,
+                                                39,
                                                 53,
                                                 39,
                                                 29,
-                                                3,
+                                                4,
                                                 7
                                             ],
                                 "avDist":  {
@@ -261646,7 +261646,7 @@ function clientButton(r){
 }
 let clientPopupState={code:null,month:null,group:''};
 function workerBaseUrl(){return location.protocol==='file:'||location.hostname.includes('github.io')?'https://gestaoatendimento.reinaldo-bueno.workers.dev':'';}
-function attendanceProtocol(r){const p=String(r?.[7]||'');return /^WA\d{8,}$/.test(p)?p:'';}
+function attendanceProtocol(r){const p=String(r?.[7]||'');return /^(WA|VC)\d{8,}$/i.test(p)?p:'';}
 function encodeReportPayload(payload){
   const json=JSON.stringify(payload);
   const bytes=new TextEncoder().encode(json);
@@ -262858,6 +262858,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

@@ -38,7 +38,7 @@ body{background:var(--paper);color:var(--text);font-family:'Geist',sans-serif;li
 .live-dot::before{content:'';width:6px;height:6px;background:var(--moss);border-radius:50%;animation:pulse 2s infinite;}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
 .top-date{font-family:'Geist Mono',monospace;font-size:.63rem;color:var(--ghost);}
-.sync-btn{height:24px;border:1px solid var(--border);border-radius:999px;background:var(--foam);color:var(--moss);padding:0 10px;font-family:'Geist Mono',monospace;font-size:.57rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;cursor:pointer;}
+.sync-btn{height:24px;border:1px solid var(--border);border-radius:999px;background:var(--foam);color:var(--moss);padding:0 10px;font-family:'Geist Mono',monospace;font-size:.57rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;line-height:1;text-align:center;white-space:nowrap;}
 .sync-btn:hover{border-color:var(--moss);background:#fff;}
 .sync-btn:disabled{opacity:.55;cursor:wait;}
 
@@ -377,7 +377,8 @@ canvas{cursor:pointer;}
 .pane.bonus-private.visible{display:none;}
 .pane.bonus-private.visible.active{display:block;}
 .admin-only{display:none!important;}
-.admin-only.visible{display:block!important;}
+.admin-only.visible{display:inline-flex!important;}
+.admin-panel.admin-only.visible{display:block!important;}
 .user-admin-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:1rem;align-items:start;}
 .user-admin-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem;}
 .user-admin-form .full{grid-column:1/-1;}
@@ -407,6 +408,7 @@ canvas{cursor:pointer;}
       <span class="top-date" id="top-date"></span>
       <span class="sync-status" id="adjustment-sync-status">Ajustes carregando</span>
       <button class="sync-btn" id="adjustment-sync-btn" type="button" onclick="forceAdjustmentSync()">Sincronizar</button>
+      <button class="sync-btn admin-only" id="users-top-btn" type="button" onclick="openUsersAdmin()">Usuários</button>
       <span class="live-dot">Ao vivo</span>
     </div>
   </div>
@@ -529,33 +531,6 @@ canvas{cursor:pointer;}
     <div class="kpi" style="--kc:var(--moss2)"><div class="kl">Gargalos de Grupo</div><div class="kv" id="mgr-k3">—</div><div class="ks">Alta vs mês anterior</div></div>
     <div class="kpi" style="--kc:var(--sage)"><div class="kl">Agentes Atenção</div><div class="kv" id="mgr-k4">—</div><div class="ks">CSAT, cobertura ou tempo</div></div>
     <div class="kpi" style="--kc:var(--moss3)"><div class="kl">Sem Avaliação</div><div class="kv" id="mgr-k5">—</div><div class="ks">Atendimentos sem CSAT</div></div>
-  </div>
-
-  <div class="card admin-only" id="mgr-users-card" style="margin-bottom:1rem;">
-    <div class="ch">
-      <div><div class="ct">Usuários e Permissões</div><div class="cs">Admin acessa tudo, agente acessa o painel sem Bonificação</div></div>
-      <button class="rel-action" onclick="loadUsersAdmin()">Atualizar usuários</button>
-    </div>
-    <div class="user-admin-grid">
-      <form class="user-admin-form" onsubmit="saveManagedUser(event)">
-        <input type="hidden" id="user-editing">
-        <label class="fl">Nome<br><input class="fs" id="user-name" placeholder="Ex: Evelyn Souza"></label>
-        <label class="fl">Usuário<br><input class="fs" id="user-login" placeholder="Ex: evelyn" autocomplete="off"></label>
-        <label class="fl">Perfil<br><select class="fs" id="user-role"><option value="agente">Agente</option><option value="admin">Admin</option></select></label>
-        <label class="fl">Senha<br><input class="fs" id="user-password" type="password" placeholder="Obrigatória no novo cadastro" autocomplete="new-password"></label>
-        <label class="fl full"><input type="checkbox" id="user-active" checked> Usuário ativo</label>
-        <div class="actions">
-          <button type="button" class="rel-action" onclick="clearUserForm()">Limpar</button>
-          <button type="submit" class="rel-action">Salvar usuário</button>
-        </div>
-      </form>
-      <div class="tsc">
-        <table class="dt">
-          <thead><tr><th>Usuário</th><th>Perfil</th><th>Status</th><th></th></tr></thead>
-          <tbody id="users-admin-tbody"><tr><td colspan="4">Carregando usuários...</td></tr></tbody>
-        </table>
-      </div>
-    </div>
   </div>
 
   <div class="card" style="margin-bottom:1rem;">
@@ -261288,9 +261263,38 @@ function clearUserForm(){
   if($('user-role'))$('user-role').value='agente';
   if($('user-active'))$('user-active').checked=true;
   if($('user-login'))$('user-login').disabled=false;
+  if($('user-password'))$('user-password').placeholder='Obrigatória no novo cadastro';
+}
+
+function openUsersAdmin(){
+  if($('rel-title'))$('rel-title').textContent='Usuários e Permissões';
+  if($('rel-sub'))$('rel-sub').textContent='Admin acessa tudo. Agente acessa o painel, sem Bonificação.';
+  $('rel-body').innerHTML=`<div class="user-admin-grid">
+    <form class="user-admin-form" onsubmit="saveManagedUser(event)">
+      <input type="hidden" id="user-editing">
+      <label class="fl">Nome<br><input class="fs" id="user-name" placeholder="Ex: Evelyn Souza"></label>
+      <label class="fl">Usuário<br><input class="fs" id="user-login" placeholder="Ex: evelyn" autocomplete="off"></label>
+      <label class="fl">Perfil<br><select class="fs" id="user-role"><option value="agente">Agente</option><option value="admin">Admin</option></select></label>
+      <label class="fl">Senha<br><input class="fs" id="user-password" type="password" placeholder="Obrigatória no novo cadastro" autocomplete="new-password"></label>
+      <label class="fl full"><input type="checkbox" id="user-active" checked> Usuário ativo</label>
+      <div class="actions">
+        <button type="button" class="rel-action" onclick="clearUserForm()">Limpar</button>
+        <button type="submit" class="rel-action">Salvar usuário</button>
+      </div>
+    </form>
+    <div class="tsc">
+      <table class="dt">
+        <thead><tr><th>Usuário</th><th>Perfil</th><th>Status</th><th></th></tr></thead>
+        <tbody id="users-admin-tbody"><tr><td colspan="4">Carregando usuários...</td></tr></tbody>
+      </table>
+    </div>
+  </div>`;
+  $('rel-modal').classList.add('open');
+  loadUsersAdmin();
 }
 
 function editManagedUser(user){
+  if(!$('user-login'))openUsersAdmin();
   const item=MANAGED_USERS_CACHE.find(u=>String(u.user)===String(user));
   if(!item||item.source==='ambiente')return;
   $('user-editing').value=item.user;
@@ -261414,6 +261418,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

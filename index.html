@@ -549,6 +549,36 @@ canvas{cursor:pointer;}
     </div>
   </div>
 
+  <div class="g3" style="margin-bottom:1rem;">
+    <div class="card">
+      <div class="ch"><div><div class="ct">Score de Saúde do Cliente</div><div class="cs">Recorrência, variação, CSAT e cobertura</div></div></div>
+      <div class="tsc"><table class="dt"><thead><tr><th>Cliente</th><th style="text-align:right">Score</th><th>Status</th></tr></thead><tbody id="mgr-health-tbody"></tbody></table></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div><div class="ct">Aging de Recorrência</div><div class="cs">Clientes que voltaram em janelas curtas</div></div></div>
+      <div class="tsc"><table class="dt"><thead><tr><th>Cliente</th><th style="text-align:right">7d</th><th style="text-align:right">15d</th><th style="text-align:right">30d</th></tr></thead><tbody id="mgr-aging-tbody"></tbody></table></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div><div class="ct">Causa Raiz dos Tratamentos</div><div class="cs">Motivos agrupados do diário central</div></div></div>
+      <div class="tsc"><table class="dt"><thead><tr><th>Causa</th><th style="text-align:right">Qtd.</th><th>Leitura</th></tr></thead><tbody id="mgr-root-tbody"></tbody></table></div>
+    </div>
+  </div>
+
+  <div class="g3" style="margin-bottom:1rem;">
+    <div class="card">
+      <div class="ch"><div><div class="ct">Capacidade por Núcleo</div><div class="cs">Carga, qualidade e tempo por divisão</div></div></div>
+      <div class="tsc"><table class="dt"><thead><tr><th>Núcleo</th><th style="text-align:right">Atend.</th><th style="text-align:right">CSAT</th><th style="text-align:right">TMA</th></tr></thead><tbody id="mgr-nucleus-tbody"></tbody></table></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div><div class="ct">Fechamento do Dia</div><div class="cs">Resumo do último dia com atendimento</div></div></div>
+      <div id="mgr-day-close" class="insight-list"></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div><div class="ct">Auditoria de Qualidade</div><div class="cs">Amostras para revisão de conversa</div></div></div>
+      <div class="tsc"><table class="dt"><thead><tr><th>Protocolo</th><th>Motivo</th><th style="text-align:right">CSAT</th></tr></thead><tbody id="mgr-audit-tbody"></tbody></table></div>
+    </div>
+  </div>
+
   <div class="g2">
     <div class="card">
       <div class="ch"><div><div class="ct">Narrativa do Fechamento</div><div class="cs">Resumo pronto para reunião</div></div></div>
@@ -260650,6 +260680,97 @@ function managerGroupRows(m){
     return {n,cur,prev,delta,pct,status,score:Math.abs(delta)+cur/8};
   }).filter(g=>g.cur>0||g.prev>0).sort((a,b)=>b.score-a.score);
 }
+function managerRootCauseLabel(adj){
+  const text=normName([adj.tipo,adj.acao,adj.motivo,adj.impacto,adj.diario].filter(Boolean).join(' '));
+  if(text.match(/produto|regra de negocio|prazo|demanda/))return 'Produto / regra de negócio';
+  if(text.match(/treinamento|sem treinamento|orienta/))return 'Treinamento / uso';
+  if(text.match(/plataforma|instabilidade|queda|erro|falha|sistema/))return 'Falha de plataforma';
+  if(text.match(/bot|sair|fluxo automatico|voltar ao bot/))return 'Bot / fluxo automático';
+  if(text.match(/tempo|tma|tme|espera|fila|parado/))return 'Tempo contaminado';
+  if(text.match(/comercial|financeiro|outra area|direcionado/))return 'Outra área / encaminhamento';
+  if(text.match(/avaliou errado|avaliacao|csat|nota/))return 'Avaliação fora do escopo';
+  return 'Outros ajustes';
+}
+function managerRootCauseRows(m){
+  const rawRows=D.rawRows||D.rows||[];
+  const map={};
+  (D.manualAdjustments||[]).forEach(adj=>{
+    const row=rawRows.find(r=>Array.isArray(r)&&String(r[7]||'').toUpperCase()===String(adj.protocolo||'').toUpperCase());
+    if(!row||row[0]!==m+1)return;
+    const cause=managerRootCauseLabel(adj);
+    if(!map[cause])map[cause]={cause,count:0,protocols:[]};
+    map[cause].count++;
+    map[cause].protocols.push(adj.protocolo);
+  });
+  return Object.values(map).sort((a,b)=>b.count-a.count||a.cause.localeCompare(b.cause,'pt-BR'));
+}
+function managerNucleusRows(m){
+  const monthRows=(D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===m+1);
+  const assigned=new Set(NUCLEOS.flatMap(n=>(n.a||[]).map(normName)));
+  const rows=NUCLEOS.map(n=>{
+    const agents=nucAgentSet(n);
+    const items=monthRows.filter(r=>agents.has(normName(r[2])));
+    const rated=items.filter(r=>r[6]!=null);
+    return {name:n.n,total:items.length,csat:rated.length?avgArr(rated.map(r=>r[6])):null,tma:avgArr(items.map(r=>r[4]||0)),rated:rated.length};
+  });
+  const other=monthRows.filter(r=>!assigned.has(normName(r[2])));
+  if(other.length){
+    const rated=other.filter(r=>r[6]!=null);
+    rows.push({name:'Outros / sem núcleo',total:other.length,csat:rated.length?avgArr(rated.map(r=>r[6])):null,tma:avgArr(other.map(r=>r[4]||0)),rated:rated.length});
+  }
+  return rows.filter(r=>r.total>0).sort((a,b)=>b.total-a.total);
+}
+function managerAgingRows(m){
+  const monthRows=(D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===m+1);
+  const maxDay=Math.max(0,...monthRows.map(r=>Number(r[1]||0)));
+  const clients=clientSummaries().map(c=>{
+    const mr=c.rows.filter(r=>r[0]===m+1);
+    const inDays=days=>mr.filter(r=>Number(r[1]||0)>=Math.max(1,maxDay-days+1)).length;
+    return {...c,d7:inDays(7),d15:inDays(15),d30:inDays(30),monthTotal:mr.length};
+  }).filter(c=>c.monthTotal>0).sort((a,b)=>b.d7-a.d7||b.d15-a.d15||b.monthTotal-a.monthTotal);
+  return clients;
+}
+function managerHealthRows(clients){
+  return clients.map(c=>{
+    const cov=c.monthRows.length?c.monthRows.filter(r=>r[6]!=null).length/c.monthRows.length:0;
+    const score=Math.round(Math.min(100,
+      Math.max(0,c.monthTotal*4)+
+      Math.max(0,c.delta)*5+
+      (c.monthCsat!=null?Math.max(0,9.9-c.monthCsat)*45:8)+
+      (cov<.45?12:0)
+    ));
+    const status=score>=70?'Crítico':score>=40?'Atenção':'Saudável';
+    return {...c,healthScore:score,healthStatus:status,cov};
+  }).sort((a,b)=>b.healthScore-a.healthScore||b.monthTotal-a.monthTotal);
+}
+function managerDayCloseRows(m){
+  const monthRows=(D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===m+1);
+  const day=Math.max(0,...monthRows.map(r=>Number(r[1]||0)));
+  const rows=monthRows.filter(r=>Number(r[1])===day);
+  const rated=rows.filter(r=>r[6]!=null);
+  const groups=Object.entries(rows.reduce((a,r)=>{const g=r[3]||'Sem grupo';a[g]=(a[g]||0)+1;return a;},{})).sort((a,b)=>b[1]-a[1]);
+  const low=rows.filter(r=>r[6]!=null&&r[6]<9);
+  const noRating=rows.filter(r=>r[6]==null);
+  return {day,rows,rated,groups,low,noRating};
+}
+function managerAuditRows(m){
+  const monthRows=(D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===m+1);
+  const candidates=[];
+  monthRows.filter(r=>r[6]!=null&&r[6]<9).forEach(r=>candidates.push({row:r,reason:'Nota abaixo de 9',score:90-Number(r[6])}));
+  monthRows.filter(r=>r[4]>45*60).forEach(r=>candidates.push({row:r,reason:'TMA acima de 45min',score:60+r[4]/60}));
+  monthRows.filter(r=>r[6]==null).slice(0,40).forEach(r=>candidates.push({row:r,reason:'Sem avaliação',score:20}));
+  return candidates.sort((a,b)=>b.score-a.score).filter((item,idx,arr)=>arr.findIndex(x=>x.row[7]===item.row[7])===idx).slice(0,10);
+}
+function managerRootCauseDrill(m,key,cause){
+  const protocols=(window.__mgrRootProtocols&&window.__mgrRootProtocols[key])||[];
+  const set=new Set(protocols.map(p=>String(p||'').toUpperCase()));
+  const rows=(D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===m+1&&set.has(String(r[7]||'').toUpperCase()));
+  chartDrill(cause,D.mesNomes[m]+' · protocolos tratados',rows);
+}
+function managerNucleusDrill(m,name){
+  const rows=(D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===m+1&&agentNucleus(r[2])===name);
+  chartDrill(name,D.mesNomes[m]+' · capacidade por núcleo',rows);
+}
 function renderManager(m){
   $('mgr-month').textContent=D.mesNomes[m]+' 2026';
   $('mgr-status').textContent=monthIsPartial(m+1)?'Mês parcial':'Mês fechado';
@@ -260657,6 +260778,12 @@ function renderManager(m){
   const rated=monthRows.filter(r=>r[6]!=null), unrated=monthRows.length-rated.length;
   const clients=managerClientRows(m), agents=managerAgentRows(m), groups=managerGroupRows(m);
   const riskClients=clients.filter(c=>c.risk!=='Monitorar');
+  const healthClients=managerHealthRows(clients);
+  const agingClients=managerAgingRows(m);
+  const rootCauses=managerRootCauseRows(m);
+  const nucleusRows=managerNucleusRows(m);
+  const dayClose=managerDayCloseRows(m);
+  const auditRows=managerAuditRows(m);
   const attentionAgents=agents.filter(a=>a.status!=='Ok');
   const pressureGroups=groups.filter(g=>g.status==='Pressão subindo'||g.status==='Alta demanda');
   const priorities=[];
@@ -260674,12 +260801,24 @@ function renderManager(m){
   $('mgr-clients-tbody').innerHTML=clients.slice(0,10).map(c=>`<tr onclick="showClientPopup('${esc(c.code)}')" style="cursor:pointer"><td><button class="rel-client" onclick="event.stopPropagation();showClientPopup('${esc(c.code)}')">${esc(c.name)}</button><br><span class="op-mono">${esc(c.group)} · ${c.delta>=0?'+':''}${fN(c.delta)} vs ant.</span></td><td class="th">${fN(c.monthTotal)}</td><td class="tn">${c.monthCsat!=null?fS(c.monthCsat):'—'}</td><td><span class="kd ${c.risk==='Crítico'?'kdn':c.risk==='Atenção'?'knt':'kup'}">${c.risk}</span></td></tr>`).join('');
   $('mgr-agents-tbody').innerHTML=agents.slice(0,10).map(a=>`<tr onclick="chartDrill('${esc(a.agent)}','${D.mesNomes[m]} · capacidade do time',drillRows(${m},{agent:'${esc(a.agent)}'}))" style="cursor:pointer"><td><b>${esc(a.agent)}</b><br><span class="op-mono">${fmtDur(a.avgTma)} TMA · ${pct1(a.cov)} cobert.</span></td><td class="th">${fN(a.total)}</td><td class="tn">${a.csat!=null?fS(a.csat):'—'}</td><td><span class="kd ${a.status==='Ok'?'kup':'kdn'}">${esc(a.status)}</span></td></tr>`).join('');
   $('mgr-groups-tbody').innerHTML=groups.slice(0,10).map(g=>`<tr onclick="chartDrill('${esc(g.n)}','${D.mesNomes[m]} · núcleo operacional',drillRows(${m},{group:'${esc(g.n)}'}))" style="cursor:pointer"><td><b>${esc(g.n)}</b><br><span class="op-mono">${esc(SEASON_HINTS[g.n]||'monitorar')}</span></td><td class="th">${fN(g.cur)}</td><td class="tn">${deltaBadge(g.cur,g.prev)}</td><td><span class="kd ${g.status==='Pressão subindo'?'kdn':g.status==='Alta demanda'?'knt':'kup'}">${esc(g.status)}</span></td></tr>`).join('');
+  $('mgr-health-tbody').innerHTML=healthClients.slice(0,10).map(c=>`<tr onclick="showClientPopup('${esc(c.code)}')" style="cursor:pointer"><td><button class="rel-client" onclick="event.stopPropagation();showClientPopup('${esc(c.code)}')">${esc(c.name)}</button><br><span class="op-mono">${fN(c.monthTotal)} atend. · cobert. ${pct1(c.cov)}</span></td><td class="th">${fN(c.healthScore)}</td><td><span class="kd ${c.healthStatus==='Crítico'?'kdn':c.healthStatus==='Atenção'?'knt':'kup'}">${esc(c.healthStatus)}</span></td></tr>`).join('')||'<tr><td colspan="3">Sem clientes no mês.</td></tr>';
+  $('mgr-aging-tbody').innerHTML=agingClients.slice(0,10).map(c=>`<tr onclick="showClientPopup('${esc(c.code)}')" style="cursor:pointer"><td><button class="rel-client" onclick="event.stopPropagation();showClientPopup('${esc(c.code)}')">${esc(c.name)}</button><br><span class="op-mono">${esc(c.group)} · total ${fN(c.monthTotal)}</span></td><td class="th">${fN(c.d7)}</td><td class="th">${fN(c.d15)}</td><td class="th">${fN(c.d30)}</td></tr>`).join('')||'<tr><td colspan="4">Sem recorrência no mês.</td></tr>';
+  window.__mgrRootProtocols={};
+  $('mgr-root-tbody').innerHTML=rootCauses.slice(0,8).map((c,i)=>{const key=`${m}-${i}`;window.__mgrRootProtocols[key]=c.protocols;return `<tr onclick="managerRootCauseDrill(${m},'${esc(key)}','${esc(c.cause)}')" style="cursor:pointer"><td><b>${esc(c.cause)}</b></td><td class="th">${fN(c.count)}</td><td><span class="op-mono">${esc(c.protocols.slice(0,3).join(' · '))}${c.protocols.length>3?'...':''}</span></td></tr>`}).join('')||'<tr><td colspan="3">Sem tratamentos classificados neste mês.</td></tr>';
+  $('mgr-nucleus-tbody').innerHTML=nucleusRows.map(n=>`<tr onclick="managerNucleusDrill(${m},'${esc(n.name)}')" style="cursor:pointer"><td><b>${esc(n.name)}</b><br><span class="op-mono">${fN(n.rated)} avaliação(ões)</span></td><td class="th">${fN(n.total)}</td><td class="tn">${n.csat!=null?fS(n.csat):'—'}</td><td class="tn">${fmtDur(n.tma)}</td></tr>`).join('')||'<tr><td colspan="4">Sem atendimentos por núcleo.</td></tr>';
+  $('mgr-day-close').innerHTML=dayClose.day?[
+    `<div class="insight"><b>Dia ${String(dayClose.day).padStart(2,'0')}/${String(m+1).padStart(2,'0')}</b><br>${fN(dayClose.rows.length)} atendimentos · ${fN(dayClose.rated.length)} avaliações · CSAT ${dayClose.rated.length?fS(avgArr(dayClose.rated.map(r=>r[6]))):'—'}.</div>`,
+    `<div class="insight"><b>Maior carga</b><br>${dayClose.groups[0]?`${esc(dayClose.groups[0][0])} com ${fN(dayClose.groups[0][1])} atendimento(s).`:'Sem grupo dominante.'}</div>`,
+    `<div class="insight"><b>Pendências</b><br>${fN(dayClose.noRating.length)} sem avaliação · ${fN(dayClose.low.length)} nota(s) abaixo de 9.</div>`
+  ].join(''):'<div class="insight"><b>Sem fechamento diário</b><br>Nenhum atendimento encontrado no mês selecionado.</div>';
+  $('mgr-audit-tbody').innerHTML=auditRows.map(a=>`<tr onclick="showAttendanceDetail('${esc(clientCode(a.row))}','${esc(a.row[7]||'')}')" style="cursor:pointer"><td><b>${esc(a.row[7]||'sem protocolo')}</b><br><span class="op-mono">${esc(a.row[2])} · ${String(a.row[1]).padStart(2,'0')}/${String(a.row[0]).padStart(2,'0')}</span></td><td>${esc(a.reason)}</td><td class="tn">${a.row[6]!=null?fS(a.row[6]):'—'}</td></tr>`).join('')||'<tr><td colspan="3">Sem amostra crítica no mês.</td></tr>';
   const topClient=clients[0], topGroup=groups[0], topAgent=agents[0];
   $('mgr-narrative').innerHTML=[
     `<div class="insight"><b>O que aconteceu</b><br>${D.mesNomes[m]} teve ${fN(monthRows.length)} atendimentos, ${fN(rated.length)} avaliações e CSAT médio ${rated.length?fS(avgArr(rated.map(r=>r[6]))):'—'}.</div>`,
     `<div class="insight"><b>Onde olhar primeiro</b><br>${topClient?`Cliente ${esc(topClient.name)} concentrou ${fN(topClient.monthTotal)} atendimentos no mês.`:'Sem cliente recorrente relevante.'} ${topGroup?`O grupo ${esc(topGroup.n)} aparece como principal variação operacional.`:''}</div>`,
+    `<div class="insight"><b>Causa raiz</b><br>${rootCauses[0]?`${esc(rootCauses[0].cause)} lidera os tratamentos com ${fN(rootCauses[0].count)} ocorrência(s).`:'Sem causa raiz dominante registrada.'}</div>`,
     `<div class="insight"><b>Time</b><br>${topAgent?`${esc(topAgent.agent)} pede leitura por ${esc(topAgent.status.toLowerCase())}, com ${fN(topAgent.total)} atendimentos.`:'Sem agente em destaque.'}</div>`,
-    `<div class="insight"><b>Próxima decisão</b><br>Usar esta fila para separar ação operacional imediata, conversa com cliente e ajustes manuais que precisam de justificativa no diário.</div>`
+    `<div class="insight"><b>Próxima decisão</b><br>Usar saúde do cliente, aging e auditoria para separar contato ativo, correção interna e evidência para produto/diretoria.</div>`
   ].join('');
   const applied=(D.manualAdjustments||[]).filter(a=>{
     const r=(D.rawRows||[]).find(x=>Array.isArray(x)&&String(x[7]||'').toUpperCase()===String(a.protocolo||'').toUpperCase());
@@ -261127,6 +261266,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

@@ -262818,10 +262818,30 @@ function mergedManualAdjustments(){
   const map=new Map();
   [...(Array.isArray(window.MANUAL_ADJUSTMENTS)?window.MANUAL_ADJUSTMENTS:[]),...(Array.isArray(window.MANUAL_ADJUSTMENTS_REMOTE)?window.MANUAL_ADJUSTMENTS_REMOTE:[]),...localManualAdjustments()].forEach((a,i)=>{
     if(!a||!a.protocolo)return;
-    const key=String(a.id||a.protocolo+'-'+(a.tipo||'ajuste')+'-'+i);
+    const key=String(a.id||adjustmentSignature(a)||a.protocolo+'-'+(a.tipo||'ajuste')+'-'+i);
     map.set(key,{...a,id:key});
   });
   return [...map.values()];
+}
+function normAdjustmentText(value){
+  return String(value||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ');
+}
+function adjustmentSignature(adj){
+  if(!adj||!adj.protocolo)return '';
+  return [
+    String(adj.protocolo||'').trim().toUpperCase(),
+    normAdjustmentText(adj.tipo||'ajuste_manual'),
+    normAdjustmentText(adj.motivo),
+    normAdjustmentText(adj.impacto),
+    normAdjustmentText(adj.acao),
+    normAdjustmentText(adj.diario),
+    adj.desconsiderarCsat===true?'csat1':'csat0',
+    adj.desconsiderarTme===true?'tme1':'tme0',
+    adj.ignorarAtendimento===true||adj.ignorar===true?'ign1':'ign0',
+    adj.csat!==undefined&&adj.csat!==null&&adj.csat!==''?`csat:${adj.csat}`:'',
+    adj.tmaSec!==undefined&&adj.tmaSec!==null&&adj.tmaSec!==''?`tma:${adj.tmaSec}`:'',
+    adj.tmeSec!==undefined&&adj.tmeSec!==null&&adj.tmeSec!==''?`tme:${adj.tmeSec}`:''
+  ].join('|');
 }
 async function loadRemoteManualAdjustments({manual=false,silent=false}={}){
   if(remoteAdjustmentsSyncInFlight)return false;
@@ -262870,7 +262890,8 @@ async function syncLocalManualAdjustmentsToRemote(remoteItems=[]){
   const local=localManualAdjustments();
   if(!local.length)return;
   const remoteIds=new Set((remoteItems||[]).map(a=>String(a.id||'')));
-  const missing=local.filter(a=>a&&a.protocolo&&!remoteIds.has(String(a.id||'')));
+  const remoteSignatures=new Set((remoteItems||[]).map(adjustmentSignature).filter(Boolean));
+  const missing=local.filter(a=>a&&a.protocolo&&!remoteIds.has(String(a.id||''))&&!remoteSignatures.has(adjustmentSignature(a)));
   if(!missing.length)return;
   let changed=false;
   for(const adj of missing){
@@ -263632,12 +263653,13 @@ function diaryItems(){
     const proto=String(a.protocolo||'').trim().toUpperCase();
     const row=rawRows.find(r=>Array.isArray(r)&&String(r[7]||'').trim().toUpperCase()===proto);
     const key=String(a.id||`${proto}-${i}`);
-    if(seen.has(key))return null;
-    seen.add(key);
+    const sig=adjustmentSignature(a)||key;
+    if(seen.has(sig))return null;
+    seen.add(sig);
     const mes=Number(row?.[0])||Number(String(a.data||'').split('/')[1])||appM+1;
     const ag=row?.[2]||a.agente||a.responsavel||'Sem agente';
     const desc=[a.motivo,a.impacto,a.diario].filter(Boolean).join(' · ')||'Sem descrição informada.';
-    return {id:key,mes,dt:a.data||row?.[10]||'',ag,proto,ac:diaryActionLabel(a),desc,raw:a,row};
+    return {id:key,signature:sig,mes,dt:a.data||row?.[10]||'',ag,proto,ac:diaryActionLabel(a),desc,raw:a,row};
   }).filter(Boolean).sort((a,b)=>(a.mes-b.mes)||String(a.dt).localeCompare(String(b.dt)));
 }
 function showDiaryAttendance(proto){
@@ -263651,17 +263673,18 @@ function showDiaryAttendance(proto){
   }
   if(/^(WA|VC)\d{8,}$/i.test(protocol))openNeppoPdf(protocol);
 }
-async function deleteDiaryAdjustment(id,proto=''){
+async function deleteDiaryAdjustment(id,proto='',signature=''){
   const key=String(id||'').trim();
-  if(!key)return;
+  const sig=String(signature||'').trim();
+  if(!key&&!sig)return;
   if(!confirm(`Excluir este registro${proto?' do protocolo '+proto:''}?`))return;
   try{
-    const local=localManualAdjustments().filter(a=>String(a.id||'')!==key);
+    const local=localManualAdjustments().filter(a=>String(a.id||'')!==key&&(sig?adjustmentSignature(a)!==sig:true));
     saveLocalManualAdjustments(local);
-    const res=await fetch('/api/manual-adjustments',{method:'DELETE',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:key})});
+    const res=await fetch('/api/manual-adjustments',{method:'DELETE',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:key,signature:sig,protocolo:proto})});
     const data=await res.json().catch(()=>({}));
     if(!res.ok)throw new Error(data.error||'Não consegui excluir o registro central.');
-    window.MANUAL_ADJUSTMENTS_REMOTE=(window.MANUAL_ADJUSTMENTS_REMOTE||[]).filter(a=>String(a.id||'')!==key);
+    window.MANUAL_ADJUSTMENTS_REMOTE=(window.MANUAL_ADJUSTMENTS_REMOTE||[]).filter(a=>String(a.id||'')!==key&&(sig?adjustmentSignature(a)!==sig:true));
     applyManualAdjustments();
     setGlobalMonth(appM);
     renderDiary();
@@ -263674,7 +263697,7 @@ async function deleteDiaryAdjustment(id,proto=''){
 function diaryItemHtml(d){
   const proto=String(d.proto||'').trim().toUpperCase();
   const pdfOk=/^(WA|VC)\d{8,}$/i.test(proto);
-  return `<div class="de" onclick="showDiaryAttendance('${esc(proto)}')" style="cursor:pointer"><div><div class="d-dt">${esc(d.dt||'—')}</div><div class="d-ag">${esc(d.ag)}</div><div class="d-pr">${esc(proto)}</div><span class="d-act ${d.ac.toLowerCase().includes('ajust')?'a-ok':'a-no'}">${esc(d.ac)}</span></div><div class="d-desc">${esc(d.desc)}<div class="rel-actions" style="justify-content:flex-start;margin-top:.45rem"><button class="rel-action" onclick="event.stopPropagation();showDiaryAttendance('${esc(proto)}')">Ler atendimento</button>${pdfOk?`<button class="rel-action" onclick="event.stopPropagation();openNeppoPdf('${esc(proto)}')">PDF com mídia</button>`:`<button class="rel-action disabled" onclick="event.stopPropagation()">PDF indisponível</button>`}<button class="rel-action" style="color:var(--rust)" onclick="event.stopPropagation();deleteDiaryAdjustment('${esc(d.id)}','${esc(proto)}')">Excluir duplicado</button></div></div></div>`;
+  return `<div class="de" onclick="showDiaryAttendance('${esc(proto)}')" style="cursor:pointer"><div><div class="d-dt">${esc(d.dt||'—')}</div><div class="d-ag">${esc(d.ag)}</div><div class="d-pr">${esc(proto)}</div><span class="d-act ${d.ac.toLowerCase().includes('ajust')?'a-ok':'a-no'}">${esc(d.ac)}</span></div><div class="d-desc">${esc(d.desc)}<div class="rel-actions" style="justify-content:flex-start;margin-top:.45rem"><button class="rel-action" onclick="event.stopPropagation();showDiaryAttendance('${esc(proto)}')">Ler atendimento</button>${pdfOk?`<button class="rel-action" onclick="event.stopPropagation();openNeppoPdf('${esc(proto)}')">PDF com mídia</button>`:`<button class="rel-action disabled" onclick="event.stopPropagation()">PDF indisponível</button>`}<button class="rel-action" style="color:var(--rust)" onclick="event.stopPropagation();deleteDiaryAdjustment('${esc(d.id)}','${esc(proto)}','${esc(d.signature||'')}')">Excluir duplicado</button></div></div></div>`;
 }
 function refreshDiaryAgentOptions(items){
   const sel=$('d-ag');
@@ -265444,6 +265467,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

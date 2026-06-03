@@ -1388,7 +1388,7 @@ const D = {
                  889,
                  847,
                  961,
-                 142
+                 143
              ],
     "closed":  [
                    1952,
@@ -1396,7 +1396,7 @@ const D = {
                    1945,
                    1691,
                    1866,
-                   258
+                   259
                ],
     "open":  [
                  0,
@@ -1404,7 +1404,7 @@ const D = {
                  0,
                  0,
                  0,
-                 3
+                 2
              ],
     "cobert":  [
                    0.4908,
@@ -1412,7 +1412,7 @@ const D = {
                    0.4571,
                    0.5009,
                    0.515,
-                   0.5504
+                   0.5521
                ],
     "sat":  [
                 9.817,
@@ -1420,7 +1420,7 @@ const D = {
                 9.731,
                 9.732,
                 9.743,
-                9.697
+                9.692
             ],
     "tma":  [
                 "00:28:51",
@@ -1428,7 +1428,7 @@ const D = {
                 "00:27:12",
                 "00:36:11",
                 "00:43:05",
-                "00:23:21"
+                "00:23:28"
             ],
     "tme":  [
                 "00:05:30",
@@ -1892,7 +1892,7 @@ const D = {
                                   },
                             "3":  {
                                       "v":  43,
-                                      "c":  9.667
+                                      "c":  9.636
                                   }
                         }
               },
@@ -2129,9 +2129,9 @@ const D = {
                                            ],
                                            [
                                                28,
-                                               17,
-                                               9.29,
-                                               "00:20:16"
+                                               18,
+                                               9.28,
+                                               "00:21:27"
                                            ]
                                        ],
                     "Ana Paula":  [
@@ -2954,18 +2954,18 @@ const D = {
                      3,
                      "Alexandre Lobo",
                      "Reproducao",
-                     0,
+                     3118,
                      4,
-                     null,
+                     9,
                      "WA00000123631",
                      "3 Periodo",
                      13,
                      "03/06/2026 13:16",
-                     "",
+                     "03/06/2026 14:08",
                      "Cliente #056 · 47 atendimentos",
                      "",
                      "WHATSAPP",
-                     "OPEN",
+                     "CLOSED",
                      123631,
                      "MODELO",
                      "Cliente #056",
@@ -2988,7 +2988,7 @@ const D = {
                      "3 Periodo",
                      13,
                      "03/06/2026 13:12",
-                     "",
+                     "03/06/2026 14:15",
                      "Cliente #517 · 3 atendimentos",
                      "",
                      "WHATSAPP",
@@ -257292,9 +257292,9 @@ const D = {
              ],
     "tmaAg":  {
                   "Alexandre Lobo":  [
-                                         18.8,
-                                         15.1,
-                                         49,
+                                         20.7,
+                                         16.5,
+                                         52,
                                          28
                                      ],
                   "Ana Paula":  [
@@ -257371,11 +257371,11 @@ const D = {
                                      ]
               },
     "tmaDist":  [
-                    55,
+                    54,
                     81,
                     59,
                     43,
-                    13,
+                    14,
                     10
                 ],
     "avDist":  {
@@ -257383,7 +257383,7 @@ const D = {
                    "5":  1,
                    "6":  1,
                    "8":  3,
-                   "9":  8,
+                   "9":  9,
                    "10":  127
                },
     "avBaixa":  {
@@ -259516,7 +259516,7 @@ const D = {
     "csatDow":  [
                     9.811,
                     9.532,
-                    9.667,
+                    9.636,
                     0,
                     0
                 ],
@@ -259525,7 +259525,7 @@ const D = {
                                     "Sem.1"
                                 ],
                      "data":  [
-                                  9.697
+                                  9.692
                               ]
                  },
     "byMonth":  {
@@ -262265,9 +262265,9 @@ const D = {
                     "jun":  {
                                 "tmaAg":  {
                                               "Alexandre Lobo":  [
-                                                                     18.8,
-                                                                     15.1,
-                                                                     49,
+                                                                     20.7,
+                                                                     16.5,
+                                                                     52,
                                                                      28
                                                                  ],
                                               "Ana Paula":  [
@@ -262344,11 +262344,11 @@ const D = {
                                                                  ]
                                           },
                                 "tmaDist":  [
-                                                55,
+                                                54,
                                                 81,
                                                 59,
                                                 43,
-                                                13,
+                                                14,
                                                 10
                                             ],
                                 "avDist":  {
@@ -262356,7 +262356,7 @@ const D = {
                                                "5":  1,
                                                "6":  1,
                                                "8":  3,
-                                               "9":  8,
+                                               "9":  9,
                                                "10":  127
                                            },
                                 "avBaixa":  {
@@ -262701,7 +262701,7 @@ const D = {
                                 "csatDow":  [
                                                 9.811,
                                                 9.532,
-                                                9.667,
+                                                9.636,
                                                 0,
                                                 0
                                             ],
@@ -262710,7 +262710,7 @@ const D = {
                                                                 "Sem.1"
                                                             ],
                                                  "data":  [
-                                                              9.697
+                                                              9.692
                                                           ]
                                              },
                                 "semDow":  {
@@ -264445,7 +264445,7 @@ function chartClick(handler){
 function diaryPopup(title,subtitle,items){
   $('rel-title').textContent=title;
   $('rel-sub').textContent=subtitle;
-  $('rel-body').innerHTML=items.length?`<div class="rel-list">${items.map(d=>{const proto=String(d.proto||'').trim().toUpperCase(),pdfOk=/^(WA|VC)\d{8,}$/i.test(proto);return `<div class="rel-item" onclick="showDiaryAttendance('${esc(proto)}')" style="cursor:pointer"><div class="rel-main"><b>${esc(d.ag||'Sem agente')}</b><br>${esc(d.dt||'')} · ${esc(proto)}<br><span style="color:var(--sub)">${esc(d.ac||'')}</span>${d.desc?`<br><span style="color:var(--ghost)">${esc(d.desc)}</span>`:''}</div><div class="rel-actions"><button class="rel-action" onclick="event.stopPropagation();showDiaryAttendance('${esc(proto)}')">Ler</button>${pdfOk?`<button class="rel-action" onclick="event.stopPropagation();openNeppoPdf('${esc(proto)}')">PDF com mídia</button>`:`<button class="rel-action disabled" onclick="event.stopPropagation()">PDF</button>`}<button class="rel-action" style="color:var(--rust)" onclick="event.stopPropagation();deleteDiaryAdjustment('${esc(d.id)}','${esc(proto)}')">Excluir</button><span class="rel-tag">Registro</span></div></div>`;}).join('')}</div>`:'<div class="op-empty">Nenhum registro encontrado.</div>';
+  $('rel-body').innerHTML=items.length?`<div class="rel-list">${items.map(d=>{const proto=String(d.proto||'').trim().toUpperCase(),pdfOk=/^(WA|VC)\d{8,}$/i.test(proto);return `<div class="rel-item" onclick="showDiaryAttendance('${esc(proto)}')" style="cursor:pointer"><div class="rel-main"><b>${esc(d.ag||'Sem agente')}</b><br>${esc(d.dt||'')} · ${esc(proto)}<br><span style="color:var(--sub)">${esc(d.ac||'')}</span>${d.desc?`<br><span style="color:var(--ghost)">${esc(d.desc)}</span>`:''}</div><div class="rel-actions"><button class="rel-action" onclick="event.stopPropagation();showDiaryAttendance('${esc(proto)}')">Ler</button>${pdfOk?`<button class="rel-action" onclick="event.stopPropagation();openNeppoPdf('${esc(proto)}')">PDF com mídia</button>`:`<button class="rel-action disabled" onclick="event.stopPropagation()">PDF</button>`}<button class="rel-action" style="color:var(--rust)" onclick="event.stopPropagation();deleteDiaryAdjustment('${esc(d.id)}','${esc(proto)}','${esc(d.signature||'')}')">Excluir</button><span class="rel-tag">Registro</span></div></div>`;}).join('')}</div>`:'<div class="op-empty">Nenhum registro encontrado.</div>';
   $('rel-modal').classList.add('open');
 }
 
@@ -265494,6 +265494,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

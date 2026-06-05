@@ -589,8 +589,8 @@ canvas{cursor:pointer;}
       <div class="tsc"><table class="dt"><thead><tr><th>Cliente</th><th style="text-align:right">7d</th><th style="text-align:right">15d</th><th style="text-align:right">30d</th></tr></thead><tbody id="mgr-aging-tbody"></tbody></table></div>
     </div>
     <div class="card">
-      <div class="ch"><div><div class="ct">Causa Raiz dos Tratamentos</div><div class="cs">Motivos agrupados do diário central</div></div></div>
-      <div class="tsc"><table class="dt"><thead><tr><th>Causa</th><th style="text-align:right">Qtd.</th><th>Leitura</th></tr></thead><tbody id="mgr-root-tbody"></tbody></table></div>
+      <div class="ch"><div><div class="ct">Motivos dos Ajustes Manuais</div><div class="cs">Classificação automática baseada nas justificativas registradas nos tratamentos</div></div></div>
+      <div class="tsc"><table class="dt"><thead><tr><th>Motivo identificado</th><th style="text-align:right">Protocolos</th><th>Exemplos</th></tr></thead><tbody id="mgr-root-tbody"></tbody></table></div>
     </div>
   </div>
 
@@ -266708,7 +266708,12 @@ function managerAgentRows(m){
     a.avgTma=avgArr(a.tma);
     a.avgTme=avgArr(a.tme);
     a.score=(a.csat!=null&&a.csat<9.8?35:0)+(a.cov<.45?25:0)+(a.avgTma&&a.avgTma>2100?20:0)+(a.slow>0?10:0)+Math.min(20,a.total/8);
-    a.status=a.csat!=null&&a.csat<9.8?'Atenção CSAT':a.cov<.45?'Baixa cobertura':a.avgTma&&a.avgTma>2100?'TMA alto':a.slow>0?'Espera fora':'Ok';
+    a.status=a.csat!=null&&a.csat<9.8?'Atenção CSAT':a.cov<.45?'Baixa cobertura':a.avgTma&&a.avgTma>2100?'TMA alto':a.slow>0?'TE > 2 min':'Ok';
+    a.statusDetail=a.status==='Atenção CSAT'?'CSAT médio abaixo de 9,80':
+      a.status==='Baixa cobertura'?'Menos de 45% dos atendimentos possuem avaliação':
+      a.status==='TMA alto'?'Tempo médio de atendimento acima de 35 minutos':
+      a.status==='TE > 2 min'?`${a.slow} atendimento(s) com tempo de espera acima de 2 minutos`:
+      'Indicadores dentro dos limites definidos';
     return a;
   }).sort((a,b)=>b.score-a.score||b.total-a.total);
 }
@@ -266741,6 +266746,18 @@ function managerRootCauseLabel(adj){
   if(text.match(/avaliou errado|avaliacao|csat|nota/))return 'Avaliação fora do escopo';
   return 'Outros ajustes';
 }
+function managerRootCauseDescription(cause){
+  return {
+    'Produto / regra de negócio':'Justificativa menciona produto, demanda, prazo ou regra de negócio.',
+    'Treinamento / uso':'Justificativa indica dúvida de uso, orientação ou falta de treinamento.',
+    'Falha de plataforma':'Justificativa menciona erro, falha, queda ou instabilidade do sistema.',
+    'Bot / fluxo automático':'Justificativa menciona bot, retorno ou fluxo automático.',
+    'Tempo contaminado':'Justificativa indica espera, fila ou tempo que não representa o atendimento.',
+    'Outra área / encaminhamento':'Justificativa envolve comercial, financeiro ou outra área.',
+    'Avaliação fora do escopo':'Justificativa indica nota ou avaliação que não representa o atendimento.',
+    'Outros ajustes':'Justificativa sem uma das palavras-chave das categorias anteriores.'
+  }[cause]||'Motivo identificado automaticamente pelo texto da justificativa.';
+}
 function managerRootCauseRows(m){
   const rawRows=D.rawRows||D.rows||[];
   const map={};
@@ -266748,11 +266765,10 @@ function managerRootCauseRows(m){
     const row=rawRows.find(r=>Array.isArray(r)&&String(r[7]||'').toUpperCase()===String(adj.protocolo||'').toUpperCase());
     if(!row||row[0]!==m+1)return;
     const cause=managerRootCauseLabel(adj);
-    if(!map[cause])map[cause]={cause,count:0,protocols:[]};
-    map[cause].count++;
-    map[cause].protocols.push(adj.protocolo);
+    if(!map[cause])map[cause]={cause,protocols:[]};
+    if(!map[cause].protocols.includes(adj.protocolo))map[cause].protocols.push(adj.protocolo);
   });
-  return Object.values(map).sort((a,b)=>b.count-a.count||a.cause.localeCompare(b.cause,'pt-BR'));
+  return Object.values(map).map(c=>({...c,count:c.protocols.length,description:managerRootCauseDescription(c.cause)})).sort((a,b)=>b.count-a.count||a.cause.localeCompare(b.cause,'pt-BR'));
 }
 function managerNucleusRows(m){
   const monthRows=(D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===m+1);
@@ -266850,12 +266866,12 @@ function renderManager(m){
   $('mgr-k5').textContent=fN(unrated);
   $('mgr-priority-tbody').innerHTML=priorities.slice(0,14).map(p=>`<tr onclick="${p.click}" style="cursor:pointer"><td><span class="kd ${p.level==='Alta'?'kdn':'knt'}">${p.level}</span></td><td>${esc(p.type)}</td><td><b>${esc(p.title)}</b></td><td class="tn">${esc(p.impact)}</td><td>${esc(p.action)}</td></tr>`).join('')||'<tr><td colspan="5">Nenhuma prioridade crítica no mês selecionado.</td></tr>';
   $('mgr-clients-tbody').innerHTML=clientsByVolume.slice(0,10).map(c=>`<tr onclick="showClientPopup('${esc(c.code)}')" style="cursor:pointer"><td><button class="rel-client" onclick="event.stopPropagation();showClientPopup('${esc(c.code)}')">${esc(c.name)}</button><br><span class="op-mono">${esc(c.group)} · ${c.delta>=0?'+':''}${fN(c.delta)} vs ant.</span></td><td class="th">${fN(c.monthTotal)}</td><td class="tn">${c.monthCsat!=null?fS(c.monthCsat):'—'}</td><td><span class="kd ${c.risk==='Crítico'?'kdn':c.risk==='Atenção'?'knt':'kup'}">${c.risk}</span></td></tr>`).join('');
-  $('mgr-agents-tbody').innerHTML=agents.slice(0,10).map(a=>`<tr onclick="chartDrill('${esc(a.agent)}','${D.mesNomes[m]} · capacidade do time',drillRows(${m},{agent:'${esc(a.agent)}'}))" style="cursor:pointer"><td><b>${esc(a.agent)}</b><br><span class="op-mono">${fmtDur(a.avgTma)} TMA · ${pct1(a.cov)} cobert.</span></td><td class="th">${fN(a.total)}</td><td class="tn">${a.csat!=null?fS(a.csat):'—'}</td><td><span class="kd ${a.status==='Ok'?'kup':'kdn'}">${esc(a.status)}</span></td></tr>`).join('');
+  $('mgr-agents-tbody').innerHTML=agents.slice(0,10).map(a=>`<tr onclick="chartDrill('${esc(a.agent)}','${D.mesNomes[m]} · capacidade do time',drillRows(${m},{agent:'${esc(a.agent)}'}))" style="cursor:pointer"><td><b>${esc(a.agent)}</b><br><span class="op-mono">${fmtDur(a.avgTma)} TMA · ${pct1(a.cov)} cobert.${a.slow?` · ${fN(a.slow)} espera(s) >2min`:''}</span></td><td class="th">${fN(a.total)}</td><td class="tn">${a.csat!=null?fS(a.csat):'—'}</td><td><span class="kd ${a.status==='Ok'?'kup':'kdn'}" title="${esc(a.statusDetail)}">${esc(a.status)}</span></td></tr>`).join('');
   $('mgr-groups-tbody').innerHTML=groups.slice(0,10).map(g=>`<tr onclick="chartDrill('${esc(g.n)}','${D.mesNomes[m]} · núcleo operacional',drillRows(${m},{group:'${esc(g.n)}'}))" style="cursor:pointer"><td><b>${esc(g.n)}</b><br><span class="op-mono">${esc(SEASON_HINTS[g.n]||'monitorar')}</span></td><td class="th">${fN(g.cur)}</td><td class="tn">${deltaBadge(g.cur,g.prev)}</td><td><span class="kd ${g.status==='Pressão subindo'?'kdn':g.status==='Alta demanda'?'knt':'kup'}">${esc(g.status)}</span></td></tr>`).join('');
   $('mgr-health-tbody').innerHTML=healthClients.slice(0,10).map(c=>`<tr onclick="showClientPopup('${esc(c.code)}')" style="cursor:pointer"><td><button class="rel-client" onclick="event.stopPropagation();showClientPopup('${esc(c.code)}')">${esc(c.name)}</button><br><span class="op-mono">${fN(c.monthTotal)} atend. · cobert. ${pct1(c.cov)}</span></td><td class="th">${fN(c.healthScore)}</td><td><span class="kd ${c.healthStatus==='Crítico'?'kdn':c.healthStatus==='Atenção'?'knt':'kup'}">${esc(c.healthStatus)}</span></td></tr>`).join('')||'<tr><td colspan="3">Sem clientes no mês.</td></tr>';
   $('mgr-aging-tbody').innerHTML=agingClients.slice(0,10).map(c=>`<tr onclick="showClientPopup('${esc(c.code)}')" style="cursor:pointer"><td><button class="rel-client" onclick="event.stopPropagation();showClientPopup('${esc(c.code)}')">${esc(c.name)}</button><br><span class="op-mono">${esc(c.group)} · total ${fN(c.monthTotal)}</span></td><td class="th">${fN(c.d7)}</td><td class="th">${fN(c.d15)}</td><td class="th">${fN(c.d30)}</td></tr>`).join('')||'<tr><td colspan="4">Sem recorrência no mês.</td></tr>';
   window.__mgrRootProtocols={};
-  $('mgr-root-tbody').innerHTML=rootCauses.slice(0,8).map((c,i)=>{const key=`${m}-${i}`;window.__mgrRootProtocols[key]=c.protocols;return `<tr onclick="managerRootCauseDrill(${m},'${esc(key)}','${esc(c.cause)}')" style="cursor:pointer"><td><b>${esc(c.cause)}</b></td><td class="th">${fN(c.count)}</td><td><span class="op-mono">${esc(c.protocols.slice(0,3).join(' · '))}${c.protocols.length>3?'...':''}</span></td></tr>`}).join('')||'<tr><td colspan="3">Sem tratamentos classificados neste mês.</td></tr>';
+  $('mgr-root-tbody').innerHTML=rootCauses.slice(0,8).map((c,i)=>{const key=`${m}-${i}`;window.__mgrRootProtocols[key]=c.protocols;return `<tr onclick="managerRootCauseDrill(${m},'${esc(key)}','${esc(c.cause)}')" style="cursor:pointer"><td><b>${esc(c.cause)}</b><br><span class="op-mono">${esc(c.description)}</span></td><td class="th">${fN(c.count)}</td><td><span class="op-mono">${esc(c.protocols.slice(0,3).join(' · '))}${c.protocols.length>3?` · +${fN(c.protocols.length-3)} protocolo(s)`:''}<br>Clique para abrir os atendimentos</span></td></tr>`}).join('')||'<tr><td colspan="3">Nenhum ajuste manual classificado neste mês.</td></tr>';
   $('mgr-nucleus-tbody').innerHTML=nucleusRows.map(n=>`<tr onclick="managerNucleusDrill(${m},'${esc(n.name)}')" style="cursor:pointer"><td><b>${esc(n.name)}</b><br><span class="op-mono">${fN(n.rated)} avaliação(ões)</span></td><td class="th">${fN(n.total)}</td><td class="tn">${n.csat!=null?fS(n.csat):'—'}</td><td class="tn">${fmtDur(n.tma)}</td></tr>`).join('')||'<tr><td colspan="4">Sem atendimentos por núcleo.</td></tr>';
   $('mgr-day-close').innerHTML=dayClose.day?[
     `<div class="insight"><b>Dia ${String(dayClose.day).padStart(2,'0')}/${String(m+1).padStart(2,'0')}</b><br>${fN(dayClose.rows.length)} atendimentos · ${fN(dayClose.rated.length)} avaliações · CSAT ${dayClose.rated.length?fS(avgArr(dayClose.rated.map(r=>r[6]))):'—'}.</div>`,

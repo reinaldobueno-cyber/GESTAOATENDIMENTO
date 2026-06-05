@@ -1,4 +1,5 @@
 import { BONUS_HTML_BASE64 } from './bonus-html.js';
+import { PRIVATE_CLIENT_MAP_JS } from './private-client-map.js';
 
 function setupRequired() {
   return new Response(
@@ -1469,7 +1470,7 @@ export default {
     }
 
     if (url.pathname.endsWith('/cliente-map-privado.js')) {
-      const script = await decryptPrivateMap(request, env);
+      const script = `${PRIVATE_CLIENT_MAP_JS}\nwindow.CLIENTE_PRIVADO_STATUS = "ok"; window.CLIENTE_PRIVADO_STATUS_DETAIL = "mapa_embutido_autenticado";`;
       return new Response(script, {
         headers: {
           'Content-Type': 'application/javascript; charset=UTF-8',

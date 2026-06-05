@@ -5,6 +5,7 @@ param(
   [string]$MrrOverridesPath = 'mrr-overrides.csv',
   [string]$PrivateCsvPath = 'cliente-map-privado.csv',
   [string]$PrivateJsPath = 'cliente-map-privado.js',
+  [string]$PrivateModulePath = 'src\private-client-map.js',
   [string]$ReportPath = 'exports\clientes-identificacao-relatorio.csv'
 )
 
@@ -50,6 +51,7 @@ if (!(Test-Path -LiteralPath $clientPath)) {
 
 $privateCsv = Join-Path $scriptDir $PrivateCsvPath
 $privateJs = Join-Path $scriptDir $PrivateJsPath
+$privateModule = Join-Path $scriptDir $PrivateModulePath
 $report = Join-Path $scriptDir $ReportPath
 
 $existingByKey = @{}
@@ -208,6 +210,10 @@ $($jsItems -join ",`r`n")
 });
 "@
 [System.IO.File]::WriteAllText($privateJs, $js, [System.Text.Encoding]::UTF8)
+$moduleDir = Split-Path -Parent $privateModule
+if (!(Test-Path -LiteralPath $moduleDir)) { New-Item -ItemType Directory -Path $moduleDir | Out-Null }
+$module = "export const PRIVATE_CLIENT_MAP_JS = " + ($js | ConvertTo-Json -Compress) + ";`r`n"
+[System.IO.File]::WriteAllText($privateModule, $module, [System.Text.Encoding]::UTF8)
 
 $reportRows | Export-Csv -LiteralPath $report -NoTypeInformation -Encoding UTF8
 Write-Output "Mapa privado atualizado: $($outRows.Count) clientes; novos=$newCount; base_auxiliar_doc=$auxMatches"

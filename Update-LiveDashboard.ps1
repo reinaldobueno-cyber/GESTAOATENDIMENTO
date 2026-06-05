@@ -95,14 +95,11 @@ if (Test-Path -LiteralPath $auxContacts) {
 }
 & (Join-Path $scriptDir 'Atualizar-Mapa-Clientes-Privados.ps1') @mapArgs
 
-Write-Host 'Atualizando mapa privado criptografado...'
-& (Join-Path $scriptDir 'Publicar-Clientes-Privados.ps1') -SkipCommit -SkipPush
-
 Write-Host 'Mascarando dados sensíveis do HTML público...'
 & (Join-Path $scriptDir 'Protect-PublicDashboardData.ps1') -HtmlPath (Join-Path $scriptDir 'index.html')
 
 Write-Host 'Verificando alterações para publicar...'
-& $git add index.html private-client-map.enc.json cliente-map-privado.csv cliente-map-privado.js exports/atendimentos-neppo.csv exports/clientes-por-mes.csv exports/clientes-identificacao-relatorio.csv
+& $git add index.html src/private-client-map.js cliente-map-privado.csv cliente-map-privado.js exports/atendimentos-neppo.csv exports/clientes-por-mes.csv exports/clientes-identificacao-relatorio.csv
 $hasChanges = $true
 & $git diff --cached --quiet
 if ($LASTEXITCODE -eq 0) { $hasChanges = $false }

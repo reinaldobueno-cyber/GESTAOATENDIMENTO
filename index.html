@@ -266827,6 +266827,7 @@ function renderManager(m){
   const monthRows=(D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===m+1);
   const rated=monthRows.filter(r=>r[6]!=null), unrated=monthRows.length-rated.length;
   const clients=managerClientRows(m), agents=managerAgentRows(m), groups=managerGroupRows(m);
+  const clientsByVolume=clients.slice().sort((a,b)=>b.monthTotal-a.monthTotal||b.score-a.score||a.name.localeCompare(b.name,'pt-BR',{numeric:true,sensitivity:'base'}));
   const riskClients=clients.filter(c=>c.risk!=='Monitorar');
   const healthClients=managerHealthRows(clients);
   const agingClients=managerAgingRows(m);
@@ -266848,7 +266849,7 @@ function renderManager(m){
   $('mgr-k4').textContent=fN(attentionAgents.length);
   $('mgr-k5').textContent=fN(unrated);
   $('mgr-priority-tbody').innerHTML=priorities.slice(0,14).map(p=>`<tr onclick="${p.click}" style="cursor:pointer"><td><span class="kd ${p.level==='Alta'?'kdn':'knt'}">${p.level}</span></td><td>${esc(p.type)}</td><td><b>${esc(p.title)}</b></td><td class="tn">${esc(p.impact)}</td><td>${esc(p.action)}</td></tr>`).join('')||'<tr><td colspan="5">Nenhuma prioridade crítica no mês selecionado.</td></tr>';
-  $('mgr-clients-tbody').innerHTML=clients.slice(0,10).map(c=>`<tr onclick="showClientPopup('${esc(c.code)}')" style="cursor:pointer"><td><button class="rel-client" onclick="event.stopPropagation();showClientPopup('${esc(c.code)}')">${esc(c.name)}</button><br><span class="op-mono">${esc(c.group)} · ${c.delta>=0?'+':''}${fN(c.delta)} vs ant.</span></td><td class="th">${fN(c.monthTotal)}</td><td class="tn">${c.monthCsat!=null?fS(c.monthCsat):'—'}</td><td><span class="kd ${c.risk==='Crítico'?'kdn':c.risk==='Atenção'?'knt':'kup'}">${c.risk}</span></td></tr>`).join('');
+  $('mgr-clients-tbody').innerHTML=clientsByVolume.slice(0,10).map(c=>`<tr onclick="showClientPopup('${esc(c.code)}')" style="cursor:pointer"><td><button class="rel-client" onclick="event.stopPropagation();showClientPopup('${esc(c.code)}')">${esc(c.name)}</button><br><span class="op-mono">${esc(c.group)} · ${c.delta>=0?'+':''}${fN(c.delta)} vs ant.</span></td><td class="th">${fN(c.monthTotal)}</td><td class="tn">${c.monthCsat!=null?fS(c.monthCsat):'—'}</td><td><span class="kd ${c.risk==='Crítico'?'kdn':c.risk==='Atenção'?'knt':'kup'}">${c.risk}</span></td></tr>`).join('');
   $('mgr-agents-tbody').innerHTML=agents.slice(0,10).map(a=>`<tr onclick="chartDrill('${esc(a.agent)}','${D.mesNomes[m]} · capacidade do time',drillRows(${m},{agent:'${esc(a.agent)}'}))" style="cursor:pointer"><td><b>${esc(a.agent)}</b><br><span class="op-mono">${fmtDur(a.avgTma)} TMA · ${pct1(a.cov)} cobert.</span></td><td class="th">${fN(a.total)}</td><td class="tn">${a.csat!=null?fS(a.csat):'—'}</td><td><span class="kd ${a.status==='Ok'?'kup':'kdn'}">${esc(a.status)}</span></td></tr>`).join('');
   $('mgr-groups-tbody').innerHTML=groups.slice(0,10).map(g=>`<tr onclick="chartDrill('${esc(g.n)}','${D.mesNomes[m]} · núcleo operacional',drillRows(${m},{group:'${esc(g.n)}'}))" style="cursor:pointer"><td><b>${esc(g.n)}</b><br><span class="op-mono">${esc(SEASON_HINTS[g.n]||'monitorar')}</span></td><td class="th">${fN(g.cur)}</td><td class="tn">${deltaBadge(g.cur,g.prev)}</td><td><span class="kd ${g.status==='Pressão subindo'?'kdn':g.status==='Alta demanda'?'knt':'kup'}">${esc(g.status)}</span></td></tr>`).join('');
   $('mgr-health-tbody').innerHTML=healthClients.slice(0,10).map(c=>`<tr onclick="showClientPopup('${esc(c.code)}')" style="cursor:pointer"><td><button class="rel-client" onclick="event.stopPropagation();showClientPopup('${esc(c.code)}')">${esc(c.name)}</button><br><span class="op-mono">${fN(c.monthTotal)} atend. · cobert. ${pct1(c.cov)}</span></td><td class="th">${fN(c.healthScore)}</td><td><span class="kd ${c.healthStatus==='Crítico'?'kdn':c.healthStatus==='Atenção'?'knt':'kup'}">${esc(c.healthStatus)}</span></td></tr>`).join('')||'<tr><td colspan="3">Sem clientes no mês.</td></tr>';
@@ -266862,7 +266863,7 @@ function renderManager(m){
     `<div class="insight"><b>Pendências</b><br>${fN(dayClose.noRating.length)} sem avaliação · ${fN(dayClose.low.length)} nota(s) abaixo de 9.</div>`
   ].join(''):'<div class="insight"><b>Sem fechamento diário</b><br>Nenhum atendimento encontrado no mês selecionado.</div>';
   $('mgr-audit-tbody').innerHTML=auditRows.map(a=>`<tr onclick="showAttendanceDetail('${esc(clientCode(a.row))}','${esc(a.row[7]||'')}')" style="cursor:pointer"><td><b>${esc(a.row[7]||'sem protocolo')}</b><br><span class="op-mono">${esc(a.row[2])} · ${String(a.row[1]).padStart(2,'0')}/${String(a.row[0]).padStart(2,'0')}</span></td><td>${esc(a.reason)}</td><td class="tn">${a.row[6]!=null?fS(a.row[6]):'—'}</td></tr>`).join('')||'<tr><td colspan="3">Sem amostra crítica no mês.</td></tr>';
-  const topClient=clients[0], topGroup=groups[0], topAgent=agents[0];
+  const topClient=clientsByVolume[0], topGroup=groups[0], topAgent=agents[0];
   $('mgr-narrative').innerHTML=[
     `<div class="insight"><b>O que aconteceu</b><br>${D.mesNomes[m]} teve ${fN(monthRows.length)} atendimentos, ${fN(rated.length)} avaliações e CSAT médio ${rated.length?fS(avgArr(rated.map(r=>r[6]))):'—'}.</div>`,
     `<div class="insight"><b>Onde olhar primeiro</b><br>${topClient?`Cliente ${esc(topClient.name)} concentrou ${fN(topClient.monthTotal)} atendimentos no mês.`:'Sem cliente recorrente relevante.'} ${topGroup?`O grupo ${esc(topGroup.n)} aparece como principal variação operacional.`:''}</div>`,
@@ -267458,6 +267459,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

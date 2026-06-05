@@ -35,7 +35,7 @@ function Normalize-Money([string]$Value) {
 function Is-GenericName([string]$Value) {
   if ([string]::IsNullOrWhiteSpace($Value)) { return $true }
   $v = $Value.Trim()
-  return $v -match '^(voice_|whatsapp_|cliente\s*#|sem cliente|cliente nao informado)' -or $v.Length -lt 3
+  return $v -match '^(voice_|whatsapp_|cliente\s*#|sem cliente|cliente nao informado|\.+$)' -or $v.Length -lt 3
 }
 
 function Escape-JsString([string]$Value) {
@@ -144,6 +144,7 @@ foreach ($client in $ordered) {
   $auxName = if ($null -ne $aux) { [string]$aux.Nome } else { '' }
   $name = if ((Is-GenericName $baseName) -and ![string]::IsNullOrWhiteSpace($auxName)) { $auxName } else { $baseName }
   if (Is-GenericName $name) { $name = $key -replace '^NOME:', '' }
+  if (Is-GenericName $name) { $name = 'Cliente sem nome cadastrado no NEPPO' }
 
   $source = if (![string]::IsNullOrWhiteSpace($doc)) {
     if ($null -ne $aux) { 'neppo_doc+base_auxiliar' } else { 'neppo_doc' }

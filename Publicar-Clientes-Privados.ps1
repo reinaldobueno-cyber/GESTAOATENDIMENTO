@@ -3,7 +3,8 @@ param(
   [string]$PrivateMapPath = 'cliente-map-privado.js',
   [string]$OutputPath = 'private-client-map.enc.json',
   [int]$Iterations = 100000,
-  [switch]$SkipPush
+  [switch]$SkipPush,
+  [switch]$SkipCommit
 )
 
 $ErrorActionPreference = 'Stop'
@@ -41,13 +42,20 @@ if (!(Test-Path -LiteralPath $sourcePath)) {
   throw "Arquivo privado não encontrado: $sourcePath"
 }
 
-Write-Host ''
-Write-Host 'Digite a mesma senha configurada em PRIVATE_MAP_PASSWORD na Cloudflare.'
-Write-Host 'Ela será usada só para criptografar o mapa privado localmente.'
-Write-Host 'Importante: essa senha deve ser fixa e não precisa ser a senha de login dos usuários.'
-$securePassword = Read-Host 'PRIVATE_MAP_PASSWORD' -AsSecureString
-if ($securePassword.Length -eq 0) { throw 'Senha vazia. Operação cancelada.' }
-$password = [System.Net.NetworkCredential]::new('', $securePassword).Password
+$password = [string]$env:PRIVATE_MAP_PASSWORD
+$passwordSecretPath = Join-Path $scriptDir 'secrets\private-map-password.clixml'
+if ([string]::IsNullOrWhiteSpace($password) -and (Test-Path -LiteralPath $passwordSecretPath)) {
+  $securePassword = Import-Clixml -LiteralPath $passwordSecretPath
+  $password = [System.Net.NetworkCredential]::new('', $securePassword).Password
+}
+if ([string]::IsNullOrWhiteSpace($password)) {
+  Write-Host ''
+  Write-Host 'Digite a mesma senha configurada em PRIVATE_MAP_PASSWORD na Cloudflare.'
+  Write-Host 'Ela será usada só para criptografar o mapa privado localmente.'
+  $securePassword = Read-Host 'PRIVATE_MAP_PASSWORD' -AsSecureString
+  if ($securePassword.Length -eq 0) { throw 'Senha vazia. Operação cancelada.' }
+  $password = [System.Net.NetworkCredential]::new('', $securePassword).Password
+}
 
 $plain = [System.IO.File]::ReadAllBytes($sourcePath)
 $salt = New-Object byte[] 16
@@ -89,13 +97,15 @@ $out = Join-Path $scriptDir $OutputPath
 $json = $package | ConvertTo-Json -Depth 10
 [System.IO.File]::WriteAllText($out, $json, [System.Text.Encoding]::UTF8)
 
-$git = Find-Git
-& $git add $OutputPath
-& $git commit -m 'Publica mapa privado de clientes criptografado'
+if (!$SkipCommit) {
+  $git = Find-Git
+  & $git add $OutputPath
+  & $git commit -m 'Publica mapa privado de clientes criptografado'
 
-if (!$SkipPush) {
-  & $git push
+  if (!$SkipPush) {
+    & $git push
+  }
 }
 
 Write-Host ''
-Write-Host 'Mapa privado criptografado publicado. A Cloudflare vai atualizar em instantes.'
+Write-Host 'Mapa privado criptografado atualizado.'

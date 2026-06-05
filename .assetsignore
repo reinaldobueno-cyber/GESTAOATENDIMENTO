@@ -14,3 +14,5 @@ node_modules/**
 *.ps1
 *.cmd
 *.md
+cliente-map-privado.csv
+cliente-map-privado.js

@@ -1469,9 +1469,7 @@ export default {
     }
 
     if (url.pathname.endsWith('/cliente-map-privado.js')) {
-      const assetUrl = new URL('/cliente-map-privado.js', request.url);
-      const asset = await env.ASSETS.fetch(new Request(assetUrl, request));
-      const script = asset.ok ? await asset.text() : await decryptPrivateMap(request, env);
+      const script = await decryptPrivateMap(request, env);
       return new Response(script, {
         headers: {
           'Content-Type': 'application/javascript; charset=UTF-8',

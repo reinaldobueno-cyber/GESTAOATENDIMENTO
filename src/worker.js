@@ -338,6 +338,11 @@ function isImageMessage(message, url) {
   );
 }
 
+function isAudioMessage(message, url) {
+  const contentType = String(message.contentType || message.mimeType || message.type || '').toUpperCase();
+  return contentType.includes('AUDIO') || /\.(mp3|m4a|aac|ogg|oga|opus|wav|webm)(\?|#|$)/i.test(url || '');
+}
+
 function messageBody(message) {
   return stripHtmlText(
     message.message ?? message.text ?? message.content ?? message.data ?? message.body ?? message.action ?? '',
@@ -376,6 +381,11 @@ function renderMessageBody(message) {
     const visibleBody = body && body !== mediaUrl ? body : '';
     const proxiedUrl = mediaProxyUrl(mediaUrl);
     return `<div class="msg-body">${visibleBody ? `${escapeHtml(visibleBody)}<br>` : ''}<img class="msg-img" src="${escapeHtml(proxiedUrl)}" alt="Imagem do atendimento"><br><a href="${escapeHtml(mediaUrl)}" target="_blank" rel="noopener">Abrir imagem</a></div>`;
+  }
+  if (mediaUrl && isAudioMessage(message, mediaUrl)) {
+    const visibleBody = body && body !== mediaUrl ? body : '';
+    const proxiedUrl = mediaProxyUrl(mediaUrl);
+    return `<div class="msg-body">${visibleBody ? `${escapeHtml(visibleBody)}<br>` : ''}<audio controls preload="none" src="${escapeHtml(proxiedUrl)}" style="width:100%;max-width:420px"></audio><br><a href="${escapeHtml(mediaUrl)}" target="_blank" rel="noopener">Abrir áudio original</a></div>`;
   }
   if (mediaUrl) {
     const label = contentType.includes('AUDIO')
@@ -573,7 +583,7 @@ async function fetchAttendanceHistory(protocol, env) {
 }
 
 async function getAttendanceHistoryData(protocol, env) {
-  const match = String(protocol || '').match(/^WA0*(\d+)$/i);
+  const match = String(protocol || '').match(/^(?:WA|VC)0*(\d+)$/i);
   if (!match) {
     return { status: 400, body: { ok: false, message: 'Protocolo inválido.' } };
   }
@@ -713,22 +723,22 @@ async function fetchMediaProxy(request, env) {
   try {
     target = fromBase64UrlUtf8(url.searchParams.get('u'));
   } catch {
-    return new Response('Imagem inválida.', { status: 400 });
+    return new Response('Mídia inválida.', { status: 400 });
   }
 
   let mediaUrl = null;
   try {
     mediaUrl = new URL(target);
   } catch {
-    return new Response('Imagem inválida.', { status: 400 });
+    return new Response('Mídia inválida.', { status: 400 });
   }
 
   if (mediaUrl.protocol !== 'https:' || !/(\.|^)neppo\.com\.br$/i.test(mediaUrl.hostname)) {
-    return new Response('Imagem fora do NEPPO não permitida.', { status: 403 });
+    return new Response('Mídia fora do NEPPO não permitida.', { status: 403 });
   }
 
   const headers = {
-    Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+    Accept: 'audio/*,video/*,image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
     Referer: 'https://multsoft.neppo.com.br/',
   };
 
@@ -746,7 +756,7 @@ async function fetchMediaProxy(request, env) {
   }
 
   if (!response.ok) {
-    return new Response(`Não consegui carregar a imagem do atendimento. NEPPO retornou ${response.status}.`, {
+    return new Response(`Não consegui carregar a mídia do atendimento. NEPPO retornou ${response.status}.`, {
       status: response.status,
       headers: { 'Content-Type': 'text/plain; charset=UTF-8', 'Cache-Control': 'private, no-store' },
     });
@@ -789,12 +799,21 @@ function parseAppUsers(env) {
       if (Array.isArray(parsed)) {
         for (const item of parsed) {
           if (item?.user && item?.password) {
-            users.push({ user: String(item.user), password: String(item.password) });
+            users.push({ user: String(item.user), password: String(item.password), role: normalizeUserRole(item.role || item.perfil || 'admin'), name: String(item.name || item.nome || item.user) });
           }
         }
       } else if (parsed && typeof parsed === 'object') {
-        for (const [user, password] of Object.entries(parsed)) {
-          users.push({ user: String(user), password: String(password) });
+        for (const [user, passwordOrConfig] of Object.entries(parsed)) {
+          if (passwordOrConfig && typeof passwordOrConfig === 'object') {
+            users.push({
+              user: String(user),
+              password: String(passwordOrConfig.password || passwordOrConfig.senha || ''),
+              role: normalizeUserRole(passwordOrConfig.role || passwordOrConfig.perfil || 'admin'),
+              name: String(passwordOrConfig.name || passwordOrConfig.nome || user),
+            });
+          } else {
+            users.push({ user: String(user), password: String(passwordOrConfig), role: 'admin', name: String(user) });
+          }
         }
       }
     } catch {
@@ -806,6 +825,8 @@ function parseAppUsers(env) {
         users.push({
           user: clean.slice(0, separator).trim(),
           password: clean.slice(separator + 1).trim(),
+          role: 'admin',
+          name: clean.slice(0, separator).trim(),
         });
       }
     }
@@ -815,6 +836,8 @@ function parseAppUsers(env) {
     users.push({
       user: String(env.APP_USER || env.AUTH_USER),
       password: String(env.APP_PASSWORD || env.AUTH_PASSWORD),
+      role: 'admin',
+      name: String(env.APP_USER || env.AUTH_USER),
     });
   }
 
@@ -822,17 +845,65 @@ function parseAppUsers(env) {
     users.push({
       user: 'evelyn',
       password: String(env.EVELYN_PASSWORD),
+      role: 'agente',
+      name: 'Evelyn',
     });
   }
 
   return users.filter((item) => item.user && item.password);
 }
 
-function findAppUser(env, user, password = null) {
+function normalizeUserRole(role) {
+  const clean = String(role || '').trim().toLowerCase();
+  return clean === 'admin' || clean === 'administrador' || clean === 'gestor' ? 'admin' : 'agente';
+}
+
+function normalizeLogin(user) {
+  return String(user || '').trim().toLowerCase();
+}
+
+async function hashManagedPassword(env, user, password) {
+  return signText(`${normalizeLogin(user)}:${String(password || '')}`, appSessionSecret(env));
+}
+
+async function loadManagedUsers(env) {
+  if (!env.ADJUSTMENTS) return [];
+  const stored = (await env.ADJUSTMENTS.get(MANAGED_USERS_KEY, 'json')) || [];
+  if (!Array.isArray(stored)) return [];
+  return stored
+    .filter((item) => item?.user && item?.passwordHash)
+    .map((item) => ({
+      user: String(item.user),
+      name: String(item.name || item.user),
+      role: normalizeUserRole(item.role),
+      active: item.active !== false,
+      passwordHash: String(item.passwordHash),
+      createdAt: item.createdAt || '',
+      updatedAt: item.updatedAt || '',
+      createdBy: item.createdBy || '',
+      updatedBy: item.updatedBy || '',
+      source: 'kv',
+    }));
+}
+
+async function saveManagedUsers(env, users) {
+  if (!env.ADJUSTMENTS) throw new Error('KV ADJUSTMENTS indisponível.');
+  await env.ADJUSTMENTS.put(MANAGED_USERS_KEY, JSON.stringify(users.slice(0, 500)));
+}
+
+async function findAppUser(env, user, password = null) {
   const wantedUser = String(user || '').trim();
   for (const item of parseAppUsers(env)) {
     if (!timingSafeEqual(wantedUser, String(item.user).trim())) continue;
-    if (password === null || timingSafeEqual(String(password), String(item.password))) return item;
+    if (password === null || timingSafeEqual(String(password), String(item.password))) return { ...item, source: 'env', active: true };
+  }
+
+  for (const item of await loadManagedUsers(env)) {
+    if (!item.active) continue;
+    if (!timingSafeEqual(normalizeLogin(wantedUser), normalizeLogin(item.user))) continue;
+    if (password === null) return item;
+    const expectedHash = await hashManagedPassword(env, item.user, password);
+    if (timingSafeEqual(expectedHash, item.passwordHash)) return item;
   }
   return null;
 }
@@ -869,7 +940,7 @@ async function hasValidSession(request, env) {
   try {
     const session = JSON.parse(fromBase64UrlUtf8(payload));
     return (
-      Boolean(findAppUser(env, session.user)) &&
+      Boolean(await findAppUser(env, session.user)) &&
       Number(session.expires || 0) > Date.now()
     );
   } catch {
@@ -887,7 +958,7 @@ async function currentAppUser(request, env) {
     if (timingSafeEqual(signature, expected)) {
       try {
         const session = JSON.parse(fromBase64UrlUtf8(payload));
-        if (Number(session.expires || 0) > Date.now() && findAppUser(env, session.user)) {
+        if (Number(session.expires || 0) > Date.now() && await findAppUser(env, session.user)) {
           return String(session.user);
         }
       } catch {}
@@ -902,7 +973,7 @@ async function currentAppUser(request, env) {
     if (sep < 0) return '';
     const user = decoded.slice(0, sep);
     const password = decoded.slice(sep + 1);
-    return findAppUser(env, user, password) ? user : '';
+    return (await findAppUser(env, user, password)) ? user : '';
   } catch {
     return '';
   }
@@ -968,7 +1039,7 @@ async function handleLogin(request, env) {
   const user = String(form.get('user') || '');
   const password = String(form.get('password') || '');
   const next = String(form.get('next') || '/');
-  const matched = findAppUser(env, user, password);
+  const matched = await findAppUser(env, user, password);
 
   if (!matched) {
     return loginPage('Usuário ou senha inválidos.', next);
@@ -999,9 +1070,10 @@ async function isAuthorized(request, env) {
   const user = decoded.slice(0, separator);
   const password = decoded.slice(separator + 1);
 
-  return Boolean(findAppUser(env, user, password));
+  return Boolean(await findAppUser(env, user, password));
 }
 
+const MANAGED_USERS_KEY = 'app-users-v1';
 const MANUAL_ADJUSTMENTS_KEY = 'manual-adjustments-v1';
 const BONUS_CLOSURES_KEY = 'bonus-closures-v1';
 
@@ -1015,9 +1087,27 @@ function parseBonusUsers(env) {
   return source.split(/[,\n;]+/).map((x) => x.trim()).filter(Boolean);
 }
 
-function canUseBonus(user, env) {
+async function appUserProfile(env, user) {
+  const found = await findAppUser(env, user);
+  if (!found) return { user: String(user || ''), name: String(user || ''), role: 'agente', source: 'desconhecido', active: false };
+  return {
+    user: String(found.user),
+    name: String(found.name || found.user),
+    role: normalizeUserRole(found.role),
+    source: found.source || 'env',
+    active: found.active !== false,
+  };
+}
+
+async function isAdminUser(user, env) {
+  const profile = await appUserProfile(env, user);
+  return profile.role === 'admin';
+}
+
+async function canUseBonus(user, env) {
+  if (await isAdminUser(user, env)) return true;
   const allowed = parseBonusUsers(env);
-  if (!allowed.length) return true;
+  if (!allowed.length) return false;
   return allowed.some((item) => timingSafeEqual(String(item).toLowerCase(), String(user || '').toLowerCase()));
 }
 
@@ -1048,7 +1138,7 @@ function isBonusPagePath(pathname) {
     || pathname.endsWith('/bonificacao.html');
 }
 
-function cleanAdjustment(input) {
+function cleanAdjustment(input, user = '') {
   const item = input && typeof input === 'object' ? input : {};
   const protocolo = String(item.protocolo || '').trim().toUpperCase();
   if (!protocolo) return null;
@@ -1063,6 +1153,8 @@ function cleanAdjustment(input) {
     diario: String(item.diario || '').slice(0, 2000),
     responsavel: String(item.responsavel || 'Painel').slice(0, 120),
     data: String(item.data || new Date().toLocaleDateString('pt-BR')).slice(0, 30),
+    updatedAt: String(item.updatedAt || new Date().toISOString()).slice(0, 40),
+    updatedBy: String(user || item.updatedBy || item.responsavel || 'painel').slice(0, 120),
   };
 
   if (item.desconsiderarCsat === true) out.desconsiderarCsat = true;
@@ -1078,7 +1170,34 @@ function cleanAdjustment(input) {
   return out;
 }
 
-async function handleManualAdjustments(request, env) {
+function normalizeAdjustmentText(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ');
+}
+
+function adjustmentSignature(item) {
+  if (!item || !item.protocolo) return '';
+  return [
+    String(item.protocolo || '').trim().toUpperCase(),
+    normalizeAdjustmentText(item.tipo || 'ajuste_manual'),
+    normalizeAdjustmentText(item.motivo),
+    normalizeAdjustmentText(item.impacto),
+    normalizeAdjustmentText(item.acao),
+    normalizeAdjustmentText(item.diario),
+    item.desconsiderarCsat === true ? 'csat1' : 'csat0',
+    item.desconsiderarTme === true ? 'tme1' : 'tme0',
+    item.ignorarAtendimento === true || item.ignorar === true ? 'ign1' : 'ign0',
+    item.csat !== undefined && item.csat !== null && item.csat !== '' ? `csat:${item.csat}` : '',
+    item.tmaSec !== undefined && item.tmaSec !== null && item.tmaSec !== '' ? `tma:${item.tmaSec}` : '',
+    item.tmeSec !== undefined && item.tmeSec !== null && item.tmeSec !== '' ? `tme:${item.tmeSec}` : '',
+  ].join('|');
+}
+
+async function handleManualAdjustments(request, env, user = '') {
   if (!env.ADJUSTMENTS) {
     return jsonResponse({ adjustments: [], storage: false, message: 'ADJUSTMENTS_KV nao configurado' }, request.method === 'GET' ? 200 : 501);
   }
@@ -1088,16 +1207,34 @@ async function handleManualAdjustments(request, env) {
     return jsonResponse({ adjustments: Array.isArray(list) ? list : [], storage: true });
   }
 
+  if (request.method === 'DELETE') {
+    const body = await request.json().catch(() => null);
+    const id = String(body?.id || '').trim();
+    const signature = String(body?.signature || '').trim();
+    const protocolo = String(body?.protocolo || '').trim().toUpperCase();
+    if (!id && !signature && !protocolo) return jsonResponse({ error: 'ID ou assinatura obrigatoria' }, 400);
+    const current = (await env.ADJUSTMENTS.get(MANUAL_ADJUSTMENTS_KEY, 'json')) || [];
+    const before = Array.isArray(current) ? current : [];
+    const list = before.filter((a) => {
+      if (id && String(a?.id || '') === id) return false;
+      if (signature && adjustmentSignature(a) === signature) return false;
+      return true;
+    });
+    await env.ADJUSTMENTS.put(MANUAL_ADJUSTMENTS_KEY, JSON.stringify(list.slice(-2000)));
+    return jsonResponse({ ok: true, deleted: before.length - list.length, total: list.length });
+  }
+
   if (request.method !== 'POST') {
     return jsonResponse({ error: 'Metodo nao permitido' }, 405);
   }
 
   const body = await request.json().catch(() => null);
-  const item = cleanAdjustment(body);
+  const item = cleanAdjustment(body, user);
   if (!item) return jsonResponse({ error: 'Protocolo obrigatorio' }, 400);
 
   const current = (await env.ADJUSTMENTS.get(MANUAL_ADJUSTMENTS_KEY, 'json')) || [];
-  const list = Array.isArray(current) ? current.filter((a) => String(a.id) !== String(item.id)) : [];
+  const itemSig = adjustmentSignature(item);
+  const list = Array.isArray(current) ? current.filter((a) => String(a.id) !== String(item.id) && adjustmentSignature(a) !== itemSig) : [];
   list.push(item);
   await env.ADJUSTMENTS.put(MANUAL_ADJUSTMENTS_KEY, JSON.stringify(list.slice(-2000)));
   return jsonResponse({ ok: true, adjustment: item, total: list.length });
@@ -1125,7 +1262,7 @@ function cleanBonusClosure(input, user) {
 }
 
 async function handleBonusClosures(request, env, user) {
-  if (!canUseBonus(user, env)) return jsonResponse({ error: 'Acesso negado' }, 403);
+  if (!(await canUseBonus(user, env))) return jsonResponse({ error: 'Acesso negado' }, 403);
   if (!env.ADJUSTMENTS) {
     return jsonResponse({ closures: [], storage: false, message: 'ADJUSTMENTS_KV nao configurado' }, request.method === 'GET' ? 200 : 501);
   }
@@ -1144,9 +1281,97 @@ async function handleBonusClosures(request, env, user) {
   return jsonResponse({ ok: true, closure: item, total: list.length });
 }
 
+function publicManagedUser(item) {
+  return {
+    user: String(item.user || ''),
+    name: String(item.name || item.user || ''),
+    role: normalizeUserRole(item.role),
+    active: item.active !== false,
+    source: item.source || 'kv',
+    createdAt: item.createdAt || '',
+    updatedAt: item.updatedAt || '',
+    createdBy: item.createdBy || '',
+    updatedBy: item.updatedBy || '',
+  };
+}
+
+function mergeVisibleUsers(envUsers, managedUsers) {
+  const map = new Map();
+  for (const item of envUsers) {
+    map.set(normalizeLogin(item.user), item);
+  }
+  for (const item of managedUsers.map(publicManagedUser)) {
+    map.set(normalizeLogin(item.user), item);
+  }
+  return [...map.values()].sort((a, b) => String(a.name || a.user).localeCompare(String(b.name || b.user), 'pt-BR'));
+}
+
+async function handleUsersApi(request, env, currentUser) {
+  if (!(await isAdminUser(currentUser, env))) return jsonResponse({ error: 'Acesso negado' }, 403);
+  const envUsers = parseAppUsers(env).map((item) => publicManagedUser({ ...item, active: true, source: 'ambiente' }));
+  const managedUsers = await loadManagedUsers(env);
+
+  if (request.method === 'GET') {
+    return jsonResponse({ users: mergeVisibleUsers(envUsers, managedUsers) });
+  }
+
+  if (request.method !== 'POST' && request.method !== 'DELETE') {
+    return jsonResponse({ error: 'Método não permitido' }, 405);
+  }
+
+  let body = {};
+  try {
+    body = await request.json();
+  } catch {
+    return jsonResponse({ error: 'JSON inválido.' }, 400);
+  }
+
+  const targetUser = String(body.user || '').trim();
+  const login = normalizeLogin(targetUser);
+  if (!login) return jsonResponse({ error: 'Informe o usuário.' }, 400);
+  if (!/^[a-z0-9._@-]{2,60}$/i.test(targetUser)) {
+    return jsonResponse({ error: 'Use usuário com 2 a 60 caracteres: letras, números, ponto, hífen, underline ou @.' }, 400);
+  }
+  if (envUsers.some((item) => normalizeLogin(item.user) === login)) {
+    return jsonResponse({ error: 'Usuário de ambiente não pode ser editado por esta tela.' }, 409);
+  }
+
+  const now = new Date().toISOString();
+  const list = managedUsers.filter((item) => normalizeLogin(item.user) !== login);
+  const existing = managedUsers.find((item) => normalizeLogin(item.user) === login);
+
+  if (request.method === 'DELETE' || body.action === 'delete') {
+    await saveManagedUsers(env, list);
+    return jsonResponse({ ok: true, users: mergeVisibleUsers(envUsers, list) });
+  }
+
+  const role = normalizeUserRole(body.role || existing?.role || 'agente');
+  const name = String(body.name || existing?.name || targetUser).trim() || targetUser;
+  const active = body.active !== false;
+  let passwordHash = existing?.passwordHash || '';
+  if (body.password) passwordHash = await hashManagedPassword(env, targetUser, String(body.password));
+  if (!passwordHash) return jsonResponse({ error: 'Informe uma senha para novo usuário.' }, 400);
+
+  const item = {
+    user: targetUser,
+    name,
+    role,
+    active,
+    passwordHash,
+    createdAt: existing?.createdAt || now,
+    updatedAt: now,
+    createdBy: existing?.createdBy || currentUser,
+    updatedBy: currentUser,
+  };
+  list.push(item);
+  list.sort((a, b) => normalizeLogin(a.user).localeCompare(normalizeLogin(b.user), 'pt-BR'));
+  await saveManagedUsers(env, list);
+  return jsonResponse({ ok: true, user: publicManagedUser(item), users: mergeVisibleUsers(envUsers, list) });
+}
+
 export default {
   async fetch(request, env) {
-    if (!parseAppUsers(env).length) {
+    if (!parseAppUsers(env).length && !(await loadManagedUsers(env)).length) {
       return setupRequired();
     }
 
@@ -1175,9 +1400,36 @@ export default {
       return redirectTo('/login');
     }
     const appUser = await currentAppUser(request, env);
+    const appProfile = await appUserProfile(env, appUser);
+
+    if (
+      url.pathname === '/cliente-map-privado.csv' ||
+      url.pathname.startsWith('/exports/cmax-')
+    ) {
+      if (appProfile.role !== 'admin') {
+        return new Response('Acesso negado.', {
+          status: 403,
+          headers: {
+            'Content-Type': 'text/plain; charset=UTF-8',
+            'Cache-Control': 'private, no-store',
+            'X-Robots-Tag': 'noindex, nofollow',
+          },
+        });
+      }
+    }
 
     if (url.pathname === '/api/session') {
-      return jsonResponse({ user: appUser, bonusPrivate: canUseBonus(appUser, env) });
+      return jsonResponse({
+        user: appUser,
+        name: appProfile.name,
+        role: appProfile.role,
+        admin: appProfile.role === 'admin',
+        bonusPrivate: await canUseBonus(appUser, env),
+      });
+    }
+
+    if (url.pathname === '/api/users') {
+      return handleUsersApi(request, env, appUser);
     }
 
     if (url.pathname === '/media') {
@@ -1185,7 +1437,7 @@ export default {
     }
 
     if (url.pathname === '/api/manual-adjustments') {
-      return handleManualAdjustments(request, env);
+      return handleManualAdjustments(request, env, appUser);
     }
 
     if (url.pathname === '/api/bonus-closures') {
@@ -1193,7 +1445,7 @@ export default {
     }
 
     if (isBonusPagePath(url.pathname)) {
-      if (!canUseBonus(appUser, env)) {
+      if (!(await canUseBonus(appUser, env))) {
         return new Response('Acesso negado.', {
           status: 403,
           headers: {
@@ -1217,7 +1469,9 @@ export default {
     }
 
     if (url.pathname.endsWith('/cliente-map-privado.js')) {
-      const script = await decryptPrivateMap(request, env);
+      const assetUrl = new URL('/cliente-map-privado.js', request.url);
+      const asset = await env.ASSETS.fetch(new Request(assetUrl, request));
+      const script = asset.ok ? await asset.text() : await decryptPrivateMap(request, env);
       return new Response(script, {
         headers: {
           'Content-Type': 'application/javascript; charset=UTF-8',

@@ -5,19 +5,15 @@ param(
   [int]$EndMonth = 0,
   [string]$ExportDir = 'exports',
   [switch]$DeployCloudflare,
-  [switch]$SkipPush
+  [switch]$SkipPush,
+  [switch]$SkipCmax,
+  [switch]$FastCurrentMonth
 )
 
 $ErrorActionPreference = 'Stop'
 
 $scriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
 Set-Location -LiteralPath $scriptDir
-
-$secretPath = Join-Path $scriptDir 'secrets\neppo-token.clixml'
-if ([string]::IsNullOrWhiteSpace($env:NEPPO_TOKEN) -and (Test-Path -LiteralPath $secretPath)) {
-  $secureToken = Import-Clixml -LiteralPath $secretPath
-  $env:NEPPO_TOKEN = [System.Net.NetworkCredential]::new('', $secureToken).Password
-}
 
 $credentialPath = Join-Path $scriptDir 'secrets\neppo-credentials.clixml'
 if (Test-Path -LiteralPath $credentialPath) {
@@ -27,10 +23,20 @@ if (Test-Path -LiteralPath $credentialPath) {
       [Environment]::SetEnvironmentVariable($name, [System.Net.NetworkCredential]::new('', $credentials.$name).Password, 'Process')
     }
   }
+  $env:NEPPO_TOKEN = ''
+}
+
+$secretPath = Join-Path $scriptDir 'secrets\neppo-token.clixml'
+if ([string]::IsNullOrWhiteSpace($env:NEPPO_TOKEN) -and !(Test-Path -LiteralPath $credentialPath) -and (Test-Path -LiteralPath $secretPath)) {
+  $secureToken = Import-Clixml -LiteralPath $secretPath
+  $env:NEPPO_TOKEN = [System.Net.NetworkCredential]::new('', $secureToken).Password
 }
 
 if ($EndMonth -le 0) {
   $EndMonth = [int](Get-Date).Month
+}
+if ($FastCurrentMonth) {
+  $StartMonth = $EndMonth
 }
 
 function Find-Git {
@@ -58,13 +64,42 @@ Write-Host "Atualizando dashboard NEPPO ao vivo ($Year/$StartMonth até $Year/$E
   -StartMonth $StartMonth `
   -EndMonth $EndMonth `
   -ExportDir $ExportDir `
+  -MergeExistingCsv:$FastCurrentMonth `
   -NoMirrorRoot
+
+Write-Host 'Atualizando mapa privado de clientes...'
+$cmaxContacts = Join-Path $scriptDir 'exports\cmax-contatos.csv'
+$cmaxTokenPath = Join-Path $scriptDir 'secrets\cmax-jwt.clixml'
+if ($SkipCmax) {
+  Write-Host 'Pulando CMAX nesta atualização rápida. Usando o último arquivo CMAX disponível, se existir.'
+} elseif ((Test-Path -LiteralPath $cmaxTokenPath) -or ![string]::IsNullOrWhiteSpace($env:CMAX_JWT_TOKEN)) {
+  try {
+    Write-Host 'Exportando contatos CMAX para apoio de identificação...'
+    & (Join-Path $scriptDir 'Export-CmaxContacts.ps1') -OutputPath $cmaxContacts
+  }
+  catch {
+    Write-Warning "Não consegui exportar CMAX agora. Vou seguir sem travar a atualização. $($_.Exception.Message)"
+  }
+}
+
+$auxContacts = if (Test-Path -LiteralPath $cmaxContacts) {
+  $cmaxContacts
+} else {
+  Join-Path $env:USERPROFILE 'Downloads\Contatos_xzxix85h06jiflnt0emoi.csv'
+}
+$mapArgs = @{
+  ClientMonthPath = (Join-Path $ExportDir 'clientes-por-mes.csv')
+}
+if (Test-Path -LiteralPath $auxContacts) {
+  $mapArgs.AuxContactsPath = $auxContacts
+}
+& (Join-Path $scriptDir 'Atualizar-Mapa-Clientes-Privados.ps1') @mapArgs
 
 Write-Host 'Mascarando dados sensíveis do HTML público...'
 & (Join-Path $scriptDir 'Protect-PublicDashboardData.ps1') -HtmlPath (Join-Path $scriptDir 'index.html')
 
 Write-Host 'Verificando alterações para publicar...'
-& $git add index.html
+& $git add index.html cliente-map-privado.csv cliente-map-privado.js exports/atendimentos-neppo.csv exports/clientes-por-mes.csv exports/clientes-identificacao-relatorio.csv
 $hasChanges = $true
 & $git diff --cached --quiet
 if ($LASTEXITCODE -eq 0) { $hasChanges = $false }

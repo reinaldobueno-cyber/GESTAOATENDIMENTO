@@ -91,8 +91,8 @@ $newHtml = $html.Substring(0, $match.Groups[1].Index) + $json + $html.Substring(
 
 $sensitivePatterns = @('DOC:', 'whatsapp_', 'CpfCnpjNeppo', 'UsuarioNeppo')
 foreach ($pattern in $sensitivePatterns) {
-  if ($newHtml.Contains($pattern)) {
-    throw "Sanitização abortada: padrão sensível encontrado no HTML: $pattern"
+  if ($json.Contains($pattern)) {
+    throw "Sanitização abortada: padrão sensível encontrado no bloco de dados: $pattern"
   }
 }
 

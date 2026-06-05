@@ -10,6 +10,7 @@ $ErrorActionPreference = 'Stop'
 $scriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
 $secretDir = Join-Path $scriptDir 'secrets'
 $secretPath = Join-Path $secretDir 'neppo-token.clixml'
+$credentialPath = Join-Path $secretDir 'neppo-credentials.clixml'
 $updateScript = Join-Path $scriptDir 'Update-LiveDashboard.ps1'
 
 if (!(Test-Path -LiteralPath $updateScript)) {
@@ -24,7 +25,7 @@ if ($ResetToken -and (Test-Path -LiteralPath $secretPath)) {
   Remove-Item -LiteralPath $secretPath -Force
 }
 
-if (!(Test-Path -LiteralPath $secretPath)) {
+if (!(Test-Path -LiteralPath $secretPath) -and !(Test-Path -LiteralPath $credentialPath)) {
   Write-Host ''
   Write-Host 'Cole o NEPPO_TOKEN quando a janela pedir.'
   Write-Host 'Ele será salvo criptografado para o seu usuário do Windows.'
@@ -33,6 +34,8 @@ if (!(Test-Path -LiteralPath $secretPath)) {
     throw 'Token vazio. Instalação cancelada.'
   }
   $secureToken | Export-Clixml -LiteralPath $secretPath
+} elseif (Test-Path -LiteralPath $credentialPath) {
+  Write-Host 'Credenciais NEPPO locais encontradas. Vou reutilizar as credenciais salvas.'
 } else {
   Write-Host 'Token local já encontrado. Vou reutilizar o token salvo.'
 }
@@ -42,7 +45,7 @@ if ([string]::IsNullOrWhiteSpace($powershell)) {
   $powershell = (Get-Command powershell.exe -ErrorAction Stop).Source
 }
 
-$argument = '-NoProfile -ExecutionPolicy Bypass -File "{0}"' -f $updateScript
+$argument = '-NoProfile -ExecutionPolicy Bypass -File "{0}" -DeployCloudflare -SkipPush -SkipCmax -FastCurrentMonth' -f $updateScript
 $action = New-ScheduledTaskAction -Execute $powershell -Argument $argument -WorkingDirectory $scriptDir
 $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes $IntervalMinutes)
 $userId = "$env:USERDOMAIN\$env:USERNAME"
@@ -51,6 +54,7 @@ $settings = New-ScheduledTaskSettingsSet `
   -AllowStartIfOnBatteries `
   -DontStopIfGoingOnBatteries `
   -StartWhenAvailable `
+  -ExecutionTimeLimit (New-TimeSpan -Minutes 12) `
   -MultipleInstances IgnoreNew
 
 Register-ScheduledTask `
@@ -64,5 +68,5 @@ Register-ScheduledTask `
 Write-Host ''
 Write-Host "Tarefa instalada: $TaskName"
 Write-Host "Intervalo: a cada $IntervalMinutes minutos"
-Write-Host 'Fazendo uma primeira atualização agora...'
-& $updateScript
+Write-Host 'Fazendo uma primeira atualização agora e publicando no Cloudflare...'
+& $updateScript -DeployCloudflare -SkipPush -SkipCmax -FastCurrentMonth

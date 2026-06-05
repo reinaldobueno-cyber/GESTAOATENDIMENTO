@@ -8,7 +8,9 @@ param(
   [string]$TreatmentsPath = '',
   [string]$ExportDir = '',
   [switch]$ExportOnly,
-  [switch]$NoMirrorRoot
+  [switch]$NoMirrorRoot,
+  [switch]$MergeExistingCsv,
+  [string]$ExistingCsvPath = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -132,12 +134,36 @@ function Invoke-NeppoList([string]$Token, [string]$Endpoint, [int]$Page, [int]$S
     direction = 'DESC'
   } | ConvertTo-Json -Depth 20
 
-  Invoke-RestMethod `
-    -Method Post `
-    -Uri "$apiBase/chatapi/1.0/api/$Endpoint" `
-    -Headers @{ Authorization = "Bearer $Token" } `
-    -ContentType 'application/json' `
-    -Body $body
+  $lastError = $null
+  for ($attempt = 1; $attempt -le 4; $attempt++) {
+    try {
+      return Invoke-RestMethod `
+        -Method Post `
+        -Uri "$apiBase/chatapi/1.0/api/$Endpoint" `
+        -Headers @{ Authorization = "Bearer $Token" } `
+        -ContentType 'application/json' `
+        -Body $body
+    }
+    catch {
+      $lastError = $_
+      $statusCode = $null
+      try { $statusCode = [int]$_.Exception.Response.StatusCode } catch {}
+      if (($statusCode -eq 401 -or $statusCode -eq 403) -and $attempt -lt 4) {
+        Write-Warning "NEPPO recusou o token em $Endpoint pagina $Page. Vou renovar a autenticacao e tentar novamente."
+        $env:NEPPO_TOKEN = ''
+        $Token = Get-NeppoToken
+        Start-Sleep -Seconds 2
+        continue
+      }
+      if ($statusCode -eq 401 -or $statusCode -eq 403) { throw }
+      if ($attempt -lt 4) {
+        $delay = [Math]::Min(30, 2 * $attempt * $attempt)
+        Write-Warning "Falha temporaria NEPPO em $Endpoint pagina $Page. Tentativa $attempt/4. Nova tentativa em ${delay}s. $($_.Exception.Message)"
+        Start-Sleep -Seconds $delay
+      }
+    }
+  }
+  throw $lastError
 }
 
 function Get-NeppoRowsUntil([string]$Token, [string]$Endpoint, [datetimeoffset]$Start, [datetimeoffset]$End, [array]$Conditions, [string]$DateField, [string]$SortColumn = 'createdAt') {
@@ -196,6 +222,79 @@ function Split-ClientName([string]$Value) {
     $out.contrato = $Value.Trim()
   }
   return $out
+}
+
+function Get-ClientIdentityWords([string]$Value) {
+  $ignored = @(
+    'AGRO', 'AGROPECUARIA', 'AGROPECUARIO', 'BOVINOS', 'CLIENTE', 'CPF',
+    'DA', 'DAS', 'DE', 'DO', 'DOS', 'E', 'FAZ', 'FAZENDA', 'GRUPO',
+    'LTDA', 'ME', 'OUTRO', 'OUTROS', 'PECUARIA', 'SA'
+  )
+  return @(
+    (Normalize-Key $Value) -split '\s+' |
+      Where-Object { $_.Length -ge 3 -and $ignored -notcontains $_ }
+  )
+}
+
+function Test-SameClientIdentity([string]$Left, [string]$Right) {
+  $leftWords = @(Get-ClientIdentityWords $Left)
+  $rightWords = @(Get-ClientIdentityWords $Right)
+  if ($leftWords.Count -eq 0 -or $rightWords.Count -eq 0) {
+    return (Normalize-Key $Left) -eq (Normalize-Key $Right)
+  }
+  return @($leftWords | Where-Object { $rightWords -contains $_ }).Count -gt 0
+}
+
+function Remove-DuplicateProtocols($Records) {
+  $deduplicated = New-Object System.Collections.Generic.List[object]
+  $duplicateCount = 0
+  foreach ($group in @($Records | Group-Object protocolo)) {
+    if ([string]::IsNullOrWhiteSpace([string]$group.Name)) {
+      foreach ($record in $group.Group) { $deduplicated.Add($record) }
+      continue
+    }
+    $selected = $group.Group |
+      Sort-Object @{ Expression = { if ([string]$_.status -eq 'CLOSED') { 0 } else { 1 } }; Ascending = $true },
+                  @{ Expression = 'sessionId'; Descending = $true } |
+      Select-Object -First 1
+    $deduplicated.Add($selected)
+    $duplicateCount += $group.Count - 1
+  }
+  if ($duplicateCount -gt 0) {
+    Write-Warning "Protocolos duplicados removidos: $duplicateCount registro(s)."
+  }
+  return $deduplicated.ToArray()
+}
+
+function Resolve-DocumentClientConflicts($Records) {
+  $conflictCount = 0
+  foreach ($docGroup in @($Records | Where-Object { [string]$_.clienteChave -like 'DOC:*' } | Group-Object clienteChave)) {
+    $contractGroups = @(
+      $docGroup.Group |
+        Where-Object { ![string]::IsNullOrWhiteSpace([string]$_.clienteContrato) } |
+        Group-Object { Normalize-Key ([string]$_.clienteContrato) } |
+        Where-Object { ![string]::IsNullOrWhiteSpace([string]$_.Name) } |
+        Sort-Object @{ Expression = 'Count'; Descending = $true }, @{ Expression = 'Name'; Ascending = $true }
+    )
+    if ($contractGroups.Count -le 1) { continue }
+
+    $dominantContract = [string]$contractGroups[0].Name
+    $separated = $false
+    foreach ($record in $docGroup.Group) {
+      $contractKey = Normalize-Key ([string]$record.clienteContrato)
+      if ([string]::IsNullOrWhiteSpace($contractKey) -or (Test-SameClientIdentity $dominantContract $contractKey)) { continue }
+      $record.clienteChave = "$($docGroup.Name)|NOME:$contractKey"
+      $separated = $true
+    }
+    if ($separated) {
+      $conflictCount++
+      Write-Warning "Documento compartilhado por clientes diferentes: $($docGroup.Name). Mantido no documento: $dominantContract; clientes incompatíveis foram separados."
+    }
+  }
+  if ($conflictCount -gt 0) {
+    Write-Host "Conflitos de identidade separados: $conflictCount documento(s)."
+  }
+  return @($Records)
 }
 
 function Test-Truthy([string]$Value) {
@@ -349,13 +448,22 @@ function Write-Exports($Records, [string]$Path, [array]$Months) {
 
   $clientRows = foreach ($group in ($Records | Group-Object clienteChave)) {
     $items = @($group.Group)
-    $first = $items | Select-Object -First 1
+    $representativeContract = $items |
+      Where-Object { ![string]::IsNullOrWhiteSpace([string]$_.clienteContrato) } |
+      Group-Object clienteContrato |
+      Sort-Object @{ Expression = 'Count'; Descending = $true }, @{ Expression = 'Name'; Ascending = $true } |
+      Select-Object -First 1
+    $representativeClient = $items |
+      Where-Object { ![string]::IsNullOrWhiteSpace([string]$_.cliente) } |
+      Group-Object cliente |
+      Sort-Object @{ Expression = 'Count'; Descending = $true }, @{ Expression = 'Name'; Ascending = $true } |
+      Select-Object -First 1
     $obj = [ordered]@{
       ChaveCliente = $group.Name
       CpfCnpjNeppo = ($items | Where-Object cpfCnpj | Select-Object -ExpandProperty cpfCnpj -First 1)
       CodigoExternoNeppo = ($items | Where-Object codigoExterno | Select-Object -ExpandProperty codigoExterno -First 1)
-      ContratoExtraido = ($items | Where-Object clienteContrato | Select-Object -ExpandProperty clienteContrato -First 1)
-      ClienteExemplo = $first.cliente
+      ContratoExtraido = if ($null -ne $representativeContract) { [string]$representativeContract.Name } else { '' }
+      ClienteExemplo = if ($null -ne $representativeClient) { [string]$representativeClient.Name } else { '' }
       Telefones = (($items | Select-Object -ExpandProperty telefone -Unique | Where-Object { $_ }) -join ' | ')
       Total = $items.Count
     }
@@ -375,6 +483,61 @@ function Write-Exports($Records, [string]$Path, [array]$Months) {
   Write-Output "Exports written: $attendancePath"
   Write-Output "Exports written: $clientMonthPath"
   Write-Output "Exports written: $pendingMapPath"
+}
+
+function To-NullableDouble([string]$Value) {
+  if ([string]::IsNullOrWhiteSpace($Value) -or $Value -eq '—') { return $null }
+  $normalized = $Value.Replace(',', '.')
+  $parsed = 0.0
+  if ([double]::TryParse($normalized, [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$parsed)) {
+    return [double]$parsed
+  }
+  return $null
+}
+
+function Import-RecordsFromCsv([string]$Path) {
+  if ([string]::IsNullOrWhiteSpace($Path) -or !(Test-Path -LiteralPath $Path)) { return @() }
+  $imported = New-Object System.Collections.Generic.List[object]
+  foreach ($row in @(Import-Csv -LiteralPath $Path)) {
+    $created = [datetime]::MinValue
+    if (![datetime]::TryParse([string]$row.DataInicial, [ref]$created)) {
+      $created = Get-Date -Year ([int]$Year) -Month ([int]$row.Mes) -Day ([int]$row.Dia) -Hour 0 -Minute 0 -Second 0
+    }
+    $rating = To-NullableDouble ([string]$row.Avaliacao)
+    $atendSec = To-NullableDouble ([string]$row.TempoAtendimentoSeg)
+    $esperaSec = To-NullableDouble ([string]$row.TempoEsperaSeg)
+    $usuarioId = To-NullableDouble ([string]$row.UsuarioIdNeppo)
+    $sessionId = To-NullableDouble ([string]$row.SessionId)
+    $imported.Add([pscustomobject]@{
+      mes = [int]$row.Mes
+      dia = [int]$row.Dia
+      semana = Get-WeekName ([datetimeoffset]$created)
+      periodo = Get-PeriodName $created.Hour
+      atendSec = if ($null -ne $atendSec) { [double]$atendSec } else { 0.0 }
+      protocolo = [string]$row.Protocolo
+      agente = Normalize-Agent ([string]$row.Agente)
+      hora = $created.Hour
+      esperaSec = if ($null -ne $esperaSec) { [double]$esperaSec } else { 0.0 }
+      grupo = Normalize-Group ([string]$row.Grupo)
+      avaliacao = $rating
+      criadoEm = [string]$row.DataInicial
+      encerradoEm = [string]$row.DataEncerramento
+      cliente = [string]$row.ClienteOriginal
+      clienteUsuario = [string]$row.UsuarioInformado
+      clienteContrato = [string]$row.ContratoExtraido
+      clienteChave = [string]$row.ChaveCliente
+      cpfCnpj = [string]$row.CpfCnpjNeppo
+      codigoExterno = [string]$row.CodigoExternoNeppo
+      usuarioNeppo = [string]$row.UsuarioNeppo
+      usuarioId = if ($null -ne $usuarioId) { [int]$usuarioId } else { 0 }
+      telefone = [string]$row.Telefone
+      chamada = [string]$row.Canal
+      operacao = [string]$row.Operacao
+      status = [string]$row.Status
+      sessionId = if ($null -ne $sessionId) { [int]$sessionId } else { 0 }
+    })
+  }
+  return $imported.ToArray()
 }
 
 try {
@@ -403,13 +566,13 @@ try {
     }
   }
 
-  Write-Output "Buscando sessões fechadas no NEPPO..."
+  Write-Output "Buscando sessões operacionais no NEPPO..."
   $sessions = Get-NeppoRowsUntil `
     -Token $token `
     -Endpoint 'user-session' `
     -Start $start `
     -End $end `
-    -Conditions @(@{ key = 'status'; value = 'CLOSED'; operator = 'EQ'; logic = 'AND' }) `
+    -Conditions @() `
     -DateField 'createdAt' `
     -SortColumn 'createdAt'
 
@@ -507,11 +670,28 @@ try {
     })
   }
 
-  $treatmentResult = Apply-Treatments -Records $records.ToArray() -Path $treatmentsPath
+  if ($MergeExistingCsv) {
+    $existingPath = if (![string]::IsNullOrWhiteSpace($ExistingCsvPath)) { $ExistingCsvPath } else { Join-Path $exportDir 'atendimentos-neppo.csv' }
+    $replaceMonths = New-Object System.Collections.Generic.HashSet[int]
+    foreach ($m in ($StartMonth..$EndMonth)) { [void]$replaceMonths.Add([int]$m) }
+    $currentCount = $records.Count
+    $preserved = @(Import-RecordsFromCsv -Path $existingPath | Where-Object { !$replaceMonths.Contains([int]$_.mes) })
+    foreach ($older in $preserved) { $records.Add($older) }
+    Write-Output "Merge incremental: atualizados=$currentCount preservados=$($preserved.Count)"
+  }
+
+  $records = @(Remove-DuplicateProtocols -Records $records.ToArray())
+  $records = @(Resolve-DocumentClientConflicts -Records $records)
+
+  $treatmentResult = Apply-Treatments -Records $records -Path $treatmentsPath
   $records = @($treatmentResult.Records)
   $diary = @($treatmentResult.Diary)
 
-  $months = $StartMonth..$EndMonth
+  $months = if ($MergeExistingCsv) {
+    @($records | Group-Object mes | Sort-Object { [int]$_.Name } | ForEach-Object { [int]$_.Name })
+  } else {
+    $StartMonth..$EndMonth
+  }
   Write-Exports -Records @($records) -Path $exportDir -Months $months
   Write-DiaryExport -Diary @($diary) -Path $exportDir
   if ($ExportOnly) {
@@ -519,16 +699,20 @@ try {
     return
   }
   $focusMonth = [int](($records | Group-Object mes | Sort-Object { [int]$_.Name } -Descending | Select-Object -First 1).Name)
+  $monthShortNames = @('', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez')
+  $monthFullNames = @('', 'Janeiro 2026', 'Fevereiro 2026', 'Março 2026', 'Abril 2026', 'Maio 2026', 'Junho 2026', 'Julho 2026', 'Agosto 2026', 'Setembro 2026', 'Outubro 2026', 'Novembro 2026', 'Dezembro 2026')
   $D = [ordered]@{
-    meses = @('Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez')[($StartMonth - 1)..($EndMonth - 1)]
-    mesNomes = @('Janeiro 2026', 'Fevereiro 2026', 'Março 2026', 'Abril 2026', 'Maio 2026', 'Junho 2026', 'Julho 2026', 'Agosto 2026', 'Setembro 2026', 'Outubro 2026', 'Novembro 2026', 'Dezembro 2026')[($StartMonth - 1)..($EndMonth - 1)]
+    meses = @($months | ForEach-Object { $monthShortNames[[int]$_] })
+    mesNomes = @($months | ForEach-Object { $monthFullNames[[int]$_] })
     focusMonth = $focusMonth
-    focusIndex = $focusMonth - $StartMonth
-    focusLabel = (@('', 'Janeiro 2026', 'Fevereiro 2026', 'Março 2026', 'Abril 2026', 'Maio 2026', 'Junho 2026', 'Julho 2026', 'Agosto 2026', 'Setembro 2026', 'Outubro 2026', 'Novembro 2026', 'Dezembro 2026'))[$focusMonth]
+    focusIndex = [array]::IndexOf([int[]]$months, $focusMonth)
+    focusLabel = $monthFullNames[$focusMonth]
   }
 
   $D.atend = @()
   $D.aval = @()
+  $D.closed = @()
+  $D.open = @()
   $D.cobert = @()
   $D.sat = @()
   $D.tma = @()
@@ -537,14 +721,18 @@ try {
 
   foreach ($m in $months) {
     $rs = @($records | Where-Object mes -eq $m)
-    $ev = @($rs | Where-Object { $null -ne $_.avaliacao })
+    $closed = @($rs | Where-Object { [string]$_.status -eq 'CLOSED' })
+    $open = @($rs | Where-Object { [string]$_.status -ne 'CLOSED' })
+    $ev = @($closed | Where-Object { $null -ne $_.avaliacao })
     $D.atend += $rs.Count
+    $D.closed += $closed.Count
+    $D.open += $open.Count
     $D.aval += $ev.Count
-    $D.cobert += [Math]::Round(($ev.Count / [Math]::Max(1, $rs.Count)), 4)
+    $D.cobert += [Math]::Round(($ev.Count / [Math]::Max(1, $closed.Count)), 4)
     $D.sat += [Math]::Round((Avg @($ev | ForEach-Object avaliacao)), 3)
-    $D.tma += (F-Time (Avg @($rs | ForEach-Object atendSec)))
-    $D.tme += (F-Time (Avg @($rs | ForEach-Object esperaSec)))
-    $D.sla += [Math]::Round((@($rs | Where-Object { $_.esperaSec -le 120 }).Count / [Math]::Max(1, $rs.Count)), 4)
+    $D.tma += (F-Time (Avg @($closed | ForEach-Object atendSec)))
+    $D.tme += (F-Time (Avg @($closed | ForEach-Object esperaSec)))
+    $D.sla += [Math]::Round((@($closed | Where-Object { $_.esperaSec -le 120 }).Count / [Math]::Max(1, $closed.Count)), 4)
   }
 
   $daily = [ordered]@{}
@@ -609,8 +797,9 @@ try {
     $vals = @()
     foreach ($m in $months) {
       $rs = @($records | Where-Object { $_.agente -eq $a -and $_.mes -eq $m })
-      $ev = @($rs | Where-Object { $null -ne $_.avaliacao })
-      $tmaVal = if ($rs.Count) { F-Time (Avg @($rs | ForEach-Object atendSec)) } else { '—' }
+      $closed = @($rs | Where-Object { [string]$_.status -eq 'CLOSED' })
+      $ev = @($closed | Where-Object { $null -ne $_.avaliacao })
+      $tmaVal = if ($closed.Count) { F-Time (Avg @($closed | ForEach-Object atendSec)) } else { '—' }
       $vals += ,@($rs.Count, $ev.Count, [Math]::Round((Avg @($ev | ForEach-Object avaliacao)), 2), $tmaVal)
     }
     $ags[$a] = $vals

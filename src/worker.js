@@ -1,5 +1,5 @@
 import { BONUS_HTML_BASE64 } from './bonus-html.js';
-import { PRIVATE_CLIENT_MAP_JS } from './private-client-map.js';
+import { PRIVATE_CLIENT_MAP } from './private-client-map.js';
 
 function setupRequired() {
   return new Response(
@@ -662,12 +662,7 @@ async function getCurrentDashboardRow(request, env, protocol) {
 
 async function getPrivateClientName(request, env, code) {
   if (!code) return '';
-  const script = await decryptPrivateMap(request, env);
-  const match = script.match(/\(\s*(\[[\s\S]*?\])\s*\)\.forEach/);
-  if (!match) return '';
-  const clients = JSON.parse(match[1]);
-  const client = clients.find((item) => item?.codigo === code);
-  return client?.nome || '';
+  return PRIVATE_CLIENT_MAP[String(code)]?.nome || '';
 }
 
 async function renderPdfReport(request, env, protocol) {
@@ -1470,7 +1465,7 @@ export default {
     }
 
     if (url.pathname.endsWith('/cliente-map-privado.js')) {
-      const script = `${PRIVATE_CLIENT_MAP_JS}\nwindow.CLIENTE_PRIVADO_STATUS = "ok"; window.CLIENTE_PRIVADO_STATUS_DETAIL = "mapa_embutido_autenticado";`;
+      const script = `window.CLIENTE_PRIVADO = ${JSON.stringify(PRIVATE_CLIENT_MAP)};\nwindow.CLIENTE_PRIVADO_STATUS = "ok"; window.CLIENTE_PRIVADO_STATUS_DETAIL = "mapa_embutido_autenticado";`;
       return new Response(script, {
         headers: {
           'Content-Type': 'application/javascript; charset=UTF-8',

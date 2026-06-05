@@ -205,14 +205,34 @@ $($jsItems -join ",`r`n")
 ].forEach(function(c){
   var item = { codigo: c.codigo, nome: c.nome, total: c.total, doc: c.doc, mensalidade: c.mensalidade || 0, valorContrato: c.valorContrato || 0, formaPagamento: c.formaPagamento || '', divisorMRR: c.divisorMRR || 1, chave: c.chave, origem: c.origem };
   window.CLIENTE_PRIVADO[c.codigo] = item;
-  if (c.doc) window.CLIENTE_PRIVADO['DOC:' + c.doc] = item;
+  if (c.doc && c.chave === 'DOC:' + c.doc) window.CLIENTE_PRIVADO['DOC:' + c.doc] = item;
   if (c.chave) window.CLIENTE_PRIVADO[c.chave] = item;
 });
 "@
 [System.IO.File]::WriteAllText($privateJs, $js, [System.Text.Encoding]::UTF8)
 $moduleDir = Split-Path -Parent $privateModule
 if (!(Test-Path -LiteralPath $moduleDir)) { New-Item -ItemType Directory -Path $moduleDir | Out-Null }
-$module = "export const PRIVATE_CLIENT_MAP_JS = " + ($js | ConvertTo-Json -Compress) + ";`r`n"
+$moduleMap = [ordered]@{}
+foreach ($row in $outRows) {
+  $item = [ordered]@{
+    codigo = [string]$row.Codigo
+    nome = [string]$row.Cliente
+    total = [int]$row.TotalAtendimentos
+    doc = [string]$row.CpfCnpj
+    mensalidade = if (![string]::IsNullOrWhiteSpace([string]$row.Mensalidade)) { [double]$row.Mensalidade } else { 0 }
+    valorContrato = if (![string]::IsNullOrWhiteSpace([string]$row.ValorContrato)) { [double]$row.ValorContrato } else { 0 }
+    formaPagamento = [string]$row.FormaPagamento
+    divisorMRR = if (![string]::IsNullOrWhiteSpace([string]$row.DivisorMRR)) { [double]$row.DivisorMRR } else { 1 }
+    chave = [string]$row.ChaveCliente
+    origem = [string]$row.OrigemIdentificacao
+  }
+  $moduleMap[[string]$row.Codigo] = $item
+  if (![string]::IsNullOrWhiteSpace([string]$row.CpfCnpj) -and [string]$row.ChaveCliente -eq "DOC:$($row.CpfCnpj)") {
+    $moduleMap["DOC:$($row.CpfCnpj)"] = $item
+  }
+  if (![string]::IsNullOrWhiteSpace([string]$row.ChaveCliente)) { $moduleMap[[string]$row.ChaveCliente] = $item }
+}
+$module = "export const PRIVATE_CLIENT_MAP = " + ($moduleMap | ConvertTo-Json -Depth 10 -Compress) + ";`r`n"
 [System.IO.File]::WriteAllText($privateModule, $module, [System.Text.Encoding]::UTF8)
 
 $reportRows | Export-Csv -LiteralPath $report -NoTypeInformation -Encoding UTF8

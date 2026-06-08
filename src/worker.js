@@ -1072,6 +1072,8 @@ async function isAuthorized(request, env) {
 const MANAGED_USERS_KEY = 'app-users-v1';
 const MANUAL_ADJUSTMENTS_KEY = 'manual-adjustments-v1';
 const BONUS_CLOSURES_KEY = 'bonus-closures-v1';
+const TREATMENT_PATTERNS_KEY = 'treatment-patterns-v1';
+const INITIAL_DELETED_TREATMENT_PATTERNS = ['WA00000119688'];
 
 function parseBonusUsers(env) {
   const source = String(env.BONUS_USERS || env.BONUS_PRIVATE_USERS || '').trim();
@@ -1234,6 +1236,58 @@ async function handleManualAdjustments(request, env, user = '') {
   list.push(item);
   await env.ADJUSTMENTS.put(MANUAL_ADJUSTMENTS_KEY, JSON.stringify(list.slice(-2000)));
   return jsonResponse({ ok: true, adjustment: item, total: list.length });
+}
+
+function cleanTreatmentPattern(value) {
+  return String(value || '').trim().slice(0, 1200);
+}
+
+async function handleTreatmentPatterns(request, env, profile = {}) {
+  if (!env.ADJUSTMENTS) {
+    return jsonResponse({ patterns: [], deleted: INITIAL_DELETED_TREATMENT_PATTERNS, storage: false, message: 'ADJUSTMENTS_KV nao configurado' }, request.method === 'GET' ? 200 : 501);
+  }
+
+  const stored = (await env.ADJUSTMENTS.get(TREATMENT_PATTERNS_KEY, 'json')) || {};
+  let patterns = Array.isArray(stored.patterns) ? stored.patterns.map(cleanTreatmentPattern).filter(Boolean) : [];
+  let deleted = [...new Set([
+    ...INITIAL_DELETED_TREATMENT_PATTERNS,
+    ...(Array.isArray(stored.deleted) ? stored.deleted.map(cleanTreatmentPattern).filter(Boolean) : []),
+  ])];
+  const deletedSet = new Set(deleted);
+  patterns = [...new Set(patterns)].filter((pattern) => !deletedSet.has(pattern));
+
+  if (request.method === 'GET') {
+    return jsonResponse({ patterns, deleted, storage: true });
+  }
+
+  const body = await request.json().catch(() => null);
+  if (request.method === 'DELETE') {
+    if (profile.role !== 'admin') return jsonResponse({ error: 'Somente administradores podem excluir padrões.' }, 403);
+    const value = cleanTreatmentPattern(body?.value);
+    if (!value) return jsonResponse({ error: 'Padrão obrigatório.' }, 400);
+    patterns = patterns.filter((pattern) => pattern !== value);
+    deleted = [...new Set([...deleted, value])];
+    await env.ADJUSTMENTS.put(TREATMENT_PATTERNS_KEY, JSON.stringify({ patterns, deleted }));
+    return jsonResponse({ ok: true, patterns, deleted, storage: true });
+  }
+
+  if (request.method !== 'POST') return jsonResponse({ error: 'Metodo nao permitido' }, 405);
+
+  const oldValue = cleanTreatmentPattern(body?.oldValue);
+  const incoming = [
+    ...(Array.isArray(body?.patterns) ? body.patterns : []),
+    body?.value,
+  ].map(cleanTreatmentPattern).filter(Boolean);
+  if (!incoming.length) return jsonResponse({ error: 'Padrão obrigatório.' }, 400);
+  if (oldValue && !incoming.includes(oldValue)) {
+    patterns = patterns.filter((pattern) => pattern !== oldValue);
+    deleted = [...new Set([...deleted, oldValue])];
+    deletedSet.add(oldValue);
+  }
+  const allowedIncoming = incoming.filter((pattern) => !deletedSet.has(pattern));
+  patterns = [...new Set([...patterns, ...allowedIncoming])];
+  await env.ADJUSTMENTS.put(TREATMENT_PATTERNS_KEY, JSON.stringify({ patterns, deleted }));
+  return jsonResponse({ ok: true, patterns, deleted, storage: true });
 }
 
 function cleanBonusClosure(input, user) {
@@ -1434,6 +1488,10 @@ export default {
 
     if (url.pathname === '/api/manual-adjustments') {
       return handleManualAdjustments(request, env, appUser);
+    }
+
+    if (url.pathname === '/api/treatment-patterns') {
+      return handleTreatmentPatterns(request, env, appProfile);
     }
 
     if (url.pathname === '/api/bonus-closures') {

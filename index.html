@@ -1127,6 +1127,7 @@ canvas{cursor:pointer;}
           <label class="fl">Cadastrar ou editar padrão<br><input class="fs" id="tr-new-pattern" placeholder="Ex: CSAT referente ao produto, não ao atendimento"></label>
           <button type="button" class="rel-action" onclick="addTreatmentPattern()">Cadastrar</button>
           <button type="button" class="rel-action" onclick="openPatternEditor()">Editar</button>
+          <button type="button" class="rel-action admin-only" onclick="deleteTreatmentPattern()">Excluir</button>
         </div>
         <label class="fl">O que aconteceu?<br><textarea class="fs" id="tr-reason" required rows="4" placeholder="Texto do diário, como na planilha: o que aconteceu neste protocolo?"></textarea></label>
         <label class="fl">Observação complementar<br><textarea class="fs" id="tr-diary" rows="2" placeholder="Opcional: evidência, detalhe do fechamento ou orientação combinada."></textarea></label>
@@ -266202,6 +266203,10 @@ const TREATMENT_ACTIONS=[
   'Registrar ocorrência sem alterar indicador'
 ];
 const TREATMENT_PATTERN_KEY='gestao_treatment_patterns_v1';
+const INITIAL_DELETED_TREATMENT_PATTERNS=['WA00000119688'];
+let REMOTE_TREATMENT_PATTERNS=[];
+let DELETED_TREATMENT_PATTERNS=[...INITIAL_DELETED_TREATMENT_PATTERNS];
+let TREATMENT_PATTERNS_LOAD_PROMISE=null;
 const DEFAULT_TREATMENT_PATTERNS=[
   'CSAT referente ao produto, nao ao atendimento prestado pelo suporte.',
   'Cliente avaliou demanda, prazo ou regra de negocio, nao a condução do atendimento.',
@@ -266211,8 +266216,19 @@ const DEFAULT_TREATMENT_PATTERNS=[
   'Cliente voltou ao bot ou fluxo automatico, gerando avaliacao/tempo fora do escopo do suporte.',
   'Atendimento teve intervencao de outra area antes do suporte concluir a tratativa.'
 ];
+function localTreatmentPatterns(){
+  try{
+    const parsed=JSON.parse(localStorage.getItem(TREATMENT_PATTERN_KEY)||'[]');
+    return Array.isArray(parsed)?parsed.map(p=>String(p||'').trim()).filter(Boolean):[];
+  }catch{return [];}
+}
+function saveLocalTreatmentPatterns(patterns){
+  const deleted=new Set(DELETED_TREATMENT_PATTERNS);
+  localStorage.setItem(TREATMENT_PATTERN_KEY,JSON.stringify([...new Set(patterns)].filter(p=>p&&!deleted.has(p)&&!DEFAULT_TREATMENT_PATTERNS.includes(p))));
+}
 function treatmentPatterns(){
-  try{return [...new Set([...DEFAULT_TREATMENT_PATTERNS,...(JSON.parse(localStorage.getItem(TREATMENT_PATTERN_KEY)||'[]')||[])])];}catch{return DEFAULT_TREATMENT_PATTERNS;}
+  const deleted=new Set(DELETED_TREATMENT_PATTERNS);
+  return [...new Set([...DEFAULT_TREATMENT_PATTERNS,...REMOTE_TREATMENT_PATTERNS,...localTreatmentPatterns()])].filter(p=>!deleted.has(p));
 }
 function refreshTreatmentPatternSelect(){
   const sel=$('tr-reason-pattern');
@@ -266222,24 +266238,55 @@ function refreshTreatmentPatternSelect(){
   treatmentPatterns().forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p.length>86?p.slice(0,86)+'...':p;sel.appendChild(o);});
   sel.value=current;
 }
-function addTreatmentPattern(){
+function applyTreatmentPatternState(data={}){
+  REMOTE_TREATMENT_PATTERNS=Array.isArray(data.patterns)?data.patterns:[];
+  DELETED_TREATMENT_PATTERNS=[...new Set([...INITIAL_DELETED_TREATMENT_PATTERNS,...(Array.isArray(data.deleted)?data.deleted:[])])];
+  saveLocalTreatmentPatterns(localTreatmentPatterns());
+  refreshTreatmentPatternSelect();
+}
+async function saveTreatmentPatternsRemote(payload){
+  if(location.protocol==='file:')return null;
+  const r=await fetch('/api/treatment-patterns',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const data=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(data.error||'Não consegui salvar o padrão.');
+  applyTreatmentPatternState(data);
+  return data;
+}
+async function loadTreatmentPatterns(){
+  if(TREATMENT_PATTERNS_LOAD_PROMISE)return TREATMENT_PATTERNS_LOAD_PROMISE;
+  TREATMENT_PATTERNS_LOAD_PROMISE=(async()=>{
+    if(location.protocol==='file:'){
+      applyTreatmentPatternState({});
+      return;
+    }
+    try{
+      const r=await fetch('/api/treatment-patterns',{cache:'no-store'});
+      if(!r.ok)throw new Error('Falha ao carregar padrões');
+      applyTreatmentPatternState(await r.json());
+      const local=localTreatmentPatterns();
+      if(local.length)await saveTreatmentPatternsRemote({patterns:local});
+    }catch{
+      saveLocalTreatmentPatterns(localTreatmentPatterns());
+      refreshTreatmentPatternSelect();
+    }
+  })();
+  return TREATMENT_PATTERNS_LOAD_PROMISE;
+}
+async function addTreatmentPattern(){
   const input=$('tr-new-pattern'), value=(input?.value||'').trim();
   if(!value)return;
-  const custom=treatmentPatterns().filter(p=>!DEFAULT_TREATMENT_PATTERNS.includes(p));
-  localStorage.setItem(TREATMENT_PATTERN_KEY,JSON.stringify([...new Set([...custom,value])]));
+  saveLocalTreatmentPatterns([...localTreatmentPatterns(),value]);
+  try{await saveTreatmentPatternsRemote({value});}catch(err){toast(`Não consegui compartilhar o padrão: ${err.message||err}. Ficou só neste navegador.`,true);}
   refreshTreatmentPatternSelect();
   $('tr-reason-pattern').value=value;
   $('tr-reason').value=value;
   input.value='';
 }
-function editTreatmentPattern(){
+async function editTreatmentPattern(){
   const current=$('tr-reason-pattern')?.value||'', value=($('tr-new-pattern')?.value||'').trim();
   if(!current||!value)return;
-  const custom=treatmentPatterns()
-    .filter(p=>!DEFAULT_TREATMENT_PATTERNS.includes(p))
-    .map(p=>p===current?value:p);
-  const next=DEFAULT_TREATMENT_PATTERNS.includes(current)?[...custom,value]:custom;
-  localStorage.setItem(TREATMENT_PATTERN_KEY,JSON.stringify([...new Set(next)]));
+  saveLocalTreatmentPatterns([...localTreatmentPatterns().filter(p=>p!==current),value]);
+  try{await saveTreatmentPatternsRemote({value,oldValue:current});}catch(err){toast(`Não consegui compartilhar a edição: ${err.message||err}.`,true);}
   refreshTreatmentPatternSelect();
   $('tr-reason-pattern').value=value;
   $('tr-reason').value=value;
@@ -266260,20 +266307,33 @@ function openPatternEditor(){
     </form>`;
   $('rel-modal').classList.add('open');
 }
-function savePatternEditor(event){
+async function savePatternEditor(event){
   event.preventDefault();
   const current=$('pattern-old-value')?.value||'', value=($('pattern-edit-value')?.value||'').trim();
   if(!current||!value)return;
-  const custom=treatmentPatterns()
-    .filter(p=>!DEFAULT_TREATMENT_PATTERNS.includes(p))
-    .map(p=>p===current?value:p);
-  const next=DEFAULT_TREATMENT_PATTERNS.includes(current)?[...custom,value]:custom;
-  localStorage.setItem(TREATMENT_PATTERN_KEY,JSON.stringify([...new Set(next)]));
+  saveLocalTreatmentPatterns([...localTreatmentPatterns().filter(p=>p!==current),value]);
+  try{await saveTreatmentPatternsRemote({value,oldValue:current});}catch(err){toast(`Não consegui compartilhar a edição: ${err.message||err}.`,true);}
   refreshTreatmentPatternSelect();
   $('tr-reason-pattern').value=value;
   $('tr-new-pattern').value=value;
   $('tr-reason').value=value;
   closeRelModal();
+}
+async function deleteTreatmentPattern(){
+  const value=$('tr-reason-pattern')?.value||($('tr-new-pattern')?.value||'').trim();
+  if(!value)return toast('Selecione o padrão que deseja excluir.',true);
+  if(!APP_SESSION.admin&&APP_SESSION.role!=='admin')return toast('Somente administradores podem excluir padrões.',true);
+  if(!confirm(`Excluir este padrão para todos?\n\n${value}`))return;
+  try{
+    const r=await fetch('/api/treatment-patterns',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({value})});
+    const data=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(data.error||'Não consegui excluir o padrão.');
+    applyTreatmentPatternState(data);
+    saveLocalTreatmentPatterns(localTreatmentPatterns().filter(p=>p!==value));
+    if($('tr-reason-pattern'))$('tr-reason-pattern').value='';
+    if($('tr-new-pattern'))$('tr-new-pattern').value='';
+    toast('Padrão excluído para todos os usuários.');
+  }catch(err){toast(err.message||String(err),true);}
 }
 function applyTreatmentPattern(){
   const value=$('tr-reason-pattern')?.value||'';
@@ -267678,6 +267738,7 @@ function applySessionPermissions(session={}){
   document.querySelectorAll('.admin-only').forEach(el=>el.classList.toggle('visible',isAdmin));
   document.querySelectorAll('.bonus-private').forEach(el=>el.classList.toggle('visible',!!APP_SESSION.bonusPrivate));
   updateTreatmentBell();
+  loadTreatmentPatterns();
   if(isAdmin)loadUsersAdmin();
 }
 

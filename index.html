@@ -209,7 +209,7 @@ body{background:var(--paper);color:var(--text);font-family:'Geist',sans-serif;li
 .rel-agent-chip{display:inline-flex;gap:.28rem;align-items:center;border:1px solid rgba(61,107,71,.2);border-radius:999px;background:#fff;padding:4px 8px;font-family:'Geist Mono',monospace;font-size:.6rem;color:var(--sub);white-space:nowrap;}
 .rel-agent-chip b{color:var(--moss);}
 .rel-agent-group{color:#2a6b8a;font-weight:700;}
-.rel-agent-group-start{margin-left:.5rem;}
+.rel-agent-group-count{color:#2a6b8a;font-weight:800;}
 .rel-client{border:0;background:transparent;color:var(--moss);font:inherit;font-weight:700;text-decoration:underline;text-underline-offset:2px;cursor:pointer;padding:0;text-align:left;}
 .client-months{display:grid;grid-template-columns:repeat(auto-fit,minmax(82px,1fr));gap:.45rem;margin:.8rem 0;}
 .client-month{border:1px solid var(--border);border-radius:8px;background:var(--foam);padding:.55rem;text-align:center;}
@@ -2992,7 +2992,7 @@ const D = {
                      "5 Periodo",
                      17,
                      "08/06/2026 17:24",
-                     "",
+                     "08/06/2026 17:39",
                      "Cliente #019 · 81 atendimentos",
                      "",
                      "WHATSAPP",
@@ -269519,13 +269519,8 @@ function showTempoPopup(title,subtitle,rows){
     a[agent].total++;
     a[agent].groups[group]=(a[agent].groups[group]||0)+1;
     return a;
-  },{})).map(a=>({...a,group:Object.entries(a.groups).sort((x,y)=>y[1]-x[1]||x[0].localeCompare(y[0],'pt-BR'))[0]?.[0]||'Sem grupo'})).sort((a,b)=>a.group.localeCompare(b.group,'pt-BR')||b.total-a.total||a.agent.localeCompare(b.agent,'pt-BR'));
-  let previousAgentGroup='';
-  const agentChips=byAgent.map(a=>{
-    const startsGroup=a.group!==previousAgentGroup;
-    previousAgentGroup=a.group;
-    return `<span class="rel-agent-chip${startsGroup?' rel-agent-group-start':''}">${esc(a.agent)} <span class="rel-agent-group">· ${esc(a.group)}</span> <b>${a.total}</b></span>`;
-  }).join('');
+  },{})).map(a=>({...a,groupList:Object.entries(a.groups).sort((x,y)=>y[1]-x[1]||x[0].localeCompare(y[0],'pt-BR'))})).sort((a,b)=>b.total-a.total||a.agent.localeCompare(b.agent,'pt-BR'));
+  const agentChips=byAgent.map(a=>`<span class="rel-agent-chip">${esc(a.agent)} <b>${a.total}</b>${a.groupList.map(([group,count])=>`<span class="rel-agent-group">· ${esc(group)} <span class="rel-agent-group-count">${count}</span></span>`).join('')}</span>`).join('');
   const groupStats=Object.entries(rows.reduce((a,r)=>{
     const group=r[3]||'Sem grupo';
     if(!a[group])a[group]=[];
@@ -269563,7 +269558,7 @@ function showTempoPopup(title,subtitle,rows){
       <div class="rel-k"><div class="rel-kv">${fmtDur(avgWait)}</div><div class="rel-kl">TME médio</div></div>
       <div class="rel-k"><div class="rel-kv">${av.length?fS(avgArr(av.map(r=>r[6]))):'—'}</div><div class="rel-kl">CSAT médio</div></div>
     </div>
-    ${byAgent.length?`<div class="rel-agents"><span class="rel-agents-label">Agentes (${byAgent.length}) · ordenados por grupo</span>${agentChips}</div>`:''}
+    ${byAgent.length?`<div class="rel-agents"><span class="rel-agents-label">Agentes (${byAgent.length}) · divisão por grupo</span>${agentChips}</div>`:''}
     ${groupSummary}
     ${groupLists||'<div class="op-empty">Nenhum atendimento encontrado.</div>'}
   `;
@@ -270670,6 +270665,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

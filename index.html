@@ -204,12 +204,14 @@ body{background:var(--paper);color:var(--text);font-family:'Geist',sans-serif;li
 .rel-group-title{font-family:'Fraunces',serif;font-weight:800;color:var(--ink);}
 .rel-group-meta{font-family:'Geist Mono',monospace;font-size:.58rem;color:var(--ghost);}
 .click-note{font-family:'Geist Mono',monospace;font-size:.58rem;color:var(--ghost);margin-top:.4rem;}
-.rel-agents{display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;margin:.75rem 0;padding:.65rem .75rem;border:1px solid var(--border);border-radius:8px;background:var(--foam);}
-.rel-agents-label{font-family:'Geist Mono',monospace;font-size:.62rem;font-weight:800;color:var(--moss);margin-right:.2rem;}
+.rel-agents{margin:.75rem 0;padding:.65rem .75rem;border:1px solid var(--border);border-radius:8px;background:var(--foam);}
+.rel-agents-label{display:block;font-family:'Geist Mono',monospace;font-size:.62rem;font-weight:800;color:var(--moss);margin-bottom:.55rem;}
+.rel-agent-groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:.55rem;}
+.rel-agent-group-box{border:1px solid rgba(61,107,71,.16);border-radius:7px;background:#fff;padding:.55rem .6rem;}
+.rel-agent-group-title{display:flex;justify-content:space-between;gap:.5rem;margin-bottom:.4rem;font-family:'Geist Mono',monospace;font-size:.62rem;font-weight:800;color:#2a6b8a;}
+.rel-agent-group-list{display:flex;gap:.32rem;flex-wrap:wrap;}
 .rel-agent-chip{display:inline-flex;gap:.28rem;align-items:center;border:1px solid rgba(61,107,71,.2);border-radius:999px;background:#fff;padding:4px 8px;font-family:'Geist Mono',monospace;font-size:.6rem;color:var(--sub);white-space:nowrap;}
 .rel-agent-chip b{color:var(--moss);}
-.rel-agent-group{color:#2a6b8a;font-weight:700;}
-.rel-agent-group-count{color:#2a6b8a;font-weight:800;}
 .rel-client{border:0;background:transparent;color:var(--moss);font:inherit;font-weight:700;text-decoration:underline;text-underline-offset:2px;cursor:pointer;padding:0;text-align:left;}
 .client-months{display:grid;grid-template-columns:repeat(auto-fit,minmax(82px,1fr));gap:.45rem;margin:.8rem 0;}
 .client-month{border:1px solid var(--border);border-radius:8px;background:var(--foam);padding:.55rem;text-align:center;}
@@ -1411,7 +1413,7 @@ const D = {
                    1945,
                    1691,
                    1866,
-                   437
+                   438
                ],
     "open":  [
                  0,
@@ -1419,7 +1421,7 @@ const D = {
                  0,
                  0,
                  0,
-                 6
+                 5
              ],
     "cobert":  [
                    0.4908,
@@ -1427,7 +1429,7 @@ const D = {
                    0.4571,
                    0.5009,
                    0.515,
-                   0.5332
+                   0.532
                ],
     "sat":  [
                 9.817,
@@ -1443,7 +1445,7 @@ const D = {
                 "00:27:12",
                 "00:36:11",
                 "00:43:05",
-                "00:24:20"
+                "00:24:18"
             ],
     "tme":  [
                 "00:05:30",
@@ -2732,7 +2734,7 @@ const D = {
                                                32,
                                                19,
                                                9.95,
-                                               "00:20:53"
+                                               "00:20:36"
                                            ]
                                        ],
                     "Raissa Ribeiro":  [
@@ -2931,18 +2933,18 @@ const D = {
                      8,
                      "Natalia Vieira",
                      "Estoque Animais",
-                     0,
+                     730,
                      3,
                      null,
                      "WA00000124007",
                      "5 Periodo",
                      17,
                      "08/06/2026 17:34",
-                     "",
+                     "08/06/2026 17:46",
                      "Cliente #171 · 19 atendimentos",
                      "",
                      "WHATSAPP",
-                     "OPEN",
+                     "CLOSED",
                      124007,
                      "MODELO",
                      "Cliente #171",
@@ -3019,7 +3021,7 @@ const D = {
                      "5 Periodo",
                      17,
                      "08/06/2026 17:18",
-                     "",
+                     "08/06/2026 17:44",
                      "Cliente #255 · 11 atendimentos",
                      "",
                      "WHATSAPP",
@@ -262270,7 +262272,7 @@ const D = {
                                        21
                                    ],
                   "Natalia Vieira":  [
-                                         20.2,
+                                         20.6,
                                          18,
                                          52.6,
                                          32
@@ -262289,8 +262291,8 @@ const D = {
                                      ]
               },
     "tmaDist":  [
-                    74,
-                    147,
+                    73,
+                    148,
                     103,
                     73,
                     27,
@@ -267272,7 +267274,7 @@ const D = {
                                                                    21
                                                                ],
                                               "Natalia Vieira":  [
-                                                                     20.2,
+                                                                     20.6,
                                                                      18,
                                                                      52.6,
                                                                      32
@@ -267291,8 +267293,8 @@ const D = {
                                                                  ]
                                           },
                                 "tmaDist":  [
-                                                74,
-                                                147,
+                                                73,
+                                                148,
                                                 103,
                                                 73,
                                                 27,
@@ -269519,8 +269521,15 @@ function showTempoPopup(title,subtitle,rows){
     a[agent].total++;
     a[agent].groups[group]=(a[agent].groups[group]||0)+1;
     return a;
-  },{})).map(a=>({...a,groupList:Object.entries(a.groups).sort((x,y)=>y[1]-x[1]||x[0].localeCompare(y[0],'pt-BR'))})).sort((a,b)=>b.total-a.total||a.agent.localeCompare(b.agent,'pt-BR'));
-  const agentChips=byAgent.map(a=>`<span class="rel-agent-chip">${esc(a.agent)} <b>${a.total}</b>${a.groupList.map(([group,count])=>`<span class="rel-agent-group">· ${esc(group)} <span class="rel-agent-group-count">${count}</span></span>`).join('')}</span>`).join('');
+  },{})).sort((a,b)=>b.total-a.total||a.agent.localeCompare(b.agent,'pt-BR'));
+  const agentGroups=Object.entries(rows.reduce((a,r)=>{
+    const group=r[3]||'Sem grupo', agent=r[2]||'Sem agente';
+    if(!a[group])a[group]={total:0,agents:{}};
+    a[group].total++;
+    a[group].agents[agent]=(a[group].agents[agent]||0)+1;
+    return a;
+  },{})).map(([group,data])=>({group,...data,agentList:Object.entries(data.agents).sort((x,y)=>y[1]-x[1]||x[0].localeCompare(y[0],'pt-BR'))})).sort((a,b)=>b.total-a.total||a.group.localeCompare(b.group,'pt-BR'));
+  const agentGroupBlocks=agentGroups.map(g=>`<div class="rel-agent-group-box"><div class="rel-agent-group-title"><span>${esc(g.group)}</span><b>${g.total}</b></div><div class="rel-agent-group-list">${g.agentList.map(([agent,count])=>`<span class="rel-agent-chip">${esc(agent)} <b>${count}</b></span>`).join('')}</div></div>`).join('');
   const groupStats=Object.entries(rows.reduce((a,r)=>{
     const group=r[3]||'Sem grupo';
     if(!a[group])a[group]=[];
@@ -269558,7 +269567,7 @@ function showTempoPopup(title,subtitle,rows){
       <div class="rel-k"><div class="rel-kv">${fmtDur(avgWait)}</div><div class="rel-kl">TME médio</div></div>
       <div class="rel-k"><div class="rel-kv">${av.length?fS(avgArr(av.map(r=>r[6]))):'—'}</div><div class="rel-kl">CSAT médio</div></div>
     </div>
-    ${byAgent.length?`<div class="rel-agents"><span class="rel-agents-label">Agentes (${byAgent.length}) · divisão por grupo</span>${agentChips}</div>`:''}
+    ${byAgent.length?`<div class="rel-agents"><span class="rel-agents-label">Agentes (${byAgent.length}) organizados por grupo</span><div class="rel-agent-groups">${agentGroupBlocks}</div></div>`:''}
     ${groupSummary}
     ${groupLists||'<div class="op-empty">Nenhum atendimento encontrado.</div>'}
   `;
@@ -270665,6 +270674,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

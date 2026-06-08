@@ -1244,12 +1244,19 @@ canvas{cursor:pointer;}
       <div class="h220"><canvas id="ch-diary-ag"></canvas></div>
     </div>
     <div class="card">
-      <div class="ch"><div class="ct">Tipo de Ação por Mês</div><div class="cs">Desconsiderados vs Ajustados</div></div>
+      <div class="ch"><div class="ct" id="diary-type-title">Tipo de Ação por Dia</div><div class="cs" id="diary-type-sub">Desconsiderados vs Ajustados</div></div>
       <div class="h220"><canvas id="ch-diary-type"></canvas></div>
     </div>
   </div>
 
   <div class="fbar">
+    <span class="fl">Visão:</span>
+    <select class="fs" id="d-scope" onchange="renderDiary()">
+      <option value="day">Por dia</option>
+      <option value="month">Por mês</option>
+    </select>
+    <span class="fl" style="margin-left:8px;">Dia:</span>
+    <select class="fs" id="d-day" onchange="renderDiary()"><option value="">Todos</option></select>
     <span class="fl">Filtrar:</span>
     <select class="fs" id="d-filter" onchange="renderDiary()">
       <option value="">Todos</option>
@@ -266222,9 +266229,10 @@ function diaryItems(){
     if(seen.has(sig))return null;
     seen.add(sig);
     const mes=Number(row?.[0])||Number(String(a.data||'').split('/')[1])||appM+1;
+    const dia=Number(row?.[1])||Number(String(a.data||'').match(/^(\d{1,2})[/-]/)?.[1])||0;
     const ag=row?.[2]||a.agente||a.responsavel||'Sem agente';
     const desc=[a.motivo,a.impacto,a.diario].filter(Boolean).join(' · ')||'Sem descrição informada.';
-    return {id:key,signature:sig,mes,dt:a.data||row?.[10]||'',ag,proto,ac:diaryActionLabel(a),desc,raw:a,row};
+    return {id:key,signature:sig,mes,dia,dt:a.data||row?.[10]||'',ag,proto,ac:diaryActionLabel(a),desc,raw:a,row};
   }).filter(Boolean).sort((a,b)=>(a.mes-b.mes)||String(a.dt).localeCompare(String(b.dt)));
 }
 function showDiaryAttendance(proto){
@@ -266272,33 +266280,54 @@ function refreshDiaryAgentOptions(items){
   [...new Set(items.map(d=>d.ag))].sort((a,b)=>a.localeCompare(b,'pt-BR')).forEach(a=>{const o=document.createElement('option');o.value=a;o.textContent=a;sel.appendChild(o);});
   sel.value=[...sel.options].some(o=>o.value===current)?current:'';
 }
-function updateDiaryCharts(items){
+function refreshDiaryDayOptions(items){
+  const sel=$('d-day');
+  if(!sel)return;
+  const current=sel.value;
+  sel.innerHTML='<option value="">Todos</option>';
+  [...new Set(items.map(d=>d.dia).filter(Boolean))].sort((a,b)=>a-b).forEach(day=>{const o=document.createElement('option');o.value=String(day);o.textContent=String(day).padStart(2,'0');sel.appendChild(o);});
+  sel.value=[...sel.options].some(o=>o.value===current)?current:'';
+}
+function updateDiaryCharts(items,scope='day'){
   const diaryAg={};items.forEach(d=>{diaryAg[d.ag]=(diaryAg[d.ag]||0)+1;});
   const daArr=Object.entries(diaryAg).sort((a,b)=>b[1]-a[1]);
   const agData={labels:daArr.map(([n])=>n.split(' ')[0]+' '+(n.split(' ')[1]?.charAt(0)||'')+'.'),datasets:[{label:'Ocorrências',data:daArr.map(([,v])=>v),backgroundColor:daArr.map(([,v])=>v>=3?'#a83232':v>=2?'#9a6b1a':'#4f8562'),borderRadius:5}]};
   const agOptions={...cDef,plugins:{...cDef.plugins,legend:{display:false}},onClick:chartClick(el=>{const agent=daArr[el.index]?.[0];diaryPopup(`Diário · ${agent||'Agente'}`,'Ocorrências filtradas por agente',items.filter(d=>d.ag===agent));})};
   if(chDiaryAg){chDiaryAg.data=agData;chDiaryAg.options=agOptions;chDiaryAg.update();}else chDiaryAg=new Chart($('ch-diary-ag'),{type:'bar',data:agData,options:agOptions});
-  const typeData={labels:D.meses,datasets:[
-    {label:'Desc. Avaliação',data:D.meses.map((_,i)=>items.filter(d=>d.mes===i+1&&d.ac.toLowerCase().includes('avalia')).length),backgroundColor:'rgba(168,50,50,.7)',borderRadius:4},
-    {label:'Desc. Tempo',data:D.meses.map((_,i)=>items.filter(d=>d.mes===i+1&&d.ac.toLowerCase().includes('tempo')).length),backgroundColor:'rgba(154,107,26,.7)',borderRadius:4},
-    {label:'Ajustes',data:D.meses.map((_,i)=>items.filter(d=>d.mes===i+1&&d.ac.toLowerCase().includes('ajust')).length),backgroundColor:'rgba(61,107,71,.7)',borderRadius:4}
+  const daily=scope==='day';
+  const periods=daily?Array.from({length:new Date(new Date().getFullYear(),appM+1,0).getDate()},(_,i)=>i+1):D.meses.map((_,i)=>i+1);
+  const labels=daily?periods.map(day=>String(day).padStart(2,'0')):D.meses;
+  const periodItems=period=>items.filter(d=>daily?d.dia===period:d.mes===period);
+  const typeData={labels,datasets:[
+    {label:'Desc. Avaliação',data:periods.map(period=>periodItems(period).filter(d=>d.ac.toLowerCase().includes('avalia')).length),backgroundColor:'rgba(168,50,50,.7)',borderRadius:4},
+    {label:'Desc. Tempo',data:periods.map(period=>periodItems(period).filter(d=>d.ac.toLowerCase().includes('tempo')).length),backgroundColor:'rgba(154,107,26,.7)',borderRadius:4},
+    {label:'Ajustes',data:periods.map(period=>periodItems(period).filter(d=>d.ac.toLowerCase().includes('ajust')).length),backgroundColor:'rgba(61,107,71,.7)',borderRadius:4}
   ]};
-  const typeOptions={...cDef,scales:{...cDef.scales,x:{...cDef.scales.x,stacked:true},y:{...cDef.scales.y,stacked:true}},onClick:chartClick(el=>{const m=el.index+1,kind=el.datasetIndex===0?'avalia':el.datasetIndex===1?'tempo':'ajust';diaryPopup(`Diário · ${D.meses[el.index]}`,`Tipo: ${kind}`,items.filter(d=>d.mes===m&&d.ac.toLowerCase().includes(kind)));})};
+  const typeOptions={...cDef,scales:{...cDef.scales,x:{...cDef.scales.x,stacked:true},y:{...cDef.scales.y,stacked:true}},onClick:chartClick(el=>{const period=periods[el.index],kind=el.datasetIndex===0?'avalia':el.datasetIndex===1?'tempo':'ajust';diaryPopup(daily?`Diário · ${String(period).padStart(2,'0')}/${String(appM+1).padStart(2,'0')}`:`Diário · ${D.meses[el.index]}`,`Tipo: ${kind}`,periodItems(period).filter(d=>d.ac.toLowerCase().includes(kind)));})};
   if(chDiaryType){chDiaryType.data=typeData;chDiaryType.options=typeOptions;chDiaryType.update();}else chDiaryType=new Chart($('ch-diary-type'),{type:'bar',data:typeData,options:typeOptions});
 }
 function renderDiary(){
   const items=diaryItems();
-  refreshDiaryAgentOptions(items);
-  updateDiaryCharts(items);
+  const scope=$('d-scope')?.value||'day';
+  const monthItems=items.filter(d=>d.mes===appM+1);
+  refreshDiaryDayOptions(monthItems);
+  if($('d-day'))$('d-day').disabled=scope!=='day';
+  const day=scope==='day'?Number($('d-day')?.value||0):0;
+  const scoped=scope==='day'?monthItems.filter(d=>!day||d.dia===day):items;
+  refreshDiaryAgentOptions(scoped);
+  updateDiaryCharts(scoped,scope);
   const f=$('d-filter').value,ag=$('d-ag').value;
-  const fl=items.filter(d=>(!f||d.ac.toLowerCase().includes(f.toLowerCase()))&&(!ag||d.ag===ag)).slice().reverse();
-  const discard=items.filter(d=>d.ac.toLowerCase().includes('desconsider')).length;
-  const adjusted=items.filter(d=>d.ac.toLowerCase().includes('ajust')).length;
-  const reasonCount={};items.forEach(d=>{const k=(d.raw?.motivo||d.desc||'Sem motivo').slice(0,42);reasonCount[k]=(reasonCount[k]||0)+1;});
+  const fl=scoped.filter(d=>(!f||d.ac.toLowerCase().includes(f.toLowerCase()))&&(!ag||d.ag===ag)).slice().reverse();
+  const discard=scoped.filter(d=>d.ac.toLowerCase().includes('desconsider')).length;
+  const adjusted=scoped.filter(d=>d.ac.toLowerCase().includes('ajust')).length;
+  const reasonCount={};scoped.forEach(d=>{const k=(d.raw?.motivo||d.desc||'Sem motivo').slice(0,42);reasonCount[k]=(reasonCount[k]||0)+1;});
   const main=Object.entries(reasonCount).sort((a,b)=>b[1]-a[1])[0]||['—',0];
-  $('diary-sub').textContent=`${items.length} ocorrência(s) registradas · fonte central`;
-  $('diary-k-total').textContent=fN(items.length);
-  $('diary-k-period').textContent='Fonte central sincronizada';
+  const periodLabel=scope==='day'?(day?`${String(day).padStart(2,'0')} de ${D.mesNomes[appM]}`:D.mesNomes[appM]):'Histórico mensal';
+  $('diary-type-title').textContent=scope==='day'?'Tipo de Ação por Dia':'Tipo de Ação por Mês';
+  $('diary-type-sub').textContent=scope==='day'?D.mesNomes[appM]:'Desconsiderados vs Ajustados';
+  $('diary-sub').textContent=`${scoped.length} ocorrência(s) · ${periodLabel} · fonte central`;
+  $('diary-k-total').textContent=fN(scoped.length);
+  $('diary-k-period').textContent=periodLabel;
   $('diary-k-discard').textContent=fN(discard);
   $('diary-k-adjust').textContent=fN(adjusted);
   $('diary-k-main').textContent=main[0];
@@ -268092,6 +268121,7 @@ function setGlobalMonth(m){
   renderFluxMonth(m);
   renderBonus();
   renderCal();
+  renderDiary();
 }
 
 // ════════ INIT ════════

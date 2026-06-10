@@ -270667,10 +270667,11 @@ const chart=(id,cfg)=>{const el=$(id);Chart.getChart(el)?.destroy();if(cfg?.opti
 const setText=(selector,starts,text)=>{const el=[...document.querySelectorAll(selector)].find(x=>x.textContent.trim().startsWith(starts));if(el)el.textContent=text;};
 const NUCLEOS=[
   {n:'Núcleo Engorda',a:['Beatriz Araujo','Ana Paula','Ana Pereira','Natalia Vieira','Wiviane Borges','Marcus Silva','Marcelo Santos','Lucas Pereira','Wanderley Cabral']},
-  {n:'Núcleo Reprodutivo',a:['Raissa Ribeiro','Lais Medeiros','Evelyn Gonçalves','Julia Almeida','Alexandre Lobo']},
+  {n:'Núcleo Reprodutivo',a:['Raissa Ribeiro','Lais Medeiros','Evelyn Gonçalves','Julia Almeida','Alexandre Lobo','Isaac Coelho']},
   {n:'Núcleo Infraestrutura',a:['Marcelo Costa','Gabriel Freire','Dhon Freitas']}
 ];
 const normName=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+const AGENT_NUCLEUS_OVERRIDES={'isaac coelho':'Núcleo Reprodutivo'};
 const SEASON_HINTS={
   'Reprodução':'Reprodução / estação de monta',
   'Estoque Animais':'Movimentação de lote e inventário',
@@ -271062,6 +271063,8 @@ buildAgMs();
 
 const APAL=['#3d6b47','#4f8562','#6a9e78','#9ec4a8','#2d5038','#c8a048','#a83232','#2a6b8a','#7aae88','#5a6b3d','#8a9e5a','#6a4a2a','#3a5a8a','#8a5a3a','#2a4a5a','#5a3a2a'];
 function agentNucleus(agent){
+  const override=AGENT_NUCLEUS_OVERRIDES[normName(agent)];
+  if(override)return override.replace('Núcleo ','');
   const n=NUCLEOS.find(nu=>(nu.a||[]).map(normName).includes(normName(agent)));
   return n?n.n.replace('Núcleo ',''):'Sem núcleo';
 }
@@ -271192,6 +271195,8 @@ function groupDrillRows(m,opts={}){
   return drillRows(m,{...opts,period:period||opts.period||''});
 }
 function agentNucleusName(agent){
+  const override=AGENT_NUCLEUS_OVERRIDES[normName(agent)];
+  if(override)return override;
   const found=NUCLEOS.find(n=>(n.a||[]).map(normName).includes(normName(agent)));
   return found?.n||'Outros agentes';
 }
@@ -273412,6 +273417,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

@@ -1417,7 +1417,7 @@ const D = {
                    1945,
                    1691,
                    1866,
-                   769
+                   771
                ],
     "open":  [
                  0,
@@ -1425,7 +1425,7 @@ const D = {
                  0,
                  0,
                  0,
-                 5
+                 3
              ],
     "cobert":  [
                    0.4908,
@@ -1433,7 +1433,7 @@ const D = {
                    0.4571,
                    0.5009,
                    0.515,
-                   0.5085
+                   0.5071
                ],
     "sat":  [
                 9.817,
@@ -1449,7 +1449,7 @@ const D = {
                 "00:27:12",
                 "00:36:11",
                 "00:43:05",
-                "00:25:02"
+                "00:25:01"
             ],
     "tme":  [
                 "00:05:30",
@@ -2678,7 +2678,7 @@ const D = {
                                                46,
                                                24,
                                                9.33,
-                                               "00:26:46"
+                                               "00:26:26"
                                            ]
                                        ],
                     "Marcus Silva":  [
@@ -2716,7 +2716,7 @@ const D = {
                                              48,
                                              20,
                                              9.8,
-                                             "00:31:11"
+                                             "00:31:06"
                                          ]
                                      ],
                     "Multisoft_Pesquisa":  [
@@ -2992,18 +2992,18 @@ const D = {
                      12,
                      "Marcelo Santos",
                      "Agrícola",
-                     0,
+                     705,
                      5,
                      null,
                      "WA00000124689",
                      "3 Periodo",
                      13,
                      "12/06/2026 13:40",
-                     "",
+                     "12/06/2026 13:52",
                      "Cliente #002 · 208 atendimentos",
                      "",
                      "WHATSAPP",
-                     "OPEN",
+                     "CLOSED",
                      124689,
                      "MODELO",
                      "Cliente #002",
@@ -3019,18 +3019,18 @@ const D = {
                      12,
                      "Marcus Silva",
                      "Confinamento",
-                     0,
+                     1632,
                      0,
                      null,
                      "WA00000124687",
                      "3 Periodo",
                      13,
                      "12/06/2026 13:27",
-                     "",
+                     "12/06/2026 13:54",
                      "Cliente #061 · 41 atendimentos",
                      "",
                      "WHATSAPP",
-                     "OPEN",
+                     "CLOSED",
                      124687,
                      "MODELO",
                      "Cliente #061",
@@ -271262,14 +271262,14 @@ const D = {
                                         73
                                     ],
                   "Marcelo Santos":  [
-                                         26.2,
+                                         26.4,
                                          24.9,
                                          59.8,
                                          46
                                      ],
                   "Marcus Silva":  [
-                                       29.9,
-                                       26.5,
+                                       30.5,
+                                       26.9,
                                        102.3,
                                        48
                                    ],
@@ -271293,9 +271293,9 @@ const D = {
                                      ]
               },
     "tmaDist":  [
-                    118,
-                    256,
-                    181,
+                    116,
+                    257,
+                    182,
                     133,
                     51,
                     35
@@ -276337,14 +276337,14 @@ const D = {
                                                                     73
                                                                 ],
                                               "Marcelo Santos":  [
-                                                                     26.2,
+                                                                     26.4,
                                                                      24.9,
                                                                      59.8,
                                                                      46
                                                                  ],
                                               "Marcus Silva":  [
-                                                                   29.9,
-                                                                   26.5,
+                                                                   30.5,
+                                                                   26.9,
                                                                    102.3,
                                                                    48
                                                                ],
@@ -276368,9 +276368,9 @@ const D = {
                                                                  ]
                                           },
                                 "tmaDist":  [
-                                                118,
-                                                256,
-                                                181,
+                                                116,
+                                                257,
+                                                182,
                                                 133,
                                                 51,
                                                 35
@@ -276894,13 +276894,21 @@ function importLocalAdjustmentsFromHash(){
   }
 }
 function mergedManualAdjustments(){
-  const map=new Map();
+  const byId=new Map();
   [...(Array.isArray(window.MANUAL_ADJUSTMENTS)?window.MANUAL_ADJUSTMENTS:[]),...(Array.isArray(window.MANUAL_ADJUSTMENTS_REMOTE)?window.MANUAL_ADJUSTMENTS_REMOTE:[]),...localManualAdjustments()].forEach((a,i)=>{
     if(!a||!a.protocolo)return;
     const key=String(a.id||adjustmentSignature(a)||a.protocolo+'-'+(a.tipo||'ajuste')+'-'+i);
-    map.set(key,{...a,id:key});
+    byId.set(key,{...a,id:key,_mergeOrder:i});
   });
-  return [...map.values()];
+  const byProtocol=new Map();
+  [...byId.values()].forEach(a=>{
+    const protocol=String(a.protocolo||'').trim().toUpperCase();
+    const current=byProtocol.get(protocol);
+    const updated=Date.parse(a.updatedAt||'')||0;
+    const currentUpdated=Date.parse(current?.updatedAt||'')||0;
+    if(!current||updated>currentUpdated||(updated===currentUpdated&&a._mergeOrder>current._mergeOrder))byProtocol.set(protocol,a);
+  });
+  return [...byProtocol.values()].map(({_mergeOrder,...a})=>a);
 }
 function normAdjustmentText(value){
   return String(value||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ');
@@ -279859,6 +279867,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

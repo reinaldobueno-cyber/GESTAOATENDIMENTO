@@ -205,6 +205,12 @@ body{background:var(--paper);color:var(--text);font-family:'Geist',sans-serif;li
 .rel-group-head{display:flex;align-items:flex-end;justify-content:space-between;gap:.8rem;margin-bottom:.45rem;}
 .rel-group-title{font-family:'Fraunces',serif;font-weight:800;color:var(--ink);}
 .rel-group-meta{font-family:'Geist Mono',monospace;font-size:.58rem;color:var(--ghost);}
+.rel-group-toggle{cursor:pointer;list-style:none;display:flex;align-items:center;gap:.55rem;}
+.rel-group-toggle::-webkit-details-marker{display:none;}
+.rel-group-toggle::before{content:'›';display:inline-grid;place-items:center;width:1.15rem;height:1.15rem;border:1px solid var(--mist);border-radius:50%;color:var(--moss);font-size:1rem;line-height:1;transition:transform .15s ease;}
+.rel-group[open]>.rel-group-toggle::before{transform:rotate(90deg);}
+.rel-group-toggle:hover .rel-group-title{color:var(--moss);}
+.rel-group>.rel-list{margin-top:.45rem;}
 .click-note{font-family:'Geist Mono',monospace;font-size:.58rem;color:var(--ghost);margin-top:.4rem;}
 .rel-agents{margin:.75rem 0;padding:.65rem .75rem;border:1px solid var(--border);border-radius:8px;background:var(--foam);}
 .rel-agents-label{display:block;font-family:'Geist Mono',monospace;font-size:.62rem;font-weight:800;color:var(--moss);margin-bottom:.55rem;}
@@ -1401,7 +1407,7 @@ const D = {
                   1945,
                   1691,
                   1866,
-                  810
+                  811
               ],
     "aval":  [
                  958,
@@ -1425,7 +1431,7 @@ const D = {
                  0,
                  0,
                  0,
-                 3
+                 4
              ],
     "cobert":  [
                    0.4908,
@@ -1936,7 +1942,7 @@ const D = {
                                        "c":  9.457
                                    },
                             "12":  {
-                                       "v":  81,
+                                       "v":  82,
                                        "c":  9.414
                                    }
                         }
@@ -1982,7 +1988,7 @@ const D = {
                           189,
                           167,
                           96,
-                          132
+                          133
                       ]
             },
     "semanas":  {
@@ -2022,7 +2028,7 @@ const D = {
                           ],
                     "6":  [
                               341,
-                              469
+                              470
                           ]
                 },
     "semDow":  {
@@ -2038,7 +2044,7 @@ const D = {
                                  95,
                                  95,
                                  96,
-                                 81
+                                 82
                              ]
                },
     "grupos":  {
@@ -2136,7 +2142,7 @@ const D = {
                                244,
                                215,
                                140,
-                               55,
+                               56,
                                35,
                                47,
                                29,
@@ -2713,7 +2719,7 @@ const D = {
                                              "00:33:43"
                                          ],
                                          [
-                                             54,
+                                             55,
                                              23,
                                              9.83,
                                              "00:30:37"
@@ -2987,6 +2993,33 @@ const D = {
                       "Neppo Voz"
                   ],
     "rows":  [
+                 [
+                     6,
+                     12,
+                     "Marcus Silva",
+                     "Confinamento",
+                     0,
+                     7,
+                     null,
+                     "WA00000124771",
+                     "5 Periodo",
+                     16,
+                     "12/06/2026 16:25",
+                     "",
+                     "Cliente #550 · 3 atendimentos",
+                     "",
+                     "WHATSAPP",
+                     "OPEN",
+                     124771,
+                     "MODELO",
+                     "Cliente #550",
+                     "Cliente #550 · 3 atendimentos",
+                     "CLIENTE:C550",
+                     "",
+                     "",
+                     "",
+                     3
+                 ],
                  [
                      6,
                      12,
@@ -225318,19 +225351,19 @@ const D = {
                      14,
                      "05/05/2026 14:08",
                      "05/05/2026 15:10",
-                     "Cliente #550 · 2 atendimentos",
+                     "Cliente #550 · 3 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      119404,
                      "MODELO",
                      "Cliente #550",
-                     "Cliente #550 · 2 atendimentos",
+                     "Cliente #550 · 3 atendimentos",
                      "CLIENTE:C550",
                      "",
                      "",
                      "",
-                     2
+                     3
                  ],
                  [
                      5,
@@ -225696,19 +225729,19 @@ const D = {
                      15,
                      "05/05/2026 15:13",
                      "05/05/2026 15:35",
-                     "Cliente #550 · 2 atendimentos",
+                     "Cliente #550 · 3 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      119432,
                      "MODELO",
                      "Cliente #550",
-                     "Cliente #550 · 2 atendimentos",
+                     "Cliente #550 · 3 atendimentos",
                      "CLIENTE:C550",
                      "",
                      "",
                      "",
-                     2
+                     3
                  ],
                  [
                      5,
@@ -272240,10 +272273,10 @@ const D = {
                                          47
                                      ],
                   "Marcus Silva":  [
-                                       30.6,
-                                       26.9,
+                                       30.1,
+                                       26.6,
                                        102.3,
-                                       54
+                                       55
                                    ],
                   "Natalia Vieira":  [
                                          23.5,
@@ -272265,7 +272298,7 @@ const D = {
                                      ]
               },
     "tmaDist":  [
-                    118,
+                    119,
                     269,
                     193,
                     136,
@@ -272369,7 +272402,7 @@ const D = {
                         34,
                         16,
                         12,
-                        6
+                        7
                     ],
                     [
                         15,
@@ -272437,7 +272470,7 @@ const D = {
                                          8,
                                          8,
                                          8,
-                                         5,
+                                         6,
                                          1
                                      ],
                     "SISBOV":  [
@@ -272506,8 +272539,8 @@ const D = {
                                        "Estoque Animais":  23,
                                        "Financeiro":  9,
                                        "SISBOV":  8,
-                                       "Retorno envio ativo":  7,
-                                       "Confinamento":  7
+                                       "Confinamento":  8,
+                                       "Retorno envio ativo":  7
                                    },
                   "Natalia Vieira":  {
                                          "Estoque Animais":  30,
@@ -273978,7 +274011,7 @@ const D = {
                                                  "9":  7,
                                                  "10":  3,
                                                  "11":  9,
-                                                 "12":  14
+                                                 "12":  15
                                              },
                             "Natalia Vieira":  {
                                                    "1":  10,
@@ -277315,10 +277348,10 @@ const D = {
                                                                      47
                                                                  ],
                                               "Marcus Silva":  [
-                                                                   30.6,
-                                                                   26.9,
+                                                                   30.1,
+                                                                   26.6,
                                                                    102.3,
-                                                                   54
+                                                                   55
                                                                ],
                                               "Natalia Vieira":  [
                                                                      23.5,
@@ -277340,7 +277373,7 @@ const D = {
                                                                  ]
                                           },
                                 "tmaDist":  [
-                                                118,
+                                                119,
                                                 269,
                                                 193,
                                                 136,
@@ -277432,7 +277465,7 @@ const D = {
                                                     34,
                                                     16,
                                                     12,
-                                                    6
+                                                    7
                                                 ],
                                                 [
                                                     15,
@@ -277500,7 +277533,7 @@ const D = {
                                                                      8,
                                                                      8,
                                                                      8,
-                                                                     5,
+                                                                     6,
                                                                      1
                                                                  ],
                                                 "SISBOV":  [
@@ -277569,8 +277602,8 @@ const D = {
                                                                    "Estoque Animais":  23,
                                                                    "Financeiro":  9,
                                                                    "SISBOV":  8,
-                                                                   "Retorno envio ativo":  7,
-                                                                   "Confinamento":  7
+                                                                   "Confinamento":  8,
+                                                                   "Retorno envio ativo":  7
                                                                },
                                               "Natalia Vieira":  {
                                                                      "Estoque Animais":  30,
@@ -277743,7 +277776,7 @@ const D = {
                                                              95,
                                                              95,
                                                              96,
-                                                             81
+                                                             82
                                                          ]
                                            }
                             }
@@ -279613,7 +279646,8 @@ function showTempoPopup(title,subtitle,rows){
     return a;
   },{})).map(([group,items])=>{
     const rated=items.filter(r=>r[6]!=null);
-    return {group,items,total:items.length,tma:avgArr(items.map(r=>r[4]||0)),tme:avgArr(items.map(r=>r[5]||0)),rated:rated.length,csat:rated.length?avgArr(rated.map(r=>r[6])):null};
+    const orderedItems=items.slice().sort((a,b)=>parseBrDate(a[10])-parseBrDate(b[10])||String(a[7]||'').localeCompare(String(b[7]||''),'pt-BR'));
+    return {group,items:orderedItems,total:items.length,tma:avgArr(items.map(r=>r[4]||0)),tme:avgArr(items.map(r=>r[5]||0)),rated:rated.length,csat:rated.length?avgArr(rated.map(r=>r[6])):null};
   }).sort((a,b)=>b.total-a.total||a.group.localeCompare(b.group,'pt-BR'));
   const groupSummary=groupStats.length>1?`
     <div class="tsc" style="margin-top:.85rem;">
@@ -279624,15 +279658,15 @@ function showTempoPopup(title,subtitle,rows){
     </div>
   `:'';
   const groupLists=groupStats.map(g=>`
-    <div class="rel-group">
-      <div class="rel-group-head">
-        <div><div class="rel-group-title">${esc(g.group)}</div><div class="rel-group-meta">${fN(g.total)} atend. · ${pct1(g.total/Math.max(1,total))} da relação · TMA ${fmtDur(g.tma)} · CSAT ${g.csat!=null?fS(g.csat):'—'}</div></div>
-      </div>
+    <details class="rel-group">
+      <summary class="rel-group-toggle">
+        <div><div class="rel-group-title">${esc(g.group)}</div><div class="rel-group-meta">${fN(g.total)} atend. · ${pct1(g.total/Math.max(1,total))} da relação · TMA ${fmtDur(g.tma)} · CSAT ${g.csat!=null?fS(g.csat):'—'} · mais antigo → mais recente</div></div>
+      </summary>
       <div class="rel-list">
         ${g.items.slice(0,80).map(r=>`<div class="rel-item"><div class="rel-main"><b>${esc(r[2])}</b><br>${String(r[1]).padStart(2,'0')}/${String(r[0]).padStart(2,'0')} · ${esc(r[7]||'sem protocolo')}<br>${clientButton(r)}${r[11]?`<br><span style="color:var(--ghost)">Encerrado em ${esc(r[11])}</span>`:''}</div><div class="rel-actions">${r[7]?`<button class="rel-action" onclick="showAttendanceDetail('','${esc(r[7])}')">Ler</button>`:''}${attendanceProtocol(r)?`<button class="rel-action" onclick="openNeppoPdf('${esc(attendanceProtocol(r))}')">PDF</button>`:`<button class="rel-action disabled">PDF indisponível</button>`}${r[7]?`<button class="rel-action" onclick="openAdjustmentForm('${esc(r[7])}')">Ajustar</button>`:''}<span class="rel-tag">TMA ${fmtDur(r[4])}</span><span class="rel-tag">TME ${fmtDur(r[5])}</span><span class="rel-tag">CSAT ${fmtCsat(r[6])}</span></div></div>`).join('')}
       </div>
       ${g.items.length>80?`<div class="click-note">Exibindo 80 de ${fN(g.items.length)} atendimentos deste grupo.</div>`:''}
-    </div>
+    </details>
   `).join('');
   $('rel-title').textContent=title;
   $('rel-sub').textContent=subtitle;
@@ -280839,6 +280873,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

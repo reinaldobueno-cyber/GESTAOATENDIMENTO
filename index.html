@@ -508,7 +508,7 @@ canvas{cursor:pointer;}
     <div class="kpi clickable" style="--kc:var(--amber)" onclick="showCsatAccumulated(appM)" title="Clique para ver a evolução acumulada"><div class="kl">CSAT Médio</div><div class="kv" id="ov-csat">—</div><div class="ks">Clique para ver média acumulada</div><div class="kd knt" id="ov-csat-d">—</div></div>
     <div class="kpi" style="--kc:var(--moss2)"><div class="kl">TMA</div><div class="kv" id="ov-tma">—</div><div class="ks">Tempo médio atend.</div><div class="kd knt" id="ov-tma-d">—</div></div>
     <div class="kpi" style="--kc:var(--moss3)"><div class="kl">TME</div><div class="kv" id="ov-tme">—</div><div class="ks">Tempo médio espera</div><div class="kd knt" id="ov-tme-d">—</div></div>
-    <div class="kpi" style="--kc:var(--rust)"><div class="kl">SLA ≤ 2min</div><div class="kv" id="ov-sla">—</div><div class="ks">Dentro da meta</div><div class="kd knt" id="ov-sla-d">—</div></div>
+    <div class="kpi clickable" role="button" tabindex="0" style="--kc:var(--rust)" onclick="showSlaExceeded(appM)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showSlaExceeded(appM)}" title="Clique para ver os atendimentos que ultrapassaram 2 minutos de espera"><div class="kl">SLA ≤ 2min</div><div class="kv" id="ov-sla">—</div><div class="ks">Clique para ver quem ultrapassou</div><div class="kd knt" id="ov-sla-d">—</div></div>
   </div>
 
   <div class="card" style="margin-bottom:1rem;">
@@ -1407,7 +1407,7 @@ const D = {
                   1945,
                   1691,
                   1866,
-                  1199
+                  1200
               ],
     "aval":  [
                  958,
@@ -1431,7 +1431,7 @@ const D = {
                  0,
                  0,
                  0,
-                 4
+                 5
              ],
     "cobert":  [
                    0.4908,
@@ -1966,7 +1966,7 @@ const D = {
                                        "c":  9.172
                                    },
                             "22":  {
-                                       "v":  18,
+                                       "v":  19,
                                        "c":  10
                                    }
                         }
@@ -2008,7 +2008,7 @@ const D = {
                           317
                       ],
                 "6":  [
-                          318,
+                          319,
                           270,
                           241,
                           171,
@@ -2054,7 +2054,7 @@ const D = {
                               341,
                               478,
                               362,
-                              18
+                              19
                           ]
                 },
     "semDow":  {
@@ -2080,7 +2080,7 @@ const D = {
                                  58
                              ],
                    "Sem.4":  [
-                                 18,
+                                 19,
                                  0,
                                  0,
                                  0,
@@ -2180,7 +2180,7 @@ const D = {
                            ],
                    "jun":  [
                                354,
-                               311,
+                               312,
                                200,
                                106,
                                74,
@@ -2569,7 +2569,7 @@ const D = {
                                               "00:33:55"
                                           ],
                                           [
-                                              126,
+                                              127,
                                               62,
                                               9.4,
                                               "00:31:30"
@@ -3033,6 +3033,33 @@ const D = {
                       "Neppo Voz"
                   ],
     "rows":  [
+                 [
+                     6,
+                     22,
+                     "Julia Almeida",
+                     "Reproducao",
+                     0,
+                     2,
+                     null,
+                     "WA00000125598",
+                     "1 Periodo",
+                     9,
+                     "22/06/2026 09:50",
+                     "",
+                     "Cliente #432 · 8 atendimentos",
+                     "",
+                     "WHATSAPP",
+                     "OPEN",
+                     125598,
+                     "MODELO",
+                     "Cliente #432",
+                     "Cliente #432 · 8 atendimentos",
+                     "CLIENTE:C432",
+                     "",
+                     "",
+                     "",
+                     8
+                 ],
                  [
                      6,
                      22,
@@ -4099,19 +4126,19 @@ const D = {
                      14,
                      "19/06/2026 14:04",
                      "19/06/2026 14:21",
-                     "Cliente #432 · 7 atendimentos",
+                     "Cliente #432 · 8 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      125515,
                      "MODELO",
                      "Cliente #432",
-                     "Cliente #432 · 7 atendimentos",
+                     "Cliente #432 · 8 atendimentos",
                      "CLIENTE:C432",
                      "",
                      "",
                      "",
-                     7
+                     8
                  ],
                  [
                      6,
@@ -5179,19 +5206,19 @@ const D = {
                      16,
                      "18/06/2026 16:41",
                      "18/06/2026 18:05",
-                     "Cliente #432 · 7 atendimentos",
+                     "Cliente #432 · 8 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      125423,
                      "MODELO",
                      "Cliente #432",
-                     "Cliente #432 · 7 atendimentos",
+                     "Cliente #432 · 8 atendimentos",
                      "CLIENTE:C432",
                      "",
                      "",
                      "",
-                     7
+                     8
                  ],
                  [
                      6,
@@ -5665,19 +5692,19 @@ const D = {
                      15,
                      "18/06/2026 15:29",
                      "18/06/2026 15:44",
-                     "Cliente #432 · 7 atendimentos",
+                     "Cliente #432 · 8 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      125385,
                      "MODELO",
                      "Cliente #432",
-                     "Cliente #432 · 7 atendimentos",
+                     "Cliente #432 · 8 atendimentos",
                      "CLIENTE:C432",
                      "",
                      "",
                      "",
-                     7
+                     8
                  ],
                  [
                      6,
@@ -24916,19 +24943,19 @@ const D = {
                      11,
                      "08/06/2026 11:41",
                      "08/06/2026 11:54",
-                     "Cliente #432 · 7 atendimentos",
+                     "Cliente #432 · 8 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      123899,
                      "MODELO",
                      "Cliente #432",
-                     "Cliente #432 · 7 atendimentos",
+                     "Cliente #432 · 8 atendimentos",
                      "CLIENTE:C432",
                      "",
                      "",
                      "",
-                     7
+                     8
                  ],
                  [
                      6,
@@ -159916,19 +159943,19 @@ const D = {
                      13,
                      "17/03/2026 13:59",
                      "17/03/2026 14:45",
-                     "Cliente #432 · 7 atendimentos",
+                     "Cliente #432 · 8 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      113520,
                      "MODELO",
                      "Cliente #432",
-                     "Cliente #432 · 7 atendimentos",
+                     "Cliente #432 · 8 atendimentos",
                      "CLIENTE:C432",
                      "",
                      "",
                      "",
-                     7
+                     8
                  ],
                  [
                      3,
@@ -161509,19 +161536,19 @@ const D = {
                      9,
                      "18/03/2026 09:06",
                      "18/03/2026 09:50",
-                     "Cliente #432 · 7 atendimentos",
+                     "Cliente #432 · 8 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      113638,
                      "MODELO",
                      "Cliente #432",
-                     "Cliente #432 · 7 atendimentos",
+                     "Cliente #432 · 8 atendimentos",
                      "CLIENTE:C432",
                      "",
                      "",
                      "",
-                     7
+                     8
                  ],
                  [
                      3,
@@ -165451,19 +165478,19 @@ const D = {
                      16,
                      "19/03/2026 16:13",
                      "19/03/2026 16:42",
-                     "Cliente #432 · 7 atendimentos",
+                     "Cliente #432 · 8 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      113950,
                      "MODELO",
                      "Cliente #432",
-                     "Cliente #432 · 7 atendimentos",
+                     "Cliente #432 · 8 atendimentos",
                      "CLIENTE:C432",
                      "",
                      "",
                      "",
-                     7
+                     8
                  ],
                  [
                      3,
@@ -282777,10 +282804,10 @@ const D = {
                                        26
                                    ],
                   "Julia Almeida":  [
-                                        31.2,
+                                        31,
                                         27.2,
                                         133.8,
-                                        126
+                                        127
                                     ],
                   "Marcelo Costa":  [
                                         23.1,
@@ -282820,7 +282847,7 @@ const D = {
                                      ]
               },
     "tmaDist":  [
-                    182,
+                    183,
                     384,
                     287,
                     198,
@@ -282874,7 +282901,7 @@ const D = {
                         39
                     ],
                     [
-                        48,
+                        49,
                         30,
                         29,
                         31,
@@ -282939,7 +282966,7 @@ const D = {
                 ],
     "tmeHora":  [
                     7.8,
-                    24.4,
+                    24.3,
                     4.9,
                     5.2,
                     15.8,
@@ -282964,7 +282991,7 @@ const D = {
                                         ],
                     "Reproducao":  [
                                        50,
-                                       38,
+                                       39,
                                        39,
                                        28,
                                        6,
@@ -283013,7 +283040,7 @@ const D = {
                 },
     "agGrp":  {
                   "Julia Almeida":  {
-                                        "Reproducao":  81,
+                                        "Reproducao":  82,
                                         "Estoque Animais":  31,
                                         "PMG e Comunicacao para Associacao":  7,
                                         "Retorno envio ativo":  7
@@ -284540,7 +284567,7 @@ const D = {
                                                   "17":  11,
                                                   "18":  14,
                                                   "19":  11,
-                                                  "22":  4
+                                                  "22":  5
                                               },
                             "Marcelo Costa":  {
                                                   "1":  12,
@@ -287937,10 +287964,10 @@ const D = {
                                                                    26
                                                                ],
                                               "Julia Almeida":  [
-                                                                    31.2,
+                                                                    31,
                                                                     27.2,
                                                                     133.8,
-                                                                    126
+                                                                    127
                                                                 ],
                                               "Marcelo Costa":  [
                                                                     23.1,
@@ -287980,7 +288007,7 @@ const D = {
                                                                  ]
                                           },
                                 "tmaDist":  [
-                                                182,
+                                                183,
                                                 384,
                                                 287,
                                                 198,
@@ -288022,7 +288049,7 @@ const D = {
                                                     39
                                                 ],
                                                 [
-                                                    48,
+                                                    49,
                                                     30,
                                                     29,
                                                     31,
@@ -288087,7 +288114,7 @@ const D = {
                                             ],
                                 "tmeHora":  [
                                                 7.8,
-                                                24.4,
+                                                24.3,
                                                 4.9,
                                                 5.2,
                                                 15.8,
@@ -288112,7 +288139,7 @@ const D = {
                                                                     ],
                                                 "Reproducao":  [
                                                                    50,
-                                                                   38,
+                                                                   39,
                                                                    39,
                                                                    28,
                                                                    6,
@@ -288161,7 +288188,7 @@ const D = {
                                             },
                                 "agGrp":  {
                                               "Julia Almeida":  {
-                                                                    "Reproducao":  81,
+                                                                    "Reproducao":  82,
                                                                     "Estoque Animais":  31,
                                                                     "PMG e Comunicacao para Associacao":  7,
                                                                     "Retorno envio ativo":  7
@@ -288407,7 +288434,7 @@ const D = {
                                                              58
                                                          ],
                                                "Sem.4":  [
-                                                             18,
+                                                             19,
                                                              0,
                                                              0,
                                                              0,
@@ -290399,6 +290426,16 @@ function showAgentDetails(agent,m=appM){
 function chartDrill(title,subtitle,rows){
   showTempoPopup(title,subtitle,rows);
 }
+function showSlaExceeded(m=appM){
+  const rows=drillRows(m)
+    .filter(r=>Number(r[5])>120)
+    .sort((a,b)=>(Number(b[5])||0)-(Number(a[5])||0));
+  showTempoPopup(
+    `SLA ultrapassado · ${D.mesNomes[m]}`,
+    `${fN(rows.length)} atendimento(s) com espera acima de 2 minutos · maiores esperas primeiro`,
+    rows
+  );
+}
 function showCsatAccumulated(m){
   const rows=(D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===m+1&&r[6]!=null);
   const byDay={};
@@ -291508,6 +291545,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

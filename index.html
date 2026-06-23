@@ -418,6 +418,10 @@ canvas{cursor:pointer;}
 .ntab.bonus-private.visible{display:flex;}
 .pane.bonus-private.visible{display:none;}
 .pane.bonus-private.visible.active{display:block;}
+.treatment-admin-only{display:none!important;}
+.ntab.treatment-admin-only.visible{display:flex!important;}
+.pane.treatment-admin-only.visible{display:none!important;}
+.pane.treatment-admin-only.visible.active{display:block!important;}
 .admin-only{display:none!important;}
 .admin-only.visible{display:inline-flex!important;}
 .admin-panel.admin-only.visible{display:block!important;}
@@ -477,7 +481,8 @@ canvas{cursor:pointer;}
     <button class="ntab" onclick="go('avaliacoes',this)"><span class="ico">★</span> Avaliações</button>
     <button class="ntab" onclick="go('fluxo',this)"><span class="ico">◈</span> Fluxo Horário</button>
     <button class="ntab" onclick="go('atendimentos',this)"><span class="ico">▤</span> Atendimentos</button>
-    <button class="ntab" onclick="go('tratamentos',this)"><span class="ico">✓</span> Tratamentos</button>
+    <button class="ntab" onclick="go('revisoes',this)"><span class="ico">☑</span> Revisões</button>
+    <button class="ntab treatment-admin-only" onclick="go('tratamentos',this)"><span class="ico">✓</span> Tratamentos</button>
     <button class="ntab" onclick="go('diario',this)"><span class="ico">✎</span> Diário</button>
     <button class="ntab bonus-private" id="bonus-tab" onclick="openBonusFromPanel(this)"><span class="ico">¤</span> Bonificação</button>
   </div>
@@ -1102,9 +1107,9 @@ canvas{cursor:pointer;}
   </div>
 </div>
 
-<!-- ════════════════ TRATAMENTOS ════════════════ -->
-<div id="pane-tratamentos" class="pane">
-  <div class="sh"><span class="sh-title">Tratamento Manual de Dados</span><span class="sh-sub">Filtre, selecione o protocolo, defina o ajuste e salve pelo site</span><div class="sh-line"></div></div>
+<!-- ════════════════ REVISÕES ════════════════ -->
+<div id="pane-revisoes" class="pane">
+  <div class="sh"><span class="sh-title">Fila de Revisões</span><span class="sh-sub">Agentes registram pedidos; gestor aprova, rejeita ou envia para tratamento</span><div class="sh-line"></div></div>
 
   <div class="review-grid">
     <div class="card review-card">
@@ -1135,6 +1140,11 @@ canvas{cursor:pointer;}
     <div class="card"><div class="ch"><div><div class="ct">Movimento por dia</div><div class="cs">Recebidos, pendentes e processados</div></div></div><div class="tsc"><table class="dt"><thead><tr><th>Dia</th><th style="text-align:right">Recebidos</th><th style="text-align:right">Pendentes</th><th style="text-align:right">Finalizados</th></tr></thead><tbody id="review-daily-tbody"></tbody></table></div></div>
     <div class="card"><div class="ch"><div><div class="ct">Quantidade por agente</div><div class="cs">Pedidos e situação atual</div></div></div><div class="tsc"><table class="dt"><thead><tr><th>Agente</th><th style="text-align:right">Total</th><th style="text-align:right">Pendentes</th><th style="text-align:right">Finalizados</th></tr></thead><tbody id="review-agent-tbody"></tbody></table></div></div>
   </div>
+</div>
+
+<!-- ════════════════ TRATAMENTOS ════════════════ -->
+<div id="pane-tratamentos" class="pane treatment-admin-only">
+  <div class="sh"><span class="sh-title">Tratamento Manual de Dados</span><span class="sh-sub">Filtre, selecione o protocolo, defina o ajuste e salve pelo site</span><div class="sh-line"></div></div>
 
   <div class="fbar">
     <span class="fl">Mês:</span>
@@ -290701,8 +290711,8 @@ async function markReviewNotificationsSeen(){
 }
 function openReviewQueueFromBell(id=''){
   closeRelModal();
-  const tab=[...document.querySelectorAll('.ntab')].find(el=>el.textContent.includes('Tratamentos'));
-  go('tratamentos',tab);
+  const tab=[...document.querySelectorAll('.ntab')].find(el=>el.textContent.includes('Revisões'));
+  go('revisoes',tab);
   if($('review-status-filter'))$('review-status-filter').value='';
   renderReviewRequests();
   $('review-list')?.scrollIntoView({behavior:'smooth',block:'center'});
@@ -290809,7 +290819,7 @@ function adjustmentSignature(adj){
     adj.tmeSec!==undefined&&adj.tmeSec!==null&&adj.tmeSec!==''?`tme:${adj.tmeSec}`:''
   ].join('|');
 }
-async function loadRemoteManualAdjustments({manual=false,silent=false}={}){
+async function loadRemoteManualAdjustments({manual=false,silent=false,render=true}={}){
   if(remoteAdjustmentsSyncInFlight)return false;
   remoteAdjustmentsSyncInFlight=true;
   if(!silent)setAdjustmentSyncButtonBusy(true);
@@ -290828,8 +290838,10 @@ async function loadRemoteManualAdjustments({manual=false,silent=false}={}){
     if(data.storage)await syncLocalManualAdjustmentsToRemote(window.MANUAL_ADJUSTMENTS_REMOTE);
     applyManualAdjustments();
     updateTreatmentBell();
-    setGlobalMonth(appM);
-    if(typeof renderDiary==='function')renderDiary();
+    if(render){
+      setGlobalMonth(appM);
+      if(typeof renderDiary==='function')renderDiary();
+    }
     const stamp=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
     setAdjustmentSyncStatus(`Ajustes centrais: ${window.MANUAL_ADJUSTMENTS_REMOTE.length} · ${stamp}`,'ok');
     return true;
@@ -291060,14 +291072,15 @@ function go(id,el){
   document.body.classList.toggle('bonus-mode',id==='bonificacao');
   document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
-  el.classList.add('active');$('pane-'+id).classList.add('active');
+  if(el)el.classList.add('active');$('pane-'+id)?.classList.add('active');
   if(id==='gestor')renderManager(appM);
   if(id==='calendario')renderCal();
   if(id==='agentes')buildAgentes(agM);
   if(id==='clientes')renderClientsMonth(appM);
   if(id==='historico')renderHistorico();
   if(id==='atendimentos')renderAtendimentos();
-  if(id==='tratamentos'){renderTreatments();loadReviewRequests();}
+  if(id==='revisoes')loadReviewRequests();
+  if(id==='tratamentos')renderTreatments();
   if(id==='bonificacao')renderBonus();
 }
 function bonusFrameUrl(){
@@ -291834,8 +291847,8 @@ function renderReviewRequests(){
     const statusText=r.status==='aprovado'?'Aprovado':r.status==='rejeitado'?'Rejeitado':'Pendente';
     const created=r.criadoEm?new Date(r.criadoEm).toLocaleString('pt-BR'):'—';
     const encoded=encodeURIComponent(String(r.id||''));
-    const adminActions=isAdmin&&r.status==='pendente'?`<button class="rel-action" data-id="${encoded}" onclick="decideReviewRequest(decodeURIComponent(this.dataset.id),'aprovado')">Aprovar e tratar</button><button class="rel-action" style="color:var(--rust)" data-id="${encoded}" onclick="decideReviewRequest(decodeURIComponent(this.dataset.id),'rejeitado')">Rejeitar</button>`:'';
-    return `<div class="review-item ${statusClass}"><div><div><b>${esc(r.protocolo||'Sem protocolo')}</b> <span class="kd ${r.status==='aprovado'?'kup':r.status==='rejeitado'?'kdn':'knt'}">${statusText}</span></div><div class="review-meta">${esc(r.tipo||'Outro')} · solicitado por ${esc(r.solicitante||'Agente')} · ${esc(created)}</div><div class="review-defense">${esc(r.defesa||'')}</div>${r.evidencia?`<div class="review-meta">Evidência: ${esc(r.evidencia)}</div>`:''}${r.decisaoMotivo?`<div class="review-meta">Decisão de ${esc(r.decididoPor||'gestor')}: ${esc(r.decisaoMotivo)}</div>`:''}</div><div class="review-actions"><button class="rel-action" data-id="${encoded}" onclick="openReviewInTreatment(decodeURIComponent(this.dataset.id),false)">Abrir protocolo</button>${adminActions}</div></div>`;
+    const adminActions=isAdmin?`<button class="rel-action" data-id="${encoded}" onclick="openReviewInTreatment(decodeURIComponent(this.dataset.id),false)">Abrir protocolo</button>${r.status==='pendente'?`<button class="rel-action" data-id="${encoded}" onclick="decideReviewRequest(decodeURIComponent(this.dataset.id),'aprovado')">Aprovar e tratar</button><button class="rel-action" style="color:var(--rust)" data-id="${encoded}" onclick="decideReviewRequest(decodeURIComponent(this.dataset.id),'rejeitado')">Rejeitar</button>`:''}`:'';
+    return `<div class="review-item ${statusClass}"><div><div><b>${esc(r.protocolo||'Sem protocolo')}</b> <span class="kd ${r.status==='aprovado'?'kup':r.status==='rejeitado'?'kdn':'knt'}">${statusText}</span></div><div class="review-meta">${esc(r.tipo||'Outro')} · solicitado por ${esc(r.solicitante||'Agente')} · ${esc(created)}</div><div class="review-defense">${esc(r.defesa||'')}</div>${r.evidencia?`<div class="review-meta">Evidência: ${esc(r.evidencia)}</div>`:''}${r.decisaoMotivo?`<div class="review-meta">Decisão de ${esc(r.decididoPor||'gestor')}: ${esc(r.decisaoMotivo)}</div>`:''}</div><div class="review-actions">${adminActions}</div></div>`;
   }).join('')||'<div class="op-empty">Nenhum pedido encontrado neste filtro.</div>';
 }
 async function submitReviewRequest(event){
@@ -291854,9 +291867,13 @@ async function submitReviewRequest(event){
   }catch(err){$('review-form-status').textContent=err.message||String(err);toast(err.message||String(err),true);}finally{if(button)button.disabled=false;}
 }
 function openReviewInTreatment(id,fillDefense=true){
+  const isAdmin=!!APP_SESSION.admin||APP_SESSION.role==='admin';
+  if(!isAdmin)return toast('Seu pedido está registrado na fila. O tratamento é feito pelo gestor.',true);
   const item=REVIEW_REQUESTS.find(r=>String(r.id)===String(id));if(!item)return;
   const row=[...(D.rows||[]),...(D.rawRows||[])].find(r=>Array.isArray(r)&&String(r[7]||'').trim().toUpperCase()===String(item.protocolo||'').trim().toUpperCase());
   if(!row)return toast('O protocolo não foi encontrado na base importada.',true);
+  const tab=[...document.querySelectorAll('.ntab')].find(el=>el.textContent.includes('Tratamentos'));
+  go('tratamentos',tab);
   if($('tr-mes'))$('tr-mes').value=String(row[0]);
   renderTreatments();
   selectTreatmentProtocol(item.protocolo);
@@ -293687,6 +293704,7 @@ function applySessionPermissions(session={}){
   APP_SESSION={...APP_SESSION,...session};
   const isAdmin=!!APP_SESSION.admin||APP_SESSION.role==='admin';
   document.querySelectorAll('.admin-only').forEach(el=>el.classList.toggle('visible',isAdmin));
+  document.querySelectorAll('.treatment-admin-only').forEach(el=>el.classList.toggle('visible',isAdmin));
   document.querySelectorAll('.bonus-private').forEach(el=>el.classList.toggle('visible',!!APP_SESSION.bonusPrivate));
   updateTreatmentBell();
   loadTreatmentPatterns();
@@ -293866,6 +293884,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

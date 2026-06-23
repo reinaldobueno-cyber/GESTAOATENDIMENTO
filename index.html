@@ -45,7 +45,7 @@ body{background:var(--paper);color:var(--text);font-family:'Geist',sans-serif;li
 /* ——— NAV ——— */
 .nav{background:var(--w);border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none;}
 .nav::-webkit-scrollbar{display:none;}
-.nav-in{max-width:1640px;margin:0 auto;padding:0 2rem;display:flex;gap:0;}
+.nav-in{max-width:1840px;margin:0 auto;padding:0 2rem;display:flex;gap:0;flex-wrap:wrap;}
 .ntab{padding:11px 18px;border:none;background:transparent;font-family:'Geist',sans-serif;font-size:.72rem;font-weight:500;letter-spacing:.02em;color:var(--ghost);border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;transition:all .2s;display:flex;align-items:center;gap:6px;}
 .ntab .ico{font-size:.9rem;}
 .ntab.active{color:var(--moss);border-bottom-color:var(--moss);font-weight:600;}
@@ -293705,7 +293705,7 @@ function applySessionPermissions(session={}){
   const isAdmin=!!APP_SESSION.admin||APP_SESSION.role==='admin';
   document.querySelectorAll('.admin-only').forEach(el=>el.classList.toggle('visible',isAdmin));
   document.querySelectorAll('.treatment-admin-only').forEach(el=>el.classList.toggle('visible',isAdmin));
-  document.querySelectorAll('.bonus-private').forEach(el=>el.classList.toggle('visible',!!APP_SESSION.bonusPrivate));
+  document.querySelectorAll('.bonus-private').forEach(el=>el.classList.toggle('visible',isAdmin||!!APP_SESSION.bonusPrivate));
   updateTreatmentBell();
   loadTreatmentPatterns();
   loadReviewRequests();
@@ -293884,6 +293884,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

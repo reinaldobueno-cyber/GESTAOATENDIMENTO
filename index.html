@@ -1481,7 +1481,7 @@ const D = {
                    1945,
                    1691,
                    1866,
-                   1437
+                   1439
                ],
     "open":  [
                  0,
@@ -1489,7 +1489,7 @@ const D = {
                  0,
                  0,
                  0,
-                 7
+                 5
              ],
     "cobert":  [
                    0.4908,
@@ -1497,7 +1497,7 @@ const D = {
                    0.4571,
                    0.5009,
                    0.515,
-                   0.4885
+                   0.4878
                ],
     "sat":  [
                 9.817,
@@ -2638,7 +2638,7 @@ const D = {
                                               161,
                                               71,
                                               9.42,
-                                              "00:30:38"
+                                              "00:30:32"
                                           ]
                                       ],
                     "Lais Medeiros":  [
@@ -3111,7 +3111,7 @@ const D = {
                      "5 Periodo",
                      16,
                      "24/06/2026 16:38",
-                     "",
+                     "24/06/2026 16:48",
                      "Cliente #013 · 95 atendimentos",
                      "",
                      "WHATSAPP",
@@ -3185,7 +3185,7 @@ const D = {
                      24,
                      "Julia Almeida",
                      "Reproducao",
-                     0,
+                     950,
                      22,
                      null,
                      "WA00000126102",
@@ -3196,7 +3196,7 @@ const D = {
                      "Cliente #327 · 7 atendimentos",
                      "",
                      "WHATSAPP",
-                     "OPEN",
+                     "CLOSED",
                      126102,
                      "MODELO",
                      "Cliente #327",
@@ -3212,7 +3212,7 @@ const D = {
                      24,
                      "Marcus Silva",
                      "Estoque Animais",
-                     0,
+                     1739,
                      1,
                      null,
                      "WA00000126100",
@@ -3223,7 +3223,7 @@ const D = {
                      "Cliente #824 · 2 atendimentos",
                      "",
                      "WHATSAPP",
-                     "OPEN",
+                     "CLOSED",
                      126100,
                      "MODELO",
                      "Cliente #824",
@@ -3273,7 +3273,7 @@ const D = {
                      "5 Periodo",
                      16,
                      "24/06/2026 16:05",
-                     "",
+                     "24/06/2026 16:46",
                      "Cliente #825 · 5 atendimentos",
                      "",
                      "WHATSAPP",
@@ -289458,7 +289458,7 @@ const D = {
                                        26
                                    ],
                   "Julia Almeida":  [
-                                        30.1,
+                                        30.2,
                                         25.6,
                                         133.8,
                                         161
@@ -289476,8 +289476,8 @@ const D = {
                                          98
                                      ],
                   "Marcus Silva":  [
-                                       28.9,
-                                       25.2,
+                                       29.2,
+                                       25.6,
                                        102.3,
                                        112
                                    ],
@@ -289501,9 +289501,9 @@ const D = {
                                      ]
               },
     "tmaDist":  [
-                    215,
-                    463,
-                    348,
+                    213,
+                    464,
+                    349,
                     240,
                     111,
                     67
@@ -294642,7 +294642,7 @@ const D = {
                                                                    26
                                                                ],
                                               "Julia Almeida":  [
-                                                                    30.1,
+                                                                    30.2,
                                                                     25.6,
                                                                     133.8,
                                                                     161
@@ -294660,8 +294660,8 @@ const D = {
                                                                      98
                                                                  ],
                                               "Marcus Silva":  [
-                                                                   28.9,
-                                                                   25.2,
+                                                                   29.2,
+                                                                   25.6,
                                                                    102.3,
                                                                    112
                                                                ],
@@ -294685,9 +294685,9 @@ const D = {
                                                                  ]
                                           },
                                 "tmaDist":  [
-                                                215,
-                                                463,
-                                                348,
+                                                213,
+                                                464,
+                                                349,
                                                 240,
                                                 111,
                                                 67
@@ -296340,17 +296340,39 @@ function renderReviewRequests(){
 async function submitReviewRequest(event){
   event.preventDefault();
   const button=event.submitter; if(button)button.disabled=true;
-  const payload={protocolo:$('review-protocol').value,tipo:$('review-type').value,defesa:$('review-defense').value,evidencia:$('review-evidence').value};
+  const protocolo=$('review-protocol').value.trim();
+  const defesa=$('review-defense').value.trim();
+  const tipo=$('review-type').value;
+  const evidencia=$('review-evidence').value.trim();
+  
+  if(!protocolo||!defesa){
+    const msg='Protocolo e defesa são obrigatórios.';
+    $('review-form-status').textContent=msg;
+    toast(msg,true);
+    if(button)button.disabled=false;
+    return;
+  }
+  
+  const payload={protocolo,tipo,defesa,evidencia};
   $('review-form-status').textContent='Enviando...';
   try{
     const res=await fetch('/api/review-requests',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(payload)});
     const data=await res.json().catch(()=>({}));
-    if(!res.ok)throw new Error(data.error||'Não foi possível enviar o pedido.');
+    if(!res.ok){
+      const errorMsg=data.error||`Erro ${res.status}: não foi possível enviar o pedido.`;
+      console.error('Erro ao enviar revisão:',{status:res.status,error:data.error,data});
+      throw new Error(errorMsg);
+    }
     $('review-protocol').value='';$('review-defense').value='';$('review-evidence').value='';
     $('review-form-status').textContent='Pedido registrado com sucesso.';
     await loadReviewRequests();
     toast('Pedido de revisão registrado.');
-  }catch(err){$('review-form-status').textContent=err.message||String(err);toast(err.message||String(err),true);}finally{if(button)button.disabled=false;}
+  }catch(err){
+    const msg=err.message||String(err);
+    $('review-form-status').textContent=msg;
+    toast(msg,true);
+    console.error('Erro em submitReviewRequest:',err);
+  }finally{if(button)button.disabled=false;}
 }
 function openReviewInTreatment(id,fillDefense=true){
   const isAdmin=!!APP_SESSION.admin||APP_SESSION.role==='admin';
@@ -298370,6 +298392,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

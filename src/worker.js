@@ -1073,6 +1073,7 @@ const MANAGED_USERS_KEY = 'app-users-v1';
 const MANUAL_ADJUSTMENTS_KEY = 'manual-adjustments-v1';
 const BONUS_CLOSURES_KEY = 'bonus-closures-v1';
 const TREATMENT_PATTERNS_KEY = 'treatment-patterns-v1';
+const REVIEW_REQUESTS_KEY = 'treatment-review-requests-v1';
 const INITIAL_DELETED_TREATMENT_PATTERNS = ['WA00000119688'];
 
 function parseBonusUsers(env) {
@@ -1232,7 +1233,12 @@ async function handleManualAdjustments(request, env, user = '') {
 
   const current = (await env.ADJUSTMENTS.get(MANUAL_ADJUSTMENTS_KEY, 'json')) || [];
   const itemSig = adjustmentSignature(item);
-  const list = Array.isArray(current) ? current.filter((a) => String(a.id) !== String(item.id) && adjustmentSignature(a) !== itemSig) : [];
+  const itemProtocol = String(item.protocolo || '').trim().toUpperCase();
+  const list = Array.isArray(current) ? current.filter((a) =>
+    String(a.id) !== String(item.id) &&
+    adjustmentSignature(a) !== itemSig &&
+    String(a?.protocolo || '').trim().toUpperCase() !== itemProtocol
+  ) : [];
   list.push(item);
   await env.ADJUSTMENTS.put(MANUAL_ADJUSTMENTS_KEY, JSON.stringify(list.slice(-2000)));
   return jsonResponse({ ok: true, adjustment: item, total: list.length });
@@ -1288,6 +1294,102 @@ async function handleTreatmentPatterns(request, env, profile = {}) {
   patterns = [...new Set([...patterns, ...allowedIncoming])];
   await env.ADJUSTMENTS.put(TREATMENT_PATTERNS_KEY, JSON.stringify({ patterns, deleted }));
   return jsonResponse({ ok: true, patterns, deleted, storage: true });
+}
+
+function cleanReviewRequest(input, profile = {}) {
+  const item = input && typeof input === 'object' ? input : {};
+  const protocolo = String(item.protocolo || '').trim().toUpperCase().slice(0, 80);
+  const defesa = String(item.defesa || '').trim().slice(0, 3000);
+  if (!protocolo || !defesa) return null;
+  const allowedTypes = new Set(['CSAT', 'TMA', 'TME/SLA', 'Outro']);
+  const tipo = allowedTypes.has(String(item.tipo || '')) ? String(item.tipo) : 'Outro';
+  const now = new Date().toISOString();
+  return {
+    id: String(item.id || `${protocolo}-${Date.now()}`).slice(0, 180),
+    protocolo,
+    tipo,
+    defesa,
+    evidencia: String(item.evidencia || '').trim().slice(0, 1500),
+    solicitante: String(profile.name || profile.user || 'Agente').slice(0, 120),
+    solicitanteUser: String(profile.user || '').slice(0, 120),
+    status: 'pendente',
+    criadoEm: now,
+    atualizadoEm: now,
+  };
+}
+
+async function handleReviewRequests(request, env, profile = {}) {
+  try {
+    if (!env.ADJUSTMENTS) {
+      return jsonResponse({ requests: [], storage: false, message: 'ADJUSTMENTS_KV nao configurado' }, request.method === 'GET' ? 200 : 501);
+    }
+    const stored = (await env.ADJUSTMENTS.get(REVIEW_REQUESTS_KEY, 'json')) || [];
+    let list = Array.isArray(stored) ? stored : [];
+
+    if (request.method === 'GET') {
+      const visible = profile.role === 'admin'
+        ? list
+        : list.filter((item) => String(item.solicitanteUser || '').toLowerCase() === String(profile.user || '').toLowerCase());
+      return jsonResponse({ requests: visible, storage: true });
+    }
+
+    if (request.method !== 'POST') return jsonResponse({ error: 'Metodo nao permitido' }, 405);
+    
+    let body;
+    try {
+      body = await request.json();
+    } catch (e) {
+      return jsonResponse({ error: 'Corpo da requisição inválido. JSON esperado.' }, 400);
+    }
+    
+    if (!body || typeof body !== 'object') {
+      return jsonResponse({ error: 'Corpo da requisição inválido.' }, 400);
+    }
+
+    if (body?.markSeen === true) {
+      const user = String(profile.user || '').toLowerCase();
+      let changed = 0;
+      list = list.map((item) => {
+        const own = String(item.solicitanteUser || '').toLowerCase() === user;
+        const decided = item.status === 'aprovado' || item.status === 'rejeitado';
+        if (!own || !decided || item.visualizadoSolicitanteEm) return item;
+        changed += 1;
+        return { ...item, visualizadoSolicitanteEm: new Date().toISOString() };
+      });
+      if (changed) await env.ADJUSTMENTS.put(REVIEW_REQUESTS_KEY, JSON.stringify(list.slice(-3000)));
+      return jsonResponse({ ok: true, marked: changed });
+    }
+
+    if (body?.decision) {
+      if (profile.role !== 'admin') return jsonResponse({ error: 'Somente administradores podem decidir pedidos.' }, 403);
+      const id = String(body.id || '').trim();
+      const decision = String(body.decision || '').toLowerCase();
+      if (!id || !['aprovado', 'rejeitado', 'pendente'].includes(decision)) return jsonResponse({ error: 'Decisao invalida.' }, 400);
+      const index = list.findIndex((item) => String(item.id) === id);
+      if (index < 0) return jsonResponse({ error: 'Pedido nao encontrado.' }, 404);
+      list[index] = {
+        ...list[index],
+        status: decision,
+        decisaoMotivo: String(body.motivo || '').trim().slice(0, 2000),
+        decididoPor: String(profile.name || profile.user || 'Administrador').slice(0, 120),
+        decididoEm: new Date().toISOString(),
+        visualizadoSolicitanteEm: '',
+        atualizadoEm: new Date().toISOString(),
+      };
+      await env.ADJUSTMENTS.put(REVIEW_REQUESTS_KEY, JSON.stringify(list.slice(-3000)));
+      return jsonResponse({ ok: true, request: list[index] });
+    }
+
+    const item = cleanReviewRequest(body, profile);
+    if (!item) return jsonResponse({ error: 'Protocolo e defesa sao obrigatorios.' }, 400);
+    
+    list.push(item);
+    await env.ADJUSTMENTS.put(REVIEW_REQUESTS_KEY, JSON.stringify(list.slice(-3000)));
+    return jsonResponse({ ok: true, request: item, total: list.length });
+  } catch (err) {
+    console.error('Erro em handleReviewRequests:', err);
+    return jsonResponse({ error: `Erro ao processar pedido de revisão: ${err.message || err}` }, 500);
+  }
 }
 
 function cleanBonusClosure(input, user) {
@@ -1492,6 +1594,10 @@ export default {
 
     if (url.pathname === '/api/treatment-patterns') {
       return handleTreatmentPatterns(request, env, appProfile);
+    }
+
+    if (url.pathname === '/api/review-requests') {
+      return handleReviewRequests(request, env, appProfile);
     }
 
     if (url.pathname === '/api/bonus-closures') {

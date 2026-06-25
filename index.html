@@ -998,9 +998,7 @@ canvas{cursor:pointer;}
   <div class="fbar">
     <span class="fl">Recorte:</span>
     <select class="fs" id="flux-scope" onchange="renderFluxMonth(appM)">
-      <option value="month">Mês inteiro</option>
       <option value="week">Semana selecionada</option>
-      <option value="day">Dia selecionado</option>
     </select>
     <span class="fl" style="margin-left:8px;">Semana:</span>
     <select class="fs" id="flux-week" onchange="renderFluxMonth(appM)">
@@ -1481,7 +1479,7 @@ const D = {
                    1945,
                    1691,
                    1866,
-                   1482
+                   1483
                ],
     "open":  [
                  0,
@@ -1489,7 +1487,7 @@ const D = {
                  0,
                  0,
                  0,
-                 5
+                 4
              ],
     "cobert":  [
                    0.4908,
@@ -1497,7 +1495,7 @@ const D = {
                    0.4571,
                    0.5009,
                    0.515,
-                   0.4885
+                   0.4882
                ],
     "sat":  [
                 9.817,
@@ -1513,7 +1511,7 @@ const D = {
                 "00:27:12",
                 "00:36:11",
                 "00:43:05",
-                "00:26:00"
+                "00:26:03"
             ],
     "tme":  [
                 "00:05:30",
@@ -2300,7 +2298,7 @@ const D = {
                                                142,
                                                68,
                                                9.72,
-                                               "00:25:33"
+                                               "00:26:07"
                                            ]
                                        ],
                     "Ana Paula":  [
@@ -3169,7 +3167,7 @@ const D = {
                      "2 Periodo",
                      10,
                      "25/06/2026 10:28",
-                     "",
+                     "25/06/2026 10:52",
                      "Cliente #086 · 32 atendimentos",
                      "",
                      "WHATSAPP",
@@ -3648,7 +3646,7 @@ const D = {
                      25,
                      "Alexandre Lobo",
                      "Reproducao",
-                     0,
+                     6278,
                      4,
                      null,
                      "WA00000126154",
@@ -3659,7 +3657,7 @@ const D = {
                      "Cliente #070 · 39 atendimentos",
                      "",
                      "WHATSAPP",
-                     "OPEN",
+                     "CLOSED",
                      126154,
                      "MODELO",
                      "Cliente #070",
@@ -290575,9 +290573,9 @@ const D = {
              ],
     "tmaAg":  {
                   "Alexandre Lobo":  [
-                                         25.4,
-                                         21.8,
-                                         75.6,
+                                         26.1,
+                                         22.1,
+                                         104.6,
                                          142
                                      ],
                   "Ana Paula":  [
@@ -290666,12 +290664,12 @@ const D = {
                                      ]
               },
     "tmaDist":  [
-                    219,
+                    218,
                     472,
                     366,
                     248,
                     111,
-                    71
+                    72
                 ],
     "avDist":  {
                    "0":  8,
@@ -295768,9 +295766,9 @@ const D = {
                     "jun":  {
                                 "tmaAg":  {
                                               "Alexandre Lobo":  [
-                                                                     25.4,
-                                                                     21.8,
-                                                                     75.6,
+                                                                     26.1,
+                                                                     22.1,
+                                                                     104.6,
                                                                      142
                                                                  ],
                                               "Ana Paula":  [
@@ -295859,12 +295857,12 @@ const D = {
                                                                  ]
                                           },
                                 "tmaDist":  [
-                                                219,
+                                                218,
                                                 472,
                                                 366,
                                                 248,
                                                 111,
-                                                71
+                                                72
                                             ],
                                 "avDist":  {
                                                "0":  8,
@@ -299147,7 +299145,7 @@ function renderAvalMonth(m){
 
 function renderFluxMonth(m){
   const pack=bm(m), dowLabels=['Seg','Ter','Qua','Qui','Sex'];
-  const scope=$('flux-scope')?.value||'month';
+  const scope=$('flux-scope')?.value||'week';
   const daySel=$('flux-day');
   const monthRows=(D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===m+1);
   const days=[...new Set(monthRows.map(r=>r[1]).filter(Boolean))].sort((a,b)=>a-b);
@@ -299566,6 +299564,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

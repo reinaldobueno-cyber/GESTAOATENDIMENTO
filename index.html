@@ -346,6 +346,13 @@ canvas{cursor:pointer;}
 .review-meta{font-family:'Geist Mono',monospace;font-size:.6rem;color:var(--ghost);margin-top:.25rem;line-height:1.45;}
 .review-defense{font-size:.72rem;color:var(--sub);margin-top:.4rem;white-space:pre-wrap;}
 .review-actions{display:flex;gap:.35rem;flex-wrap:wrap;justify-content:flex-end;}
+.manual-record-table{min-width:1500px;}
+.manual-record-table th.sortable{cursor:pointer;user-select:none;}
+.manual-record-table th.sortable:hover{color:var(--moss);background:var(--foam);}
+.manual-record-modal-card{width:min(980px,96vw);}
+.manual-status-open{border-color:rgba(154,107,26,.26);background:rgba(154,107,26,.1);color:var(--amber);}
+.manual-status-closed{border-color:rgba(61,107,71,.24);background:rgba(61,107,71,.1);color:var(--moss);}
+.manual-note{max-width:280px;white-space:normal;color:var(--sub);font-size:.68rem;line-height:1.35;}
 .treat-list th,.treat-list td{padding:8px 9px;}
 .treat-list .csat-col{width:72px;max-width:72px;text-align:right;white-space:normal;word-break:normal;}
 .treat-list .csat-pill{display:inline-flex;justify-content:center;min-width:54px;max-width:64px;border:1px solid var(--border);border-radius:999px;padding:2px 5px;background:var(--foam);font-size:.49rem;line-height:1.1;color:var(--moss);font-family:'Geist Mono',monospace;white-space:normal;}
@@ -481,6 +488,7 @@ canvas{cursor:pointer;}
     <button class="ntab" onclick="go('avaliacoes',this)"><span class="ico">★</span> Avaliações</button>
     <button class="ntab" onclick="go('fluxo',this)"><span class="ico">◈</span> Fluxo Horário</button>
     <button class="ntab" onclick="go('atendimentos',this)"><span class="ico">▤</span> Atendimentos</button>
+    <button class="ntab" onclick="go('registro-manual',this)"><span class="ico">▣</span> Registro Manual</button>
     <button class="ntab" onclick="go('revisoes',this)"><span class="ico">☑</span> Revisões</button>
     <button class="ntab treatment-admin-only" onclick="go('tratamentos',this)"><span class="ico">✓</span> Tratamentos</button>
     <button class="ntab" onclick="go('diario',this)"><span class="ico">✎</span> Diário</button>
@@ -1105,6 +1113,96 @@ canvas{cursor:pointer;}
   </div>
 </div>
 
+<!-- ════════════════ REGISTRO MANUAL ════════════════ -->
+<div id="pane-registro-manual" class="pane">
+  <div class="sh"><span class="sh-title">Registro Manual</span><span class="sh-sub">Controle paralelo de atendimentos feitos em grupos de WhatsApp · não impacta métricas oficiais</span><div class="sh-line"></div></div>
+
+  <div class="ctx">
+    <div>
+      <div class="ctx-title">Atendimentos manuais em grupos</div>
+      <div class="ctx-sub">Base experimental isolada para medir a operação N1 em grupos de WhatsApp</div>
+    </div>
+    <div class="ctx-actions">
+      <span class="ctx-badge">Métricas oficiais desativadas</span>
+      <button class="rel-action" type="button" onclick="openManualRecordModal()">Novo Registro</button>
+    </div>
+  </div>
+
+  <div class="kstrip" style="margin-bottom:1rem">
+    <div class="kpi" style="--kc:var(--moss)"><div class="kl">Registros</div><div class="kv" id="mr-k-total">0</div><div class="ks">Total no filtro</div></div>
+    <div class="kpi" style="--kc:var(--amber)"><div class="kl">Em aberto</div><div class="kv" id="mr-k-open">0</div><div class="ks">Aguardando conclusão</div></div>
+    <div class="kpi" style="--kc:var(--moss2)"><div class="kl">Encerrados</div><div class="kv" id="mr-k-closed">0</div><div class="ks">Finalizados manualmente</div></div>
+    <div class="kpi" style="--kc:var(--sky)"><div class="kl">Agentes</div><div class="kv" id="mr-k-agents">0</div><div class="ks">Com registro no filtro</div></div>
+    <div class="kpi" style="--kc:var(--sage)"><div class="kl">Grupos</div><div class="kv" id="mr-k-groups">0</div><div class="ks">Grupos de WhatsApp</div></div>
+  </div>
+
+  <div class="fbar">
+    <span class="fl">Período:</span>
+    <input class="fs" id="mr-start" type="date" onchange="renderManualRecords()">
+    <input class="fs" id="mr-end" type="date" onchange="renderManualRecords()">
+    <span class="fl">Agente:</span>
+    <select class="fs" id="mr-agent-filter" onchange="renderManualRecords()"></select>
+    <span class="fl">Cliente:</span>
+    <input class="fs" id="mr-client-filter" oninput="renderManualRecords()" placeholder="Cliente">
+    <span class="fl">Grupo:</span>
+    <input class="fs" id="mr-group-filter" oninput="renderManualRecords()" placeholder="Grupo WhatsApp">
+    <span class="fl">Meio:</span>
+    <select class="fs" id="mr-channel-filter" onchange="renderManualRecords()"></select>
+    <span class="fl">Categoria:</span>
+    <select class="fs" id="mr-category-filter" onchange="renderManualRecords()"></select>
+    <span class="fl">Origem:</span>
+    <select class="fs" id="mr-origin-filter" onchange="renderManualRecords()"></select>
+    <span class="fl">Primeira resposta:</span>
+    <select class="fs" id="mr-first-filter" onchange="renderManualRecords()"></select>
+    <span class="fl">Status:</span>
+    <select class="fs" id="mr-status-filter" onchange="renderManualRecords()"><option value="">Todos</option><option>Aberto</option><option>Encerrado</option></select>
+    <input class="fs search" id="mr-search" oninput="renderManualRecords()" placeholder="Pesquisar cliente, grupo, resumo ou observação...">
+  </div>
+
+  <div class="op-tools">
+    <div class="op-summary" id="mr-summary">Nenhum registro manual cadastrado.</div>
+    <div class="op-summary">Isolado: não alimenta volume, SLA, TMA, TME, CSAT, ranking ou bonificação.</div>
+  </div>
+
+  <div class="g3" style="margin-bottom:1rem">
+    <div class="card"><div class="ch"><div><div class="ct">Atendimentos por agente</div><div class="cs">Top 6 no filtro atual</div></div></div><div class="blist" id="mr-agent-list"></div></div>
+    <div class="card"><div class="ch"><div><div class="ct">Atendimentos por grupo</div><div class="cs">Grupos de WhatsApp mais acionados</div></div></div><div class="blist" id="mr-group-list"></div></div>
+    <div class="card"><div class="ch"><div><div class="ct">Origem e primeira resposta</div><div class="cs">Demanda e área que iniciou interação</div></div></div><div class="blist" id="mr-origin-list"></div></div>
+  </div>
+
+  <div class="g3" style="margin-bottom:1rem">
+    <div class="card"><div class="ch"><div><div class="ct">Atendimentos por cliente</div><div class="cs">Clientes com maior volume manual</div></div></div><div class="blist" id="mr-client-list"></div></div>
+    <div class="card"><div class="ch"><div><div class="ct">Atendimentos por meio</div><div class="cs">Canal informado no cadastro</div></div></div><div class="blist" id="mr-channel-list"></div></div>
+    <div class="card"><div class="ch"><div><div class="ct">Atendimentos por primeira resposta</div><div class="cs">Responsável pela primeira interação</div></div></div><div class="blist" id="mr-first-list"></div></div>
+  </div>
+
+  <div class="card">
+    <div class="ch"><div><div class="ct">Registros manuais</div><div class="cs">Tabela operacional isolada da base oficial</div></div><button class="rel-action" type="button" onclick="openManualRecordModal()">Novo Registro</button></div>
+    <div class="tsc">
+      <table class="dt manual-record-table">
+        <thead>
+          <tr>
+            <th class="sortable" onclick="setManualRecordSort('date')">Data</th>
+            <th class="sortable" onclick="setManualRecordSort('start')">Hora Inicial</th>
+            <th class="sortable" onclick="setManualRecordSort('end')">Hora Final</th>
+            <th class="sortable" onclick="setManualRecordSort('agent')">Agente</th>
+            <th class="sortable" onclick="setManualRecordSort('client')">Cliente</th>
+            <th class="sortable" onclick="setManualRecordSort('group')">Grupo</th>
+            <th class="sortable" onclick="setManualRecordSort('channel')">Meio</th>
+            <th class="sortable" onclick="setManualRecordSort('category')">Categoria</th>
+            <th class="sortable" onclick="setManualRecordSort('origin')">Origem da Demanda</th>
+            <th class="sortable" onclick="setManualRecordSort('firstResponse')">Primeira Resposta</th>
+            <th class="sortable" onclick="setManualRecordSort('status')">Situação</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody id="mr-tbody"></tbody>
+      </table>
+      <div class="op-empty" id="mr-empty" style="display:none">Nenhum registro manual encontrado para os filtros.</div>
+    </div>
+  </div>
+</div>
+
 <!-- ════════════════ REVISÕES ════════════════ -->
 <div id="pane-revisoes" class="pane">
   <div class="sh"><span class="sh-title">Fila de Revisões</span><span class="sh-sub">Agentes registram pedidos; gestor aprova, rejeita ou envia para tratamento</span><div class="sh-line"></div></div>
@@ -1427,6 +1525,54 @@ canvas{cursor:pointer;}
   </div>
 </div>
 
+<div class="modal" id="manual-record-modal" onclick="if(event.target===this)closeManualRecordModal()">
+  <div class="modal-card manual-record-modal-card">
+    <div class="modal-h">
+      <div>
+        <div class="modal-title" id="mr-modal-title">Novo Registro Manual</div>
+        <div class="modal-sub">Atendimento em grupo de WhatsApp · base experimental isolada</div>
+      </div>
+      <button class="modal-close" type="button" onclick="closeManualRecordModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <form class="treat-form" id="manual-record-form" onsubmit="saveManualRecord(event)">
+        <input type="hidden" id="mr-id">
+        <div class="treat-row three">
+          <label class="fl">Data do atendimento<br><input class="fs" id="mr-date" type="date" required></label>
+          <label class="fl">Hora inicial<br><input class="fs" id="mr-start-time" type="time" required></label>
+          <label class="fl">Hora final<br><input class="fs" id="mr-end-time" type="time" required></label>
+        </div>
+        <div class="treat-row">
+          <label class="fl">Agente responsável<br><select class="fs" id="mr-agent" required></select></label>
+          <label class="fl">Cliente<br><input class="fs" id="mr-client" list="mr-client-options" required placeholder="Nome do cliente"></label>
+        </div>
+        <div class="treat-row">
+          <label class="fl">Grupo de WhatsApp<br><input class="fs" id="mr-group" required placeholder="Ex: Grupo Fazenda Boa Vista"></label>
+          <label class="fl">Meio de comunicação<br><select class="fs" id="mr-channel" required></select></label>
+        </div>
+        <div class="treat-row">
+          <label class="fl">Categoria<br><select class="fs" id="mr-category" required></select></label>
+          <label class="fl">Situação<br><select class="fs" id="mr-status" required><option>Aberto</option><option>Encerrado</option></select></label>
+        </div>
+        <div class="treat-row">
+          <label class="fl">Origem da Demanda<br><select class="fs" id="mr-origin" required></select></label>
+          <label class="fl">Primeira Resposta Realizada por<br><select class="fs" id="mr-first-response" required></select></label>
+        </div>
+        <label class="fl">Resumo do atendimento<br><textarea class="fs" id="mr-summary-field" rows="3" placeholder="Descreva objetivamente o que foi tratado no grupo."></textarea></label>
+        <label class="fl">Observações<br><textarea class="fs" id="mr-notes" rows="2" placeholder="Contexto adicional, pendências ou referência."></textarea></label>
+        <div style="display:flex;justify-content:space-between;gap:.75rem;align-items:center;flex-wrap:wrap">
+          <span class="op-summary" id="mr-form-status">Não entra nas métricas oficiais nesta versão.</span>
+          <div class="rel-actions">
+            <button class="rel-action" type="button" onclick="closeManualRecordModal()">Cancelar</button>
+            <button class="rel-action" type="submit">Salvar Atendimento</button>
+          </div>
+        </div>
+      </form>
+      <datalist id="mr-client-options"></datalist>
+    </div>
+  </div>
+</div>
+
 <footer class="footer">
   <span>Gestão de Atendimento · Base 2026 · Reinaldo V11</span>
   <span id="footer-date"></span>
@@ -1463,7 +1609,7 @@ const D = {
                   1945,
                   1691,
                   1866,
-                  1602
+                  1603
               ],
     "aval":  [
                  958,
@@ -1471,7 +1617,7 @@ const D = {
                  889,
                  847,
                  961,
-                 777
+                 778
              ],
     "closed":  [
                    1952,
@@ -1479,7 +1625,7 @@ const D = {
                    1945,
                    1691,
                    1866,
-                   1599
+                   1600
                ],
     "open":  [
                  0,
@@ -1495,7 +1641,7 @@ const D = {
                    0.4571,
                    0.5009,
                    0.515,
-                   0.4859
+                   0.4862
                ],
     "sat":  [
                 9.817,
@@ -1511,7 +1657,7 @@ const D = {
                 "00:27:12",
                 "00:36:11",
                 "00:43:05",
-                "00:25:57"
+                "00:25:58"
             ],
     "tme":  [
                 "00:05:30",
@@ -2038,8 +2184,8 @@ const D = {
                                        "c":  9.585
                                    },
                             "26":  {
-                                       "v":  67,
-                                       "c":  9.821
+                                       "v":  68,
+                                       "c":  9.828
                                    }
                         }
               },
@@ -2084,7 +2230,7 @@ const D = {
                           354,
                           330,
                           254,
-                          266
+                          267
                       ]
             },
     "semanas":  {
@@ -2126,7 +2272,7 @@ const D = {
                               341,
                               478,
                               362,
-                              421
+                              422
                           ]
                 },
     "semDow":  {
@@ -2156,7 +2302,7 @@ const D = {
                                  84,
                                  89,
                                  83,
-                                 67
+                                 68
                              ]
                },
     "grupos":  {
@@ -2251,7 +2397,7 @@ const D = {
                                0
                            ],
                    "jun":  [
-                               492,
+                               493,
                                410,
                                239,
                                154,
@@ -2375,7 +2521,7 @@ const D = {
                                                "00:27:20"
                                            ],
                                            [
-                                               137,
+                                               138,
                                                62,
                                                9.95,
                                                "00:20:01"
@@ -3060,9 +3206,9 @@ const D = {
                                            ],
                                            [
                                                134,
-                                               60,
+                                               61,
                                                9.82,
-                                               "00:34:46"
+                                               "00:34:56"
                                            ]
                                        ]
                 },
@@ -3105,6 +3251,33 @@ const D = {
                       "Neppo Voz"
                   ],
     "rows":  [
+                 [
+                     6,
+                     26,
+                     "Beatriz Araujo",
+                     "Estoque Animais",
+                     0,
+                     0,
+                     null,
+                     "WA00000126440",
+                     "4 Periodo",
+                     15,
+                     "26/06/2026 15:52",
+                     "",
+                     "Cliente #889 · 1 atendimentos",
+                     "",
+                     "WHATSAPP",
+                     "OPEN",
+                     126440,
+                     "MODELO",
+                     "Cliente #889",
+                     "Cliente #889 · 1 atendimentos",
+                     "CLIENTE:C889",
+                     "",
+                     "",
+                     "",
+                     1
+                 ],
                  [
                      6,
                      26,
@@ -3218,18 +3391,18 @@ const D = {
                      26,
                      "Wiviane Borges",
                      "SISBOV",
-                     0,
+                     3336,
                      8,
-                     null,
+                     10,
                      "WA00000126430",
                      "4 Periodo",
                      14,
                      "26/06/2026 14:58",
-                     "",
+                     "26/06/2026 15:53",
                      "Cliente #234 · 10 atendimentos",
                      "",
                      "WHATSAPP",
-                     "OPEN",
+                     "CLOSED",
                      126430,
                      "MODELO",
                      "Cliente #234",
@@ -293694,10 +293867,10 @@ const D = {
                                     69
                                 ],
                   "Beatriz Araujo":  [
-                                         20,
+                                         19.9,
                                          16.6,
                                          85.8,
-                                         137
+                                         138
                                      ],
                   "Dhon Freitas":  [
                                        19.5,
@@ -293766,8 +293939,8 @@ const D = {
                                          179
                                      ],
                   "Wiviane Borges":  [
-                                         34.5,
-                                         24,
+                                         34.9,
+                                         24.2,
                                          907.5,
                                          134
                                      ]
@@ -293777,7 +293950,7 @@ const D = {
                     507,
                     393,
                     269,
-                    116,
+                    117,
                     78
                 ],
     "avDist":  {
@@ -293790,7 +293963,7 @@ const D = {
                    "7":  1,
                    "8":  16,
                    "9":  32,
-                   "10":  698
+                   "10":  699
                },
     "avBaixa":  {
                     "Marcus Silva":  9,
@@ -293873,7 +294046,7 @@ const D = {
                         45,
                         41,
                         34,
-                        23
+                        24
                     ],
                     [
                         31,
@@ -293911,7 +294084,7 @@ const D = {
                                             39,
                                             41,
                                             45,
-                                            67,
+                                            68,
                                             53,
                                             20
                                         ],
@@ -293985,7 +294158,7 @@ const D = {
                                          "Fila Suporte":  1
                                      },
                   "Beatriz Araujo":  {
-                                         "Estoque Animais":  72,
+                                         "Estoque Animais":  73,
                                          "Confinamento":  31,
                                          "Financeiro":  13,
                                          "Retorno envio ativo":  10,
@@ -295443,7 +295616,7 @@ const D = {
                                                    "22":  14,
                                                    "23":  11,
                                                    "24":  10,
-                                                   "26":  6
+                                                   "26":  7
                                                },
                             "Dhon Freitas":  {
                                                  "16":  6,
@@ -296136,7 +296309,7 @@ const D = {
                     9.72,
                     9.503,
                     9.585,
-                    9.517
+                    9.521
                 ],
     "csatWeek":  {
                      "labels":  [
@@ -296149,7 +296322,7 @@ const D = {
                                   9.679,
                                   9.625,
                                   9.685,
-                                  9.59
+                                  9.593
                               ]
                  },
     "byMonth":  {
@@ -298901,10 +299074,10 @@ const D = {
                                                                 69
                                                             ],
                                               "Beatriz Araujo":  [
-                                                                     20,
+                                                                     19.9,
                                                                      16.6,
                                                                      85.8,
-                                                                     137
+                                                                     138
                                                                  ],
                                               "Dhon Freitas":  [
                                                                    19.5,
@@ -298973,8 +299146,8 @@ const D = {
                                                                      179
                                                                  ],
                                               "Wiviane Borges":  [
-                                                                     34.5,
-                                                                     24,
+                                                                     34.9,
+                                                                     24.2,
                                                                      907.5,
                                                                      134
                                                                  ]
@@ -298984,7 +299157,7 @@ const D = {
                                                 507,
                                                 393,
                                                 269,
-                                                116,
+                                                117,
                                                 78
                                             ],
                                 "avDist":  {
@@ -298997,7 +299170,7 @@ const D = {
                                                "7":  1,
                                                "8":  16,
                                                "9":  32,
-                                               "10":  698
+                                               "10":  699
                                            },
                                 "avBaixa":  {
                                                 "Marcus Silva":  9,
@@ -299068,7 +299241,7 @@ const D = {
                                                     45,
                                                     41,
                                                     34,
-                                                    23
+                                                    24
                                                 ],
                                                 [
                                                     31,
@@ -299106,7 +299279,7 @@ const D = {
                                                                         39,
                                                                         41,
                                                                         45,
-                                                                        67,
+                                                                        68,
                                                                         53,
                                                                         20
                                                                     ],
@@ -299180,7 +299353,7 @@ const D = {
                                                                      "Fila Suporte":  1
                                                                  },
                                               "Beatriz Araujo":  {
-                                                                     "Estoque Animais":  72,
+                                                                     "Estoque Animais":  73,
                                                                      "Confinamento":  31,
                                                                      "Financeiro":  13,
                                                                      "Retorno envio ativo":  10,
@@ -299371,7 +299544,7 @@ const D = {
                                                 9.72,
                                                 9.503,
                                                 9.585,
-                                                9.517
+                                                9.521
                                             ],
                                 "csatWeek":  {
                                                  "labels":  [
@@ -299384,7 +299557,7 @@ const D = {
                                                               9.679,
                                                               9.625,
                                                               9.685,
-                                                              9.59
+                                                              9.593
                                                           ]
                                              },
                                 "semDow":  {
@@ -299414,7 +299587,7 @@ const D = {
                                                              84,
                                                              89,
                                                              83,
-                                                             67
+                                                             68
                                                          ]
                                            }
                             }
@@ -299856,6 +300029,233 @@ function updateStaticBands(){
 
 
 // ════════ TABS ════════
+const MANUAL_RECORDS_STORAGE_KEY='gestao_manual_whatsapp_records_v1';
+const MANUAL_RECORDS_INCLUDE_OFFICIAL_METRICS=false;
+const MANUAL_RECORD_CATEGORIES=['Grupo de WhatsApp'];
+const MANUAL_RECORD_CHANNELS=['WhatsApp Grupo'];
+const MANUAL_RECORD_ORIGINS=[
+  'Cliente fez uma pergunta',
+  'Cliente respondeu outro cliente',
+  'Cliente marcou a empresa',
+  'Empresa iniciou contato',
+  'Aviso operacional',
+  'Suporte técnico',
+  'Dúvida de utilização',
+  'Incidente / Problema',
+  'Solicitação comercial',
+  'Solicitação financeira',
+  'Compartilhamento de material',
+  'Outro'
+];
+const MANUAL_RECORD_FIRST_RESPONSES=['N1','N2','Especialista','Comercial','Implantação (CSI)','Desenvolvimento','Outro'];
+let MANUAL_RECORDS=[];
+let manualRecordSort={key:'date',dir:'desc'};
+let manualRecordControlsReady=false;
+function loadManualRecords(){
+  try{
+    const list=JSON.parse(localStorage.getItem(MANUAL_RECORDS_STORAGE_KEY)||'[]');
+    MANUAL_RECORDS=Array.isArray(list)?list:[];
+  }catch{MANUAL_RECORDS=[];}
+}
+function saveManualRecordsLocal(){
+  localStorage.setItem(MANUAL_RECORDS_STORAGE_KEY,JSON.stringify(MANUAL_RECORDS.slice(-5000)));
+}
+function manualRecordToday(){
+  const d=new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function manualRecordTimeNow(){
+  const d=new Date();
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+function manualRecordId(){
+  return `MR-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
+}
+function manualRecordNotify(msg,isError=false){
+  if($('mr-form-status'))$('mr-form-status').textContent=msg;
+  if(typeof toast==='function')toast(msg,isError);
+}
+function manualRecordFillSelect(id,items,{all=false}={}){
+  const el=$(id);if(!el)return;
+  const current=el.value;
+  const opts=[...(all?['']:[]),...items];
+  el.innerHTML=opts.map(v=>`<option value="${esc(v)}">${v?esc(v):'Todos'}</option>`).join('');
+  if(opts.includes(current))el.value=current;
+}
+function manualRecordKnownClients(){
+  const names=[...new Set((D.rows||[]).map(r=>{
+    try{return clientNameOrLabel(r);}catch{return String(r?.[12]||'').trim();}
+  }).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR',{numeric:true,sensitivity:'base'}));
+  return names.slice(0,500);
+}
+function initManualRecordControls(){
+  if(manualRecordControlsReady)return;
+  const agents=(D.agentList||[]).filter(a=>a&&a!=='Sem Agente').sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  manualRecordFillSelect('mr-agent',agents);
+  manualRecordFillSelect('mr-agent-filter',agents,{all:true});
+  manualRecordFillSelect('mr-category',MANUAL_RECORD_CATEGORIES);
+  manualRecordFillSelect('mr-category-filter',MANUAL_RECORD_CATEGORIES,{all:true});
+  manualRecordFillSelect('mr-channel',MANUAL_RECORD_CHANNELS);
+  manualRecordFillSelect('mr-channel-filter',MANUAL_RECORD_CHANNELS,{all:true});
+  manualRecordFillSelect('mr-origin',MANUAL_RECORD_ORIGINS);
+  manualRecordFillSelect('mr-origin-filter',MANUAL_RECORD_ORIGINS,{all:true});
+  manualRecordFillSelect('mr-first-response',MANUAL_RECORD_FIRST_RESPONSES);
+  manualRecordFillSelect('mr-first-filter',MANUAL_RECORD_FIRST_RESPONSES,{all:true});
+  const datalist=$('mr-client-options');
+  if(datalist)datalist.innerHTML=manualRecordKnownClients().map(n=>`<option value="${esc(n)}"></option>`).join('');
+  manualRecordControlsReady=true;
+}
+function openManualRecordModal(id=''){
+  initManualRecordControls();
+  const item=MANUAL_RECORDS.find(r=>String(r.id)===String(id));
+  $('manual-record-form')?.reset();
+  $('mr-id').value=item?.id||'';
+  $('mr-modal-title').textContent=item?'Editar Registro Manual':'Novo Registro Manual';
+  $('mr-date').value=item?.date||manualRecordToday();
+  $('mr-start-time').value=item?.startTime||manualRecordTimeNow();
+  $('mr-end-time').value=item?.endTime||manualRecordTimeNow();
+  $('mr-agent').value=item?.agent||((D.agentList||[]).includes(APP_SESSION.name)?APP_SESSION.name:'');
+  $('mr-client').value=item?.client||'';
+  $('mr-group').value=item?.group||'';
+  $('mr-channel').value=item?.channel||MANUAL_RECORD_CHANNELS[0];
+  $('mr-category').value=item?.category||MANUAL_RECORD_CATEGORIES[0];
+  $('mr-status').value=item?.status||'Aberto';
+  $('mr-origin').value=item?.origin||MANUAL_RECORD_ORIGINS[0];
+  $('mr-first-response').value=item?.firstResponse||'N1';
+  $('mr-summary-field').value=item?.summary||'';
+  $('mr-notes').value=item?.notes||'';
+  $('mr-form-status').textContent='Não entra nas métricas oficiais nesta versão.';
+  $('manual-record-modal')?.classList.add('open');
+}
+function closeManualRecordModal(){
+  $('manual-record-modal')?.classList.remove('open');
+}
+function cleanManualRecordText(id,limit=500){
+  return String($(id)?.value||'').trim().slice(0,limit);
+}
+function saveManualRecord(event){
+  event.preventDefault();
+  const item={
+    id:$('mr-id').value||manualRecordId(),
+    date:cleanManualRecordText('mr-date',10),
+    startTime:cleanManualRecordText('mr-start-time',5),
+    endTime:cleanManualRecordText('mr-end-time',5),
+    agent:cleanManualRecordText('mr-agent',120),
+    client:cleanManualRecordText('mr-client',180),
+    group:cleanManualRecordText('mr-group',180),
+    channel:cleanManualRecordText('mr-channel',80),
+    category:cleanManualRecordText('mr-category',80),
+    origin:cleanManualRecordText('mr-origin',120),
+    firstResponse:cleanManualRecordText('mr-first-response',80),
+    status:cleanManualRecordText('mr-status',30),
+    summary:cleanManualRecordText('mr-summary-field',1200),
+    notes:cleanManualRecordText('mr-notes',1200),
+    includeOfficialMetrics:MANUAL_RECORDS_INCLUDE_OFFICIAL_METRICS,
+    updatedAt:new Date().toISOString()
+  };
+  const required=['date','startTime','endTime','agent','client','group','channel','category','origin','firstResponse','status'];
+  const missing=required.find(k=>!item[k]);
+  if(missing){manualRecordNotify('Preencha todos os campos obrigatórios.',true);return;}
+  if(item.endTime<item.startTime){manualRecordNotify('Hora final não pode ser menor que a hora inicial.',true);return;}
+  const idx=MANUAL_RECORDS.findIndex(r=>String(r.id)===String(item.id));
+  if(idx>=0)MANUAL_RECORDS[idx]={...MANUAL_RECORDS[idx],...item};
+  else MANUAL_RECORDS.push({...item,createdAt:item.updatedAt});
+  saveManualRecordsLocal();
+  closeManualRecordModal();
+  renderManualRecords();
+  manualRecordNotify('Atendimento manual salvo com sucesso.');
+}
+function deleteManualRecord(id){
+  const item=MANUAL_RECORDS.find(r=>String(r.id)===String(id));if(!item)return;
+  if(!confirm(`Excluir o registro manual de ${item.client} em ${item.date}?`))return;
+  MANUAL_RECORDS=MANUAL_RECORDS.filter(r=>String(r.id)!==String(id));
+  saveManualRecordsLocal();
+  renderManualRecords();
+  manualRecordNotify('Registro manual excluído.');
+}
+function setManualRecordSort(key){
+  manualRecordSort.dir=manualRecordSort.key===key&&manualRecordSort.dir==='asc'?'desc':'asc';
+  manualRecordSort.key=key;
+  renderManualRecords();
+}
+function manualRecordFiltered(){
+  const start=$('mr-start')?.value||'', end=$('mr-end')?.value||'';
+  const agent=$('mr-agent-filter')?.value||'', client=String($('mr-client-filter')?.value||'').toLowerCase();
+  const group=String($('mr-group-filter')?.value||'').toLowerCase(), channel=$('mr-channel-filter')?.value||'';
+  const category=$('mr-category-filter')?.value||'', origin=$('mr-origin-filter')?.value||'', first=$('mr-first-filter')?.value||'', status=$('mr-status-filter')?.value||'';
+  const q=String($('mr-search')?.value||'').trim().toLowerCase();
+  return (MANUAL_RECORDS||[]).filter(r=>{
+    if(start&&r.date<start)return false;
+    if(end&&r.date>end)return false;
+    if(agent&&r.agent!==agent)return false;
+    if(client&&!String(r.client||'').toLowerCase().includes(client))return false;
+    if(group&&!String(r.group||'').toLowerCase().includes(group))return false;
+    if(channel&&r.channel!==channel)return false;
+    if(category&&r.category!==category)return false;
+    if(origin&&r.origin!==origin)return false;
+    if(first&&r.firstResponse!==first)return false;
+    if(status&&r.status!==status)return false;
+    if(q&&!['date','startTime','endTime','agent','client','group','channel','category','origin','firstResponse','status','summary','notes'].some(k=>String(r[k]||'').toLowerCase().includes(q)))return false;
+    return true;
+  });
+}
+function manualRecordSortValue(r,key){
+  const map={date:`${r.date||''} ${r.startTime||''}`,start:r.startTime,end:r.endTime,agent:r.agent,client:r.client,group:r.group,channel:r.channel,category:r.category,origin:r.origin,firstResponse:r.firstResponse,status:r.status};
+  return String(map[key]??r[key]??'');
+}
+function manualRecordCountBy(rows,key){
+  return Object.entries(rows.reduce((acc,r)=>{const v=String(r[key]||'Não informado');acc[v]=(acc[v]||0)+1;return acc;},{})).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'pt-BR'));
+}
+function renderManualRecordList(id,items,empty='Sem dados'){
+  const host=$(id);if(!host)return;
+  const max=Math.max(1,...items.map(([,v])=>v));
+  host.innerHTML=items.slice(0,6).map(([label,value],i)=>{
+    const pct=Math.max(6,value/max*100);
+    return `<div class="bi"><span class="bl" title="${esc(label)}">${esc(label.length>18?label.slice(0,18)+'...':label)}</span><div class="bt"><div class="bfill" style="width:${pct.toFixed(0)}%;background:${PAL[i%PAL.length]}"></div></div><span class="bv">${fN(value)}</span></div>`;
+  }).join('')||`<div class="op-empty">${empty}</div>`;
+}
+function renderManualRecords(){
+  initManualRecordControls();
+  loadManualRecords();
+  const rows=manualRecordFiltered().sort((a,b)=>{
+    const av=manualRecordSortValue(a,manualRecordSort.key), bv=manualRecordSortValue(b,manualRecordSort.key);
+    const cmp=av.localeCompare(bv,'pt-BR',{numeric:true,sensitivity:'base'});
+    return manualRecordSort.dir==='asc'?cmp:-cmp;
+  });
+  const open=rows.filter(r=>r.status==='Aberto').length, closed=rows.filter(r=>r.status==='Encerrado').length;
+  $('mr-k-total').textContent=fN(rows.length);
+  $('mr-k-open').textContent=fN(open);
+  $('mr-k-closed').textContent=fN(closed);
+  $('mr-k-agents').textContent=fN(new Set(rows.map(r=>r.agent).filter(Boolean)).size);
+  $('mr-k-groups').textContent=fN(new Set(rows.map(r=>r.group).filter(Boolean)).size);
+  $('mr-summary').textContent=`${fN(rows.length)} registro(s) manual(is) no filtro · ${fN(open)} aberto(s) · ${fN(closed)} encerrado(s)`;
+  renderManualRecordList('mr-agent-list',manualRecordCountBy(rows,'agent'));
+  renderManualRecordList('mr-group-list',manualRecordCountBy(rows,'group'));
+  renderManualRecordList('mr-origin-list',manualRecordCountBy(rows,'origin'));
+  renderManualRecordList('mr-client-list',manualRecordCountBy(rows,'client'));
+  renderManualRecordList('mr-channel-list',manualRecordCountBy(rows,'channel'));
+  renderManualRecordList('mr-first-list',manualRecordCountBy(rows,'firstResponse'));
+  const tbody=$('mr-tbody'), empty=$('mr-empty');if(!tbody)return;
+  empty.style.display=rows.length?'none':'block';
+  tbody.innerHTML=rows.map(r=>{
+    const badge=r.status==='Encerrado'?'manual-status-closed':'manual-status-open';
+    const encoded=encodeURIComponent(String(r.id||''));
+    return `<tr>
+      <td class="op-mono">${esc(r.date||'')}</td>
+      <td class="op-mono">${esc(r.startTime||'')}</td>
+      <td class="op-mono">${esc(r.endTime||'')}</td>
+      <td>${esc(r.agent||'')}</td>
+      <td>${esc(r.client||'')}</td>
+      <td>${esc(r.group||'')}</td>
+      <td><span class="op-badge">${esc(r.channel||'')}</span></td>
+      <td>${esc(r.category||'')}</td>
+      <td>${esc(r.origin||'')}</td>
+      <td>${esc(r.firstResponse||'')}</td>
+      <td><span class="op-badge ${badge}">${esc(r.status||'')}</span></td>
+      <td><div class="rel-actions"><button class="rel-action" data-id="${encoded}" onclick="openManualRecordModal(decodeURIComponent(this.dataset.id))">Editar</button><button class="rel-action" style="color:var(--rust)" data-id="${encoded}" onclick="deleteManualRecord(decodeURIComponent(this.dataset.id))">Excluir</button></div></td>
+    </tr>`;
+  }).join('');
+}
 let chDl=null,chDcsat=null,chDowm=null,chTDbar=null,chAgRk=null;
 function go(id,el){
   document.body.classList.toggle('bonus-mode',id==='bonificacao');
@@ -299868,6 +300268,7 @@ function go(id,el){
   if(id==='clientes')renderClientsMonth(appM);
   if(id==='historico')renderHistorico();
   if(id==='atendimentos')renderAtendimentos();
+  if(id==='registro-manual')renderManualRecords();
   if(id==='revisoes')loadReviewRequests();
   if(id==='tratamentos')renderTreatments();
   if(id==='bonificacao')renderBonus();
@@ -302695,6 +303096,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

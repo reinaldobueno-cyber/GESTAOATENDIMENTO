@@ -355,9 +355,8 @@ canvas{cursor:pointer;}
 .manual-note{max-width:280px;white-space:normal;color:var(--sub);font-size:.68rem;line-height:1.35;}
 .manual-select-add{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.35rem;align-items:end;}
 .manual-group-picker-wrap{position:relative;}
-.manual-group-picker-wrap::after{content:'';position:absolute;right:42px;top:50%;transform:translateY(-35%);width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid var(--ink);pointer-events:none;}
-.manual-group-picker-wrap:not(:has(.manual-add-btn.visible))::after{right:10px;}
 .manual-group-picker-wrap .fs{padding-right:28px;}
+.manual-select-caret{position:absolute;right:42px;top:50%;transform:translateY(-52%);width:18px;height:18px;display:grid;place-items:center;color:var(--ink);font-family:'Geist Mono',monospace;font-size:.85rem;font-weight:900;pointer-events:none;line-height:1;}
 .manual-add-btn{width:28px;height:28px;border-radius:7px;border:1px solid var(--border);background:var(--foam);color:var(--moss);font-family:'Geist Mono',monospace;font-size:.95rem;font-weight:900;cursor:pointer;display:none;align-items:center;justify-content:center;line-height:1;}
 .manual-add-btn.visible{display:inline-flex!important;}
 .manual-add-btn:hover{border-color:var(--moss);background:#fff;}
@@ -1567,7 +1566,7 @@ canvas{cursor:pointer;}
         </div>
         <div class="treat-row">
           <label class="fl">Cliente<br><input class="fs" id="mr-client" list="mr-client-options" required placeholder="Nome do cliente"></label>
-          <label class="fl">Grupo de WhatsApp<br><span class="manual-select-add manual-group-picker-wrap"><input class="fs" id="mr-group" required placeholder="Ex: Grupo Fazenda Boa Vista" autocomplete="off" onfocus="openManualGroupPicker()" onclick="openManualGroupPicker()" oninput="openManualGroupPicker()"><button class="manual-add-btn admin-only" type="button" onclick="addManualRecordGroupOption()" title="Adicionar grupo">+</button><div class="manual-option-pop" id="mr-group-picker"></div></span></label>
+          <label class="fl">Grupo de WhatsApp<br><span class="manual-select-add manual-group-picker-wrap"><input class="fs" id="mr-group" required placeholder="Ex: Grupo Fazenda Boa Vista" autocomplete="off" onfocus="openManualGroupPicker()" onclick="openManualGroupPicker()" oninput="openManualGroupPicker()"><span class="manual-select-caret">▼</span><button class="manual-add-btn admin-only" type="button" onclick="addManualRecordGroupOption()" title="Adicionar grupo">+</button><div class="manual-option-pop" id="mr-group-picker"></div></span></label>
         </div>
         <div class="treat-row">
           <label class="fl">Meio de comunicação<br><span class="manual-select-add"><select class="fs" id="mr-channel" required></select><button class="manual-add-btn admin-only" type="button" onclick="addManualRecordOption('channel')" title="Adicionar meio">+</button></span></label>
@@ -1632,7 +1631,7 @@ const D = {
                   1945,
                   1691,
                   1866,
-                  1608
+                  1609
               ],
     "aval":  [
                  958,
@@ -1648,7 +1647,7 @@ const D = {
                    1945,
                    1691,
                    1866,
-                   1606
+                   1607
                ],
     "open":  [
                  0,
@@ -1664,7 +1663,7 @@ const D = {
                    0.4571,
                    0.5009,
                    0.515,
-                   0.4857
+                   0.4854
                ],
     "sat":  [
                 9.817,
@@ -1680,7 +1679,7 @@ const D = {
                 "00:27:12",
                 "00:36:11",
                 "00:43:05",
-                "00:25:58"
+                "00:25:57"
             ],
     "tme":  [
                 "00:05:30",
@@ -2207,7 +2206,7 @@ const D = {
                                        "c":  9.585
                                    },
                             "26":  {
-                                       "v":  73,
+                                       "v":  74,
                                        "c":  9.839
                                    }
                         }
@@ -2253,7 +2252,7 @@ const D = {
                           354,
                           330,
                           254,
-                          272
+                          273
                       ]
             },
     "semanas":  {
@@ -2295,7 +2294,7 @@ const D = {
                               341,
                               478,
                               362,
-                              427
+                              428
                           ]
                 },
     "semDow":  {
@@ -2325,7 +2324,7 @@ const D = {
                                  84,
                                  89,
                                  83,
-                                 73
+                                 74
                              ]
                },
     "grupos":  {
@@ -2423,7 +2422,7 @@ const D = {
                                497,
                                410,
                                240,
-                               154,
+                               155,
                                96,
                                74,
                                52,
@@ -2965,7 +2964,7 @@ const D = {
                                                116,
                                                56,
                                                9.38,
-                                               "00:28:06"
+                                               "00:27:58"
                                            ]
                                        ],
                     "Marcus Silva":  [
@@ -3228,7 +3227,7 @@ const D = {
                                                "00:31:27"
                                            ],
                                            [
-                                               135,
+                                               136,
                                                61,
                                                9.82,
                                                "00:34:46"
@@ -3278,6 +3277,33 @@ const D = {
                      6,
                      26,
                      "Wiviane Borges",
+                     "Confinamento",
+                     0,
+                     9,
+                     null,
+                     "WA00000126452",
+                     "5 Periodo",
+                     16,
+                     "26/06/2026 16:46",
+                     "",
+                     "Cliente #550 · 6 atendimentos",
+                     "",
+                     "WHATSAPP",
+                     "OPEN",
+                     126452,
+                     "MODELO",
+                     "Cliente #550",
+                     "Cliente #550 · 6 atendimentos",
+                     "CLIENTE:C550",
+                     "",
+                     "",
+                     "",
+                     6
+                 ],
+                 [
+                     6,
+                     26,
+                     "Wiviane Borges",
                      "Estoque Animais",
                      743,
                      6,
@@ -3306,7 +3332,7 @@ const D = {
                      26,
                      "Marcelo Santos",
                      "Estoque Animais",
-                     0,
+                     714,
                      9,
                      null,
                      "WA00000126448",
@@ -3317,7 +3343,7 @@ const D = {
                      "Cliente #629 · 3 atendimentos",
                      "",
                      "WHATSAPP",
-                     "OPEN",
+                     "CLOSED",
                      126448,
                      "MODELO",
                      "Cliente #629",
@@ -3340,7 +3366,7 @@ const D = {
                      "5 Periodo",
                      16,
                      "26/06/2026 16:17",
-                     "",
+                     "26/06/2026 16:50",
                      "Cliente #051 · 41 atendimentos",
                      "",
                      "WHATSAPP",
@@ -6068,19 +6094,19 @@ const D = {
                      13,
                      "25/06/2026 13:40",
                      "25/06/2026 14:03",
-                     "Cliente #550 · 5 atendimentos",
+                     "Cliente #550 · 6 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      126234,
                      "MODELO",
                      "Cliente #550",
-                     "Cliente #550 · 5 atendimentos",
+                     "Cliente #550 · 6 atendimentos",
                      "CLIENTE:C550",
                      "",
                      "",
                      "",
-                     5
+                     6
                  ],
                  [
                      6,
@@ -6446,19 +6472,19 @@ const D = {
                      11,
                      "25/06/2026 11:12",
                      "25/06/2026 11:19",
-                     "Cliente #550 · 5 atendimentos",
+                     "Cliente #550 · 6 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      126206,
                      "MODELO",
                      "Cliente #550",
-                     "Cliente #550 · 5 atendimentos",
+                     "Cliente #550 · 6 atendimentos",
                      "CLIENTE:C550",
                      "",
                      "",
                      "",
-                     5
+                     6
                  ],
                  [
                      6,
@@ -24806,19 +24832,19 @@ const D = {
                      16,
                      "12/06/2026 16:25",
                      "12/06/2026 16:34",
-                     "Cliente #550 · 5 atendimentos",
+                     "Cliente #550 · 6 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      124771,
                      "MODELO",
                      "Cliente #550",
-                     "Cliente #550 · 5 atendimentos",
+                     "Cliente #550 · 6 atendimentos",
                      "CLIENTE:C550",
                      "",
                      "",
                      "",
-                     5
+                     6
                  ],
                  [
                      6,
@@ -247151,19 +247177,19 @@ const D = {
                      14,
                      "05/05/2026 14:08",
                      "05/05/2026 15:10",
-                     "Cliente #550 · 5 atendimentos",
+                     "Cliente #550 · 6 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      119404,
                      "MODELO",
                      "Cliente #550",
-                     "Cliente #550 · 5 atendimentos",
+                     "Cliente #550 · 6 atendimentos",
                      "CLIENTE:C550",
                      "",
                      "",
                      "",
-                     5
+                     6
                  ],
                  [
                      5,
@@ -247529,19 +247555,19 @@ const D = {
                      15,
                      "05/05/2026 15:13",
                      "05/05/2026 15:35",
-                     "Cliente #550 · 5 atendimentos",
+                     "Cliente #550 · 6 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      119432,
                      "MODELO",
                      "Cliente #550",
-                     "Cliente #550 · 5 atendimentos",
+                     "Cliente #550 · 6 atendimentos",
                      "CLIENTE:C550",
                      "",
                      "",
                      "",
-                     5
+                     6
                  ],
                  [
                      5,
@@ -294073,7 +294099,7 @@ const D = {
                                         114
                                     ],
                   "Marcelo Santos":  [
-                                         27.9,
+                                         28,
                                          25,
                                          125.8,
                                          116
@@ -294097,15 +294123,15 @@ const D = {
                                          179
                                      ],
                   "Wiviane Borges":  [
-                                         34.8,
-                                         24.2,
+                                         34.5,
+                                         24,
                                          907.5,
-                                         135
+                                         136
                                      ]
               },
     "tmaDist":  [
                     238,
-                    511,
+                    512,
                     394,
                     269,
                     118,
@@ -294211,7 +294237,7 @@ const D = {
                         56,
                         33,
                         25,
-                        24
+                        25
                     ],
                     [
                         21,
@@ -294230,7 +294256,7 @@ const D = {
                     8,
                     5.8,
                     5.3,
-                    26.1,
+                    26,
                     722.5
                 ],
     "grpHora":  {
@@ -294279,7 +294305,7 @@ const D = {
                                          14,
                                          14,
                                          14,
-                                         19,
+                                         20,
                                          6
                                      ],
                     "SISBOV":  [
@@ -294333,7 +294359,7 @@ const D = {
                                    },
                   "Wiviane Borges":  {
                                          "Estoque Animais":  72,
-                                         "Confinamento":  33,
+                                         "Confinamento":  34,
                                          "SISBOV":  22,
                                          "Retorno envio ativo":  5,
                                          "Fila Suporte":  2,
@@ -295972,7 +295998,7 @@ const D = {
                                                    "23":  6,
                                                    "24":  11,
                                                    "25":  13,
-                                                   "26":  7
+                                                   "26":  8
                                                }
                         }
               },
@@ -299280,7 +299306,7 @@ const D = {
                                                                     114
                                                                 ],
                                               "Marcelo Santos":  [
-                                                                     27.9,
+                                                                     28,
                                                                      25,
                                                                      125.8,
                                                                      116
@@ -299304,15 +299330,15 @@ const D = {
                                                                      179
                                                                  ],
                                               "Wiviane Borges":  [
-                                                                     34.8,
-                                                                     24.2,
+                                                                     34.5,
+                                                                     24,
                                                                      907.5,
-                                                                     135
+                                                                     136
                                                                  ]
                                           },
                                 "tmaDist":  [
                                                 238,
-                                                511,
+                                                512,
                                                 394,
                                                 269,
                                                 118,
@@ -299406,7 +299432,7 @@ const D = {
                                                     56,
                                                     33,
                                                     25,
-                                                    24
+                                                    25
                                                 ],
                                                 [
                                                     21,
@@ -299425,7 +299451,7 @@ const D = {
                                                 8,
                                                 5.8,
                                                 5.3,
-                                                26.1,
+                                                26,
                                                 722.5
                                             ],
                                 "grpHora":  {
@@ -299474,7 +299500,7 @@ const D = {
                                                                      14,
                                                                      14,
                                                                      14,
-                                                                     19,
+                                                                     20,
                                                                      6
                                                                  ],
                                                 "SISBOV":  [
@@ -299528,7 +299554,7 @@ const D = {
                                                                },
                                               "Wiviane Borges":  {
                                                                      "Estoque Animais":  72,
-                                                                     "Confinamento":  33,
+                                                                     "Confinamento":  34,
                                                                      "SISBOV":  22,
                                                                      "Retorno envio ativo":  5,
                                                                      "Fila Suporte":  2,
@@ -299745,7 +299771,7 @@ const D = {
                                                              84,
                                                              89,
                                                              83,
-                                                             73
+                                                             74
                                                          ]
                                            }
                             }
@@ -303378,6 +303404,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

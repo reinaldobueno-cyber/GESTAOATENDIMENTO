@@ -354,9 +354,19 @@ canvas{cursor:pointer;}
 .manual-status-closed{border-color:rgba(61,107,71,.24);background:rgba(61,107,71,.1);color:var(--moss);}
 .manual-note{max-width:280px;white-space:normal;color:var(--sub);font-size:.68rem;line-height:1.35;}
 .manual-select-add{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.35rem;align-items:end;}
+.manual-group-picker-wrap{position:relative;}
+.manual-group-picker-wrap::after{content:'';position:absolute;right:42px;top:50%;transform:translateY(-35%);width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid var(--ink);pointer-events:none;}
+.manual-group-picker-wrap:not(:has(.manual-add-btn.visible))::after{right:10px;}
+.manual-group-picker-wrap .fs{padding-right:28px;}
 .manual-add-btn{width:28px;height:28px;border-radius:7px;border:1px solid var(--border);background:var(--foam);color:var(--moss);font-family:'Geist Mono',monospace;font-size:.95rem;font-weight:900;cursor:pointer;display:none;align-items:center;justify-content:center;line-height:1;}
 .manual-add-btn.visible{display:inline-flex!important;}
 .manual-add-btn:hover{border-color:var(--moss);background:#fff;}
+.manual-option-pop{position:absolute;left:0;right:34px;top:calc(100% + 4px);z-index:1200;display:none;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 14px 34px rgba(20,38,24,.18);padding:.35rem;max-height:190px;overflow:auto;}
+.manual-option-pop.open{display:block;}
+.manual-option-item{width:100%;border:0;border-radius:7px;background:#fff;color:var(--ink);padding:8px 9px;text-align:left;font-family:'Geist Mono',monospace;font-size:.64rem;cursor:pointer;display:flex;justify-content:space-between;gap:.55rem;align-items:center;}
+.manual-option-item:hover,.manual-option-item:focus{background:var(--foam);outline:none;}
+.manual-option-item small{color:var(--ghost);font-size:.54rem;}
+.manual-option-empty{padding:.6rem .65rem;font-family:'Geist Mono',monospace;font-size:.6rem;color:var(--ghost);}
 .manual-alert-card{cursor:pointer;}
 .manual-alert-card::after{background:var(--rust);}
 .manual-next-row{display:none;}
@@ -1557,7 +1567,7 @@ canvas{cursor:pointer;}
         </div>
         <div class="treat-row">
           <label class="fl">Cliente<br><input class="fs" id="mr-client" list="mr-client-options" required placeholder="Nome do cliente"></label>
-          <label class="fl">Grupo de WhatsApp<br><span class="manual-select-add"><input class="fs" id="mr-group" list="mr-group-options" required placeholder="Ex: Grupo Fazenda Boa Vista"><button class="manual-add-btn admin-only" type="button" onclick="addManualRecordGroupOption()" title="Adicionar grupo">+</button></span></label>
+          <label class="fl">Grupo de WhatsApp<br><span class="manual-select-add manual-group-picker-wrap"><input class="fs" id="mr-group" required placeholder="Ex: Grupo Fazenda Boa Vista" autocomplete="off" onfocus="openManualGroupPicker()" onclick="openManualGroupPicker()" oninput="openManualGroupPicker()"><button class="manual-add-btn admin-only" type="button" onclick="addManualRecordGroupOption()" title="Adicionar grupo">+</button><div class="manual-option-pop" id="mr-group-picker"></div></span></label>
         </div>
         <div class="treat-row">
           <label class="fl">Meio de comunicação<br><span class="manual-select-add"><select class="fs" id="mr-channel" required></select><button class="manual-add-btn admin-only" type="button" onclick="addManualRecordOption('channel')" title="Adicionar meio">+</button></span></label>
@@ -1582,7 +1592,6 @@ canvas{cursor:pointer;}
         </div>
       </form>
       <datalist id="mr-client-options"></datalist>
-      <datalist id="mr-group-options"></datalist>
     </div>
   </div>
 </div>
@@ -1623,7 +1632,7 @@ const D = {
                   1945,
                   1691,
                   1866,
-                  1607
+                  1608
               ],
     "aval":  [
                  958,
@@ -1639,7 +1648,7 @@ const D = {
                    1945,
                    1691,
                    1866,
-                   1604
+                   1606
                ],
     "open":  [
                  0,
@@ -1647,7 +1656,7 @@ const D = {
                  0,
                  0,
                  0,
-                 3
+                 2
              ],
     "cobert":  [
                    0.4908,
@@ -1655,7 +1664,7 @@ const D = {
                    0.4571,
                    0.5009,
                    0.515,
-                   0.4863
+                   0.4857
                ],
     "sat":  [
                 9.817,
@@ -1679,7 +1688,7 @@ const D = {
                 "00:01:39",
                 "00:00:03",
                 "00:00:22",
-                "00:00:44"
+                "00:00:43"
             ],
     "sla":  [
                 0.9918,
@@ -2198,7 +2207,7 @@ const D = {
                                        "c":  9.585
                                    },
                             "26":  {
-                                       "v":  72,
+                                       "v":  73,
                                        "c":  9.839
                                    }
                         }
@@ -2244,7 +2253,7 @@ const D = {
                           354,
                           330,
                           254,
-                          271
+                          272
                       ]
             },
     "semanas":  {
@@ -2286,7 +2295,7 @@ const D = {
                               341,
                               478,
                               362,
-                              426
+                              427
                           ]
                 },
     "semDow":  {
@@ -2316,7 +2325,7 @@ const D = {
                                  84,
                                  89,
                                  83,
-                                 72
+                                 73
                              ]
                },
     "grupos":  {
@@ -2411,7 +2420,7 @@ const D = {
                                0
                            ],
                    "jun":  [
-                               496,
+                               497,
                                410,
                                240,
                                154,
@@ -2953,7 +2962,7 @@ const D = {
                                                "00:33:13"
                                            ],
                                            [
-                                               115,
+                                               116,
                                                56,
                                                9.38,
                                                "00:28:06"
@@ -2994,7 +3003,7 @@ const D = {
                                              137,
                                              67,
                                              9.28,
-                                             "00:28:33"
+                                             "00:28:32"
                                          ]
                                      ],
                     "Multisoft_Pesquisa":  [
@@ -3222,7 +3231,7 @@ const D = {
                                                135,
                                                61,
                                                9.82,
-                                               "00:34:56"
+                                               "00:34:46"
                                            ]
                                        ]
                 },
@@ -3270,18 +3279,18 @@ const D = {
                      26,
                      "Wiviane Borges",
                      "Estoque Animais",
-                     0,
+                     743,
                      6,
                      null,
                      "WA00000126450",
                      "5 Periodo",
                      16,
                      "26/06/2026 16:27",
-                     "",
+                     "26/06/2026 16:39",
                      "Cliente #065 · 36 atendimentos",
                      "",
                      "WHATSAPP",
-                     "OPEN",
+                     "CLOSED",
                      126450,
                      "MODELO",
                      "Cliente #065",
@@ -3291,6 +3300,33 @@ const D = {
                      "",
                      "",
                      36
+                 ],
+                 [
+                     6,
+                     26,
+                     "Marcelo Santos",
+                     "Estoque Animais",
+                     0,
+                     9,
+                     null,
+                     "WA00000126448",
+                     "5 Periodo",
+                     16,
+                     "26/06/2026 16:22",
+                     "26/06/2026 16:34",
+                     "Cliente #629 · 3 atendimentos",
+                     "",
+                     "WHATSAPP",
+                     "OPEN",
+                     126448,
+                     "MODELO",
+                     "Cliente #629",
+                     "Cliente #629 · 3 atendimentos",
+                     "CLIENTE:C629",
+                     "",
+                     "",
+                     "",
+                     3
                  ],
                  [
                      6,
@@ -3351,7 +3387,7 @@ const D = {
                      26,
                      "Marcus Silva",
                      "Estoque Animais",
-                     0,
+                     1514,
                      9,
                      null,
                      "WA00000126442",
@@ -3362,7 +3398,7 @@ const D = {
                      "Cliente #891 · 1 atendimentos",
                      "",
                      "WHATSAPP",
-                     "OPEN",
+                     "CLOSED",
                      126442,
                      "MODELO",
                      "Cliente #891",
@@ -3440,19 +3476,19 @@ const D = {
                      15,
                      "26/06/2026 15:34",
                      "26/06/2026 16:21",
-                     "Cliente #629 · 2 atendimentos",
+                     "Cliente #629 · 3 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      126436,
                      "MODELO",
                      "Cliente #629",
-                     "Cliente #629 · 2 atendimentos",
+                     "Cliente #629 · 3 atendimentos",
                      "CLIENTE:C629",
                      "",
                      "",
                      "",
-                     2
+                     3
                  ],
                  [
                      6,
@@ -113114,19 +113150,19 @@ const D = {
                      9,
                      "09/02/2026 09:09",
                      "09/02/2026 09:26",
-                     "Cliente #629 · 2 atendimentos",
+                     "Cliente #629 · 3 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      108964,
                      "MODELO",
                      "Cliente #629",
-                     "Cliente #629 · 2 atendimentos",
+                     "Cliente #629 · 3 atendimentos",
                      "CLIENTE:C629",
                      "",
                      "",
                      "",
-                     2
+                     3
                  ],
                  [
                      2,
@@ -294037,13 +294073,13 @@ const D = {
                                         114
                                     ],
                   "Marcelo Santos":  [
-                                         28.1,
-                                         25.1,
+                                         27.9,
+                                         25,
                                          125.8,
-                                         115
+                                         116
                                      ],
                   "Marcus Silva":  [
-                                       28.3,
+                                       28.5,
                                        25.3,
                                        102.3,
                                        137
@@ -294061,16 +294097,16 @@ const D = {
                                          179
                                      ],
                   "Wiviane Borges":  [
-                                         34.7,
+                                         34.8,
                                          24.2,
                                          907.5,
                                          135
                                      ]
               },
     "tmaDist":  [
-                    239,
-                    510,
-                    393,
+                    238,
+                    511,
+                    394,
                     269,
                     118,
                     78
@@ -294175,7 +294211,7 @@ const D = {
                         56,
                         33,
                         25,
-                        23
+                        24
                     ],
                     [
                         21,
@@ -294194,7 +294230,7 @@ const D = {
                     8,
                     5.8,
                     5.3,
-                    26.2,
+                    26.1,
                     722.5
                 ],
     "grpHora":  {
@@ -294207,7 +294243,7 @@ const D = {
                                             41,
                                             45,
                                             68,
-                                            56,
+                                            57,
                                             20
                                         ],
                     "Reproducao":  [
@@ -294308,7 +294344,7 @@ const D = {
                                          "Configuracao de balanca e bastao":  22
                                      },
                   "Marcelo Santos":  {
-                                         "Estoque Animais":  58,
+                                         "Estoque Animais":  59,
                                          "Confinamento":  30,
                                          "SISBOV":  9,
                                          "Retorno envio ativo":  8,
@@ -295855,7 +295891,7 @@ const D = {
                                                    "23":  8,
                                                    "24":  7,
                                                    "25":  9,
-                                                   "26":  8
+                                                   "26":  9
                                                },
                             "Marcus Silva":  {
                                                  "1":  3,
@@ -299244,13 +299280,13 @@ const D = {
                                                                     114
                                                                 ],
                                               "Marcelo Santos":  [
-                                                                     28.1,
-                                                                     25.1,
+                                                                     27.9,
+                                                                     25,
                                                                      125.8,
-                                                                     115
+                                                                     116
                                                                  ],
                                               "Marcus Silva":  [
-                                                                   28.3,
+                                                                   28.5,
                                                                    25.3,
                                                                    102.3,
                                                                    137
@@ -299268,16 +299304,16 @@ const D = {
                                                                      179
                                                                  ],
                                               "Wiviane Borges":  [
-                                                                     34.7,
+                                                                     34.8,
                                                                      24.2,
                                                                      907.5,
                                                                      135
                                                                  ]
                                           },
                                 "tmaDist":  [
-                                                239,
-                                                510,
-                                                393,
+                                                238,
+                                                511,
+                                                394,
                                                 269,
                                                 118,
                                                 78
@@ -299370,7 +299406,7 @@ const D = {
                                                     56,
                                                     33,
                                                     25,
-                                                    23
+                                                    24
                                                 ],
                                                 [
                                                     21,
@@ -299389,7 +299425,7 @@ const D = {
                                                 8,
                                                 5.8,
                                                 5.3,
-                                                26.2,
+                                                26.1,
                                                 722.5
                                             ],
                                 "grpHora":  {
@@ -299402,7 +299438,7 @@ const D = {
                                                                         41,
                                                                         45,
                                                                         68,
-                                                                        56,
+                                                                        57,
                                                                         20
                                                                     ],
                                                 "Reproducao":  [
@@ -299503,7 +299539,7 @@ const D = {
                                                                      "Configuracao de balanca e bastao":  22
                                                                  },
                                               "Marcelo Santos":  {
-                                                                     "Estoque Animais":  58,
+                                                                     "Estoque Animais":  59,
                                                                      "Confinamento":  30,
                                                                      "SISBOV":  9,
                                                                      "Retorno envio ativo":  8,
@@ -299709,7 +299745,7 @@ const D = {
                                                              84,
                                                              89,
                                                              83,
-                                                             72
+                                                             73
                                                          ]
                                            }
                             }
@@ -300211,8 +300247,9 @@ function manualRecordOptions(kind){
 function manualRecordGroupOptions(){
   const saved=Array.isArray(MANUAL_RECORD_OPTIONS.group)?MANUAL_RECORD_OPTIONS.group:[];
   const used=(MANUAL_RECORDS||[]).map(r=>r.group);
+  const usage=(MANUAL_RECORDS||[]).reduce((acc,r)=>{const g=String(r.group||'').trim();if(g)acc[g]=(acc[g]||0)+1;return acc;},{});
   return [...new Set([...saved,...used].map(v=>String(v||'').trim()).filter(Boolean))]
-    .sort((a,b)=>a.localeCompare(b,'pt-BR',{numeric:true,sensitivity:'base'}));
+    .sort((a,b)=>(usage[b]||0)-(usage[a]||0)||a.localeCompare(b,'pt-BR',{numeric:true,sensitivity:'base'}));
 }
 function saveManualRecordsLocal(){
   localStorage.setItem(MANUAL_RECORDS_STORAGE_KEY,JSON.stringify(MANUAL_RECORDS.slice(-5000)));
@@ -300264,9 +300301,29 @@ function initManualRecordControls(){
   });
   const datalist=$('mr-client-options');
   if(datalist)datalist.innerHTML=manualRecordKnownClients().map(n=>`<option value="${esc(n)}"></option>`).join('');
-  const groupList=$('mr-group-options');
-  if(groupList)groupList.innerHTML=manualRecordGroupOptions().map(n=>`<option value="${esc(n)}"></option>`).join('');
   manualRecordControlsReady=true;
+}
+function renderManualGroupPicker(){
+  const host=$('mr-group-picker');if(!host)return;
+  const q=String($('mr-group')?.value||'').trim().toLowerCase();
+  const usage=(MANUAL_RECORDS||[]).reduce((acc,r)=>{const g=String(r.group||'').trim();if(g)acc[g]=(acc[g]||0)+1;return acc;},{});
+  const rows=manualRecordGroupOptions().filter(g=>!q||g.toLowerCase().includes(q)).slice(0,12);
+  host.innerHTML=rows.map(g=>`<button class="manual-option-item" type="button" onclick="selectManualGroupOption('${esc(g)}')"><span>${esc(g)}</span><small>${usage[g]?`${fN(usage[g])} uso(s)`:'salvo'}</small></button>`).join('')||'<div class="manual-option-empty">Nenhum grupo salvo. Digite o nome e use + para salvar.</div>';
+}
+function openManualGroupPicker(){
+  renderManualGroupPicker();
+  $('mr-group-picker')?.classList.add('open');
+}
+function closeManualGroupPicker(){
+  $('mr-group-picker')?.classList.remove('open');
+}
+document.addEventListener('click',(ev)=>{
+  const wrap=ev.target?.closest?.('.manual-group-picker-wrap');
+  if(!wrap)closeManualGroupPicker();
+});
+function selectManualGroupOption(value){
+  if($('mr-group'))$('mr-group').value=value;
+  closeManualGroupPicker();
 }
 function addManualRecordGroupOption(){
   const isAdmin=!!APP_SESSION.admin||APP_SESSION.role==='admin';
@@ -300281,6 +300338,7 @@ function addManualRecordGroupOption(){
   manualRecordControlsReady=false;
   initManualRecordControls();
   $('mr-group').value=value;
+  renderManualGroupPicker();
   manualRecordNotify('Grupo adicionado à lista.');
 }
 function addManualRecordOption(kind){
@@ -303320,6 +303378,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

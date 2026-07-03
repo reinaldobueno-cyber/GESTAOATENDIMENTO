@@ -1564,7 +1564,7 @@ canvas{cursor:pointer;}
         </div>
         <div class="treat-row">
           <label class="fl">Hora final<br><input class="fs" id="mr-end-time" type="time" required></label>
-          <label class="fl">Agente responsável<br><select class="fs" id="mr-agent" required></select></label>
+          <label class="fl">Agente responsável<br><span class="manual-select-add"><select class="fs" id="mr-agent" required></select><button class="manual-add-btn admin-only" type="button" onclick="addManualRecordAgentOption()" title="Adicionar agente">+</button></span></label>
         </div>
         <div class="treat-row">
           <label class="fl">Cliente<br><input class="fs" id="mr-client" list="mr-client-options" required placeholder="Nome do cliente"></label>
@@ -1636,7 +1636,7 @@ const D = {
                   1691,
                   1866,
                   1794,
-                  209
+                  211
               ],
     "aval":  [
                  958,
@@ -1645,7 +1645,7 @@ const D = {
                  847,
                  961,
                  870,
-                 97
+                 98
              ],
     "closed":  [
                    1952,
@@ -1654,7 +1654,7 @@ const D = {
                    1691,
                    1866,
                    1794,
-                   204
+                   207
                ],
     "open":  [
                  0,
@@ -1663,7 +1663,7 @@ const D = {
                  0,
                  0,
                  0,
-                 5
+                 4
              ],
     "cobert":  [
                    0.4908,
@@ -1672,7 +1672,7 @@ const D = {
                    0.5009,
                    0.515,
                    0.4849,
-                   0.4755
+                   0.4734
                ],
     "sat":  [
                 9.817,
@@ -1681,7 +1681,7 @@ const D = {
                 9.732,
                 9.743,
                 9.663,
-                9.835
+                9.837
             ],
     "tma":  [
                 "00:28:51",
@@ -1690,7 +1690,7 @@ const D = {
                 "00:36:11",
                 "00:43:05",
                 "00:25:53",
-                "00:26:05"
+                "00:26:11"
             ],
     "tme":  [
                 "00:05:30",
@@ -1708,7 +1708,7 @@ const D = {
                 0.9976,
                 0.9898,
                 0.9872,
-                0.9706
+                0.971
             ],
     "daily":  {
                   "1":  {
@@ -2241,8 +2241,8 @@ const D = {
                                       "c":  9.974
                                   },
                             "3":  {
-                                      "v":  42,
-                                      "c":  9.842
+                                      "v":  44,
+                                      "c":  9.85
                                   }
                         }
               },
@@ -2294,7 +2294,7 @@ const D = {
                           0,
                           86,
                           81,
-                          42
+                          44
                       ]
             },
     "semanas":  {
@@ -2340,7 +2340,7 @@ const D = {
                               172
                           ],
                     "7":  [
-                              209
+                              211
                           ]
                 },
     "semDow":  {
@@ -2349,7 +2349,7 @@ const D = {
                                  0,
                                  86,
                                  81,
-                                 42
+                                 44
                              ]
                },
     "grupos":  {
@@ -2460,13 +2460,13 @@ const D = {
                            ],
                    "jul":  [
                                62,
-                               49,
+                               50,
                                36,
                                25,
                                15,
                                8,
                                3,
-                               8,
+                               9,
                                1,
                                0,
                                1,
@@ -2648,7 +2648,7 @@ const D = {
                                              13,
                                              4,
                                              10,
-                                             "00:28:46"
+                                             "00:28:45"
                                          ]
                                      ],
                     "Evelyn Gonçalves":  [
@@ -3261,7 +3261,7 @@ const D = {
                                                "00:24:59"
                                            ],
                                            [
-                                               20,
+                                               22,
                                                5,
                                                9.6,
                                                "00:37:41"
@@ -3394,9 +3394,9 @@ const D = {
                                            ],
                                            [
                                                21,
+                                               11,
                                                10,
-                                               10,
-                                               "00:28:04"
+                                               "00:28:44"
                                            ]
                                        ]
                 },
@@ -3442,6 +3442,60 @@ const D = {
                  [
                      7,
                      3,
+                     "Raissa Ribeiro",
+                     "PMG e Comunicacao para Associacao",
+                     0,
+                     5,
+                     null,
+                     "WA00000127286",
+                     "2 Periodo",
+                     11,
+                     "03/07/2026 11:56",
+                     "03/07/2026 12:09",
+                     "Cliente #763 · 7 atendimentos",
+                     "",
+                     "WHATSAPP",
+                     "OPEN",
+                     127286,
+                     "MODELO",
+                     "Cliente #763",
+                     "Cliente #763 · 7 atendimentos",
+                     "CLIENTE:C763",
+                     "",
+                     "",
+                     "",
+                     7
+                 ],
+                 [
+                     7,
+                     3,
+                     "Raissa Ribeiro",
+                     "Reproducao",
+                     0,
+                     9,
+                     null,
+                     "WA00000127284",
+                     "2 Periodo",
+                     11,
+                     "03/07/2026 11:48",
+                     "03/07/2026 12:11",
+                     "Cliente #812 · 14 atendimentos",
+                     "",
+                     "WHATSAPP",
+                     "OPEN",
+                     127284,
+                     "MODELO",
+                     "Cliente #812",
+                     "Cliente #812 · 14 atendimentos",
+                     "CLIENTE:C812",
+                     "",
+                     "",
+                     "",
+                     14
+                 ],
+                 [
+                     7,
+                     3,
                      "Gabriel Freire",
                      "Infraestrutura",
                      155,
@@ -3471,18 +3525,18 @@ const D = {
                      3,
                      "Wiviane Borges",
                      "Estoque Animais",
-                     0,
+                     1434,
                      7,
-                     null,
+                     10,
                      "WA00000127280",
                      "2 Periodo",
                      11,
                      "03/07/2026 11:40",
-                     "",
+                     "03/07/2026 12:04",
                      "Cliente #002 · 215 atendimentos",
                      "",
                      "WHATSAPP",
-                     "OPEN",
+                     "CLOSED",
                      127280,
                      "MODELO",
                      "Cliente #002",
@@ -3505,7 +3559,7 @@ const D = {
                      "2 Periodo",
                      11,
                      "03/07/2026 11:38",
-                     "",
+                     "03/07/2026 12:06",
                      "Cliente #501 · 3 atendimentos",
                      "",
                      "WHATSAPP",
@@ -3525,18 +3579,18 @@ const D = {
                      3,
                      "Dhon Freitas",
                      "Infraestrutura",
-                     0,
+                     1715,
                      0,
                      null,
                      "WA00000127276",
                      "2 Periodo",
                      11,
                      "03/07/2026 11:26",
-                     "",
+                     "03/07/2026 11:54",
                      "Cliente #108 · 29 atendimentos",
                      "",
                      "WHATSAPP",
-                     "OPEN",
+                     "CLOSED",
                      127276,
                      "MODELO",
                      "Cliente #108",
@@ -3606,18 +3660,18 @@ const D = {
                      3,
                      "Wiviane Borges",
                      "Estoque Animais",
-                     0,
+                     2761,
                      4,
                      null,
                      "WA00000127270",
                      "2 Periodo",
                      11,
                      "03/07/2026 11:06",
-                     "",
+                     "03/07/2026 11:52",
                      "Cliente #012 · 104 atendimentos",
                      "",
                      "WHATSAPP",
-                     "OPEN",
+                     "CLOSED",
                      127270,
                      "MODELO",
                      "Cliente #012",
@@ -3640,7 +3694,7 @@ const D = {
                      "2 Periodo",
                      11,
                      "03/07/2026 11:03",
-                     "",
+                     "03/07/2026 12:03",
                      "Cliente #054 · 53 atendimentos",
                      "",
                      "WHATSAPP",
@@ -3668,19 +3722,19 @@ const D = {
                      11,
                      "03/07/2026 11:01",
                      "03/07/2026 11:20",
-                     "Cliente #763 · 6 atendimentos",
+                     "Cliente #763 · 7 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      127266,
                      "MODELO",
                      "Cliente #763",
-                     "Cliente #763 · 6 atendimentos",
+                     "Cliente #763 · 7 atendimentos",
                      "CLIENTE:C763",
                      "",
                      "",
                      "",
-                     6
+                     7
                  ],
                  [
                      7,
@@ -6206,19 +6260,19 @@ const D = {
                      9,
                      "02/07/2026 09:14",
                      "02/07/2026 09:39",
-                     "Cliente #812 · 13 atendimentos",
+                     "Cliente #812 · 14 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      127066,
                      "MODELO",
                      "Cliente #812",
-                     "Cliente #812 · 13 atendimentos",
+                     "Cliente #812 · 14 atendimentos",
                      "CLIENTE:C812",
                      "",
                      "",
                      "",
-                     13
+                     14
                  ],
                  [
                      7,
@@ -7259,19 +7313,19 @@ const D = {
                      15,
                      "01/07/2026 15:35",
                      "01/07/2026 15:53",
-                     "Cliente #812 · 13 atendimentos",
+                     "Cliente #812 · 14 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      126984,
                      "MODELO",
                      "Cliente #812",
-                     "Cliente #812 · 13 atendimentos",
+                     "Cliente #812 · 14 atendimentos",
                      "CLIENTE:C812",
                      "",
                      "",
                      "",
-                     13
+                     14
                  ],
                  [
                      7,
@@ -103838,19 +103892,19 @@ const D = {
                      9,
                      "26/02/2026 09:09",
                      "26/02/2026 09:27",
-                     "Cliente #812 · 13 atendimentos",
+                     "Cliente #812 · 14 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      111214,
                      "MODELO",
                      "Cliente #812",
-                     "Cliente #812 · 13 atendimentos",
+                     "Cliente #812 · 14 atendimentos",
                      "CLIENTE:C812",
                      "",
                      "",
                      "",
-                     13
+                     14
                  ],
                  [
                      2,
@@ -104081,19 +104135,19 @@ const D = {
                      9,
                      "26/02/2026 09:45",
                      "26/02/2026 10:21",
-                     "Cliente #812 · 13 atendimentos",
+                     "Cliente #812 · 14 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      111232,
                      "MODELO",
                      "Cliente #812",
-                     "Cliente #812 · 13 atendimentos",
+                     "Cliente #812 · 14 atendimentos",
                      "CLIENTE:C812",
                      "",
                      "",
                      "",
-                     13
+                     14
                  ],
                  [
                      2,
@@ -163670,19 +163724,19 @@ const D = {
                      9,
                      "02/04/2026 09:41",
                      "02/04/2026 09:56",
-                     "Cliente #812 · 13 atendimentos",
+                     "Cliente #812 · 14 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      115856,
                      "MODELO",
                      "Cliente #812",
-                     "Cliente #812 · 13 atendimentos",
+                     "Cliente #812 · 14 atendimentos",
                      "CLIENTE:C812",
                      "",
                      "",
                      "",
-                     13
+                     14
                  ],
                  [
                      4,
@@ -183974,19 +184028,19 @@ const D = {
                      10,
                      "16/04/2026 10:55",
                      "16/04/2026 11:26",
-                     "Cliente #763 · 6 atendimentos",
+                     "Cliente #763 · 7 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      117428,
                      "MODELO",
                      "Cliente #763",
-                     "Cliente #763 · 6 atendimentos",
+                     "Cliente #763 · 7 atendimentos",
                      "CLIENTE:C763",
                      "",
                      "",
                      "",
-                     6
+                     7
                  ],
                  [
                      4,
@@ -205331,19 +205385,19 @@ const D = {
                      14,
                      "30/04/2026 14:45",
                      "30/04/2026 15:26",
-                     "Cliente #763 · 6 atendimentos",
+                     "Cliente #763 · 7 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      119072,
                      "MODELO",
                      "Cliente #763",
-                     "Cliente #763 · 6 atendimentos",
+                     "Cliente #763 · 7 atendimentos",
                      "CLIENTE:C763",
                      "",
                      "",
                      "",
-                     6
+                     7
                  ],
                  [
                      4,
@@ -206087,19 +206141,19 @@ const D = {
                      8,
                      "04/05/2026 08:26",
                      "04/05/2026 08:49",
-                     "Cliente #763 · 6 atendimentos",
+                     "Cliente #763 · 7 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      119132,
                      "MODELO",
                      "Cliente #763",
-                     "Cliente #763 · 6 atendimentos",
+                     "Cliente #763 · 7 atendimentos",
                      "CLIENTE:C763",
                      "",
                      "",
                      "",
-                     6
+                     7
                  ],
                  [
                      5,
@@ -237893,19 +237947,19 @@ const D = {
                      15,
                      "20/05/2026 15:06",
                      "20/05/2026 15:25",
-                     "Cliente #812 · 13 atendimentos",
+                     "Cliente #812 · 14 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      121666,
                      "MODELO",
                      "Cliente #812",
-                     "Cliente #812 · 13 atendimentos",
+                     "Cliente #812 · 14 atendimentos",
                      "CLIENTE:C812",
                      "",
                      "",
                      "",
-                     13
+                     14
                  ],
                  [
                      5,
@@ -249773,19 +249827,19 @@ const D = {
                      8,
                      "27/05/2026 08:09",
                      "27/05/2026 08:21",
-                     "Cliente #812 · 13 atendimentos",
+                     "Cliente #812 · 14 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      122577,
                      "MODELO",
                      "Cliente #812",
-                     "Cliente #812 · 13 atendimentos",
+                     "Cliente #812 · 14 atendimentos",
                      "CLIENTE:C812",
                      "",
                      "",
                      "",
-                     13
+                     14
                  ],
                  [
                      5,
@@ -259952,19 +260006,19 @@ const D = {
                      8,
                      "02/06/2026 08:27",
                      "02/06/2026 08:37",
-                     "Cliente #763 · 6 atendimentos",
+                     "Cliente #763 · 7 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      123373,
                      "MODELO",
                      "Cliente #763",
-                     "Cliente #763 · 6 atendimentos",
+                     "Cliente #763 · 7 atendimentos",
                      "CLIENTE:C763",
                      "",
                      "",
                      "",
-                     6
+                     7
                  ],
                  [
                      6,
@@ -260141,19 +260195,19 @@ const D = {
                      8,
                      "02/06/2026 08:54",
                      "02/06/2026 09:12",
-                     "Cliente #763 · 6 atendimentos",
+                     "Cliente #763 · 7 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      123387,
                      "MODELO",
                      "Cliente #763",
-                     "Cliente #763 · 6 atendimentos",
+                     "Cliente #763 · 7 atendimentos",
                      "CLIENTE:C763",
                      "",
                      "",
                      "",
-                     6
+                     7
                  ],
                  [
                      6,
@@ -263300,19 +263354,19 @@ const D = {
                      12,
                      "03/06/2026 12:08",
                      "03/06/2026 12:38",
-                     "Cliente #812 · 13 atendimentos",
+                     "Cliente #812 · 14 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      123625,
                      "MODELO",
                      "Cliente #812",
-                     "Cliente #812 · 13 atendimentos",
+                     "Cliente #812 · 14 atendimentos",
                      "CLIENTE:C812",
                      "",
                      "",
                      "",
-                     13
+                     14
                  ],
                  [
                      6,
@@ -265028,19 +265082,19 @@ const D = {
                      11,
                      "05/06/2026 11:24",
                      "05/06/2026 11:48",
-                     "Cliente #812 · 13 atendimentos",
+                     "Cliente #812 · 14 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      123759,
                      "MODELO",
                      "Cliente #812",
-                     "Cliente #812 · 13 atendimentos",
+                     "Cliente #812 · 14 atendimentos",
                      "CLIENTE:C812",
                      "",
                      "",
                      "",
-                     13
+                     14
                  ],
                  [
                      6,
@@ -276449,19 +276503,19 @@ const D = {
                      9,
                      "12/06/2026 09:29",
                      "12/06/2026 10:06",
-                     "Cliente #812 · 13 atendimentos",
+                     "Cliente #812 · 14 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      124627,
                      "MODELO",
                      "Cliente #812",
-                     "Cliente #812 · 13 atendimentos",
+                     "Cliente #812 · 14 atendimentos",
                      "CLIENTE:C812",
                      "",
                      "",
                      "",
-                     13
+                     14
                  ],
                  [
                      6,
@@ -294512,19 +294566,19 @@ const D = {
                      13,
                      "24/06/2026 13:41",
                      "24/06/2026 14:07",
-                     "Cliente #812 · 13 atendimentos",
+                     "Cliente #812 · 14 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      126042,
                      "MODELO",
                      "Cliente #812",
-                     "Cliente #812 · 13 atendimentos",
+                     "Cliente #812 · 14 atendimentos",
                      "CLIENTE:C812",
                      "",
                      "",
                      "",
-                     13
+                     14
                  ],
                  [
                      6,
@@ -297077,19 +297131,19 @@ const D = {
                      14,
                      "25/06/2026 14:02",
                      "25/06/2026 14:37",
-                     "Cliente #812 · 13 atendimentos",
+                     "Cliente #812 · 14 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      126238,
                      "MODELO",
                      "Cliente #812",
-                     "Cliente #812 · 13 atendimentos",
+                     "Cliente #812 · 14 atendimentos",
                      "CLIENTE:C812",
                      "",
                      "",
                      "",
-                     13
+                     14
                  ],
                  [
                      6,
@@ -300965,19 +301019,19 @@ const D = {
                      9,
                      "29/06/2026 09:57",
                      "29/06/2026 10:39",
-                     "Cliente #812 · 13 atendimentos",
+                     "Cliente #812 · 14 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      126540,
                      "MODELO",
                      "Cliente #812",
-                     "Cliente #812 · 13 atendimentos",
+                     "Cliente #812 · 14 atendimentos",
                      "CLIENTE:C812",
                      "",
                      "",
                      "",
-                     13
+                     14
                  ],
                  [
                      6,
@@ -304861,8 +304915,8 @@ const D = {
                                          23
                                      ],
                   "Dhon Freitas":  [
-                                       26.6,
-                                       13.3,
+                                       28.8,
+                                       16.5,
                                        73.8,
                                        13
                                    ],
@@ -304909,24 +304963,24 @@ const D = {
                                          20
                                      ],
                   "Raissa Ribeiro":  [
-                                         37.7,
-                                         25.4,
+                                         34.3,
+                                         23.2,
                                          127.2,
-                                         20
+                                         22
                                      ],
                   "Wiviane Borges":  [
-                                         25.4,
-                                         24.2,
+                                         28.7,
+                                         26.4,
                                          61.3,
                                          21
                                      ]
               },
     "tmaDist":  [
-                    43,
+                    42,
                     65,
-                    43,
+                    45,
                     25,
-                    14,
+                    15,
                     19
                 ],
     "avDist":  {
@@ -304934,7 +304988,7 @@ const D = {
                    "7":  1,
                    "8":  2,
                    "9":  4,
-                   "10":  89
+                   "10":  90
                },
     "avBaixa":  {
                     "Beatriz Araujo":  2,
@@ -304980,7 +305034,7 @@ const D = {
                         0,
                         7,
                         6,
-                        9
+                        11
                     ],
                     [
                         0,
@@ -305029,7 +305083,7 @@ const D = {
                     4.3,
                     11.9,
                     25.9,
-                    16.5,
+                    15.7,
                     10.5,
                     6.9,
                     116.7,
@@ -305054,7 +305108,7 @@ const D = {
                                        9,
                                        7,
                                        11,
-                                       2,
+                                       3,
                                        0,
                                        6,
                                        5,
@@ -305112,18 +305166,18 @@ const D = {
                                            "Estoque Animais":  4,
                                            "Retorno envio ativo":  1
                                        },
+                  "Raissa Ribeiro":  {
+                                         "Estoque Animais":  9,
+                                         "Reproducao":  9,
+                                         "Retorno envio ativo":  2,
+                                         "PMG e Comunicacao para Associacao":  2
+                                     },
                   "Wiviane Borges":  {
                                          "Confinamento":  9,
                                          "Estoque Animais":  6,
                                          "SISBOV":  4,
                                          "Agrícola":  1,
                                          "Retorno envio ativo":  1
-                                     },
-                  "Raissa Ribeiro":  {
-                                         "Estoque Animais":  9,
-                                         "Reproducao":  8,
-                                         "Retorno envio ativo":  2,
-                                         "PMG e Comunicacao para Associacao":  1
                                      },
                   "Marcelo Santos":  {
                                          "Estoque Animais":  8,
@@ -305132,18 +305186,18 @@ const D = {
                                          "Retorno envio ativo":  1,
                                          "Financeiro":  1
                                      },
-                  "Julia Almeida":  {
-                                        "Reproducao":  7,
-                                        "Estoque Animais":  5,
-                                        "PMG e Comunicacao para Associacao":  5,
-                                        "Retorno envio ativo":  1
-                                    },
                   "Ana Paula":  {
                                     "Estoque Animais":  9,
                                     "Confinamento":  5,
                                     "SISBOV":  3,
                                     "Financeiro":  1
                                 },
+                  "Julia Almeida":  {
+                                        "Reproducao":  7,
+                                        "Estoque Animais":  5,
+                                        "PMG e Comunicacao para Associacao":  5,
+                                        "Retorno envio ativo":  1
+                                    },
                   "Alexandre Lobo":  {
                                          "Reproducao":  10,
                                          "Estoque Animais":  6,
@@ -306830,7 +306884,7 @@ const D = {
                             "Raissa Ribeiro":  {
                                                    "1":  10,
                                                    "2":  6,
-                                                   "3":  4
+                                                   "3":  6
                                                },
                             "Wiviane Borges":  {
                                                    "1":  10,
@@ -307342,14 +307396,14 @@ const D = {
                     0,
                     9.692,
                     9.974,
-                    9.842
+                    9.85
                 ],
     "csatWeek":  {
                      "labels":  [
                                     "Sem.1"
                                 ],
                      "data":  [
-                                  9.835
+                                  9.837
                               ]
                  },
     "byMonth":  {
@@ -310649,8 +310703,8 @@ const D = {
                                                                      23
                                                                  ],
                                               "Dhon Freitas":  [
-                                                                   26.6,
-                                                                   13.3,
+                                                                   28.8,
+                                                                   16.5,
                                                                    73.8,
                                                                    13
                                                                ],
@@ -310697,24 +310751,24 @@ const D = {
                                                                      20
                                                                  ],
                                               "Raissa Ribeiro":  [
-                                                                     37.7,
-                                                                     25.4,
+                                                                     34.3,
+                                                                     23.2,
                                                                      127.2,
-                                                                     20
+                                                                     22
                                                                  ],
                                               "Wiviane Borges":  [
-                                                                     25.4,
-                                                                     24.2,
+                                                                     28.7,
+                                                                     26.4,
                                                                      61.3,
                                                                      21
                                                                  ]
                                           },
                                 "tmaDist":  [
-                                                43,
+                                                42,
                                                 65,
-                                                43,
+                                                45,
                                                 25,
-                                                14,
+                                                15,
                                                 19
                                             ],
                                 "avDist":  {
@@ -310722,7 +310776,7 @@ const D = {
                                                "7":  1,
                                                "8":  2,
                                                "9":  4,
-                                               "10":  89
+                                               "10":  90
                                            },
                                 "avBaixa":  {
                                                 "Beatriz Araujo":  2,
@@ -310756,7 +310810,7 @@ const D = {
                                                     0,
                                                     7,
                                                     6,
-                                                    9
+                                                    11
                                                 ],
                                                 [
                                                     0,
@@ -310805,7 +310859,7 @@ const D = {
                                                 4.3,
                                                 11.9,
                                                 25.9,
-                                                16.5,
+                                                15.7,
                                                 10.5,
                                                 6.9,
                                                 116.7,
@@ -310830,7 +310884,7 @@ const D = {
                                                                    9,
                                                                    7,
                                                                    11,
-                                                                   2,
+                                                                   3,
                                                                    0,
                                                                    6,
                                                                    5,
@@ -310888,18 +310942,18 @@ const D = {
                                                                        "Estoque Animais":  4,
                                                                        "Retorno envio ativo":  1
                                                                    },
+                                              "Raissa Ribeiro":  {
+                                                                     "Estoque Animais":  9,
+                                                                     "Reproducao":  9,
+                                                                     "Retorno envio ativo":  2,
+                                                                     "PMG e Comunicacao para Associacao":  2
+                                                                 },
                                               "Wiviane Borges":  {
                                                                      "Confinamento":  9,
                                                                      "Estoque Animais":  6,
                                                                      "SISBOV":  4,
                                                                      "Agrícola":  1,
                                                                      "Retorno envio ativo":  1
-                                                                 },
-                                              "Raissa Ribeiro":  {
-                                                                     "Estoque Animais":  9,
-                                                                     "Reproducao":  8,
-                                                                     "Retorno envio ativo":  2,
-                                                                     "PMG e Comunicacao para Associacao":  1
                                                                  },
                                               "Marcelo Santos":  {
                                                                      "Estoque Animais":  8,
@@ -310908,18 +310962,18 @@ const D = {
                                                                      "Retorno envio ativo":  1,
                                                                      "Financeiro":  1
                                                                  },
-                                              "Julia Almeida":  {
-                                                                    "Reproducao":  7,
-                                                                    "Estoque Animais":  5,
-                                                                    "PMG e Comunicacao para Associacao":  5,
-                                                                    "Retorno envio ativo":  1
-                                                                },
                                               "Ana Paula":  {
                                                                 "Estoque Animais":  9,
                                                                 "Confinamento":  5,
                                                                 "SISBOV":  3,
                                                                 "Financeiro":  1
                                                             },
+                                              "Julia Almeida":  {
+                                                                    "Reproducao":  7,
+                                                                    "Estoque Animais":  5,
+                                                                    "PMG e Comunicacao para Associacao":  5,
+                                                                    "Retorno envio ativo":  1
+                                                                },
                                               "Alexandre Lobo":  {
                                                                      "Reproducao":  10,
                                                                      "Estoque Animais":  6,
@@ -311060,14 +311114,14 @@ const D = {
                                                 0,
                                                 9.692,
                                                 9.974,
-                                                9.842
+                                                9.85
                                             ],
                                 "csatWeek":  {
                                                  "labels":  [
                                                                 "Sem.1"
                                                             ],
                                                  "data":  [
-                                                              9.835
+                                                              9.837
                                                           ]
                                              },
                                 "semDow":  {
@@ -311076,7 +311130,7 @@ const D = {
                                                              0,
                                                              86,
                                                              81,
-                                                             42
+                                                             44
                                                          ]
                                            }
                             }
@@ -311582,6 +311636,17 @@ function manualRecordGroupOptions(){
   return [...new Set([...saved,...used].map(v=>String(v||'').trim()).filter(Boolean))]
     .sort((a,b)=>(usage[b]||0)-(usage[a]||0)||a.localeCompare(b,'pt-BR',{numeric:true,sensitivity:'base'}));
 }
+function manualRecordSessionName(){
+  try{return String(APP_SESSION?.name||'').trim();}catch{return '';}
+}
+function manualRecordAgentOptions(){
+  const official=(D.agentList||[]).filter(a=>a&&a!=='Sem Agente');
+  const saved=Array.isArray(MANUAL_RECORD_OPTIONS.agent)?MANUAL_RECORD_OPTIONS.agent:[];
+  const used=(MANUAL_RECORDS||[]).map(r=>r.agent);
+  const sessionName=manualRecordSessionName();
+  return [...new Set([...official,...saved,...used,sessionName].map(v=>String(v||'').trim()).filter(v=>v&&v!=='Sem Agente'))]
+    .sort((a,b)=>a.localeCompare(b,'pt-BR',{numeric:true,sensitivity:'base'}));
+}
 function saveManualRecordsLocal(){
   localStorage.setItem(MANUAL_RECORDS_STORAGE_KEY,JSON.stringify(MANUAL_RECORDS.slice(-5000)));
 }
@@ -311623,7 +311688,7 @@ function manualRecordKnownClients(){
 function initManualRecordControls(){
   if(manualRecordControlsReady)return;
   loadManualRecordOptions();
-  const agents=(D.agentList||[]).filter(a=>a&&a!=='Sem Agente').sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  const agents=manualRecordAgentOptions();
   manualRecordFillSelect('mr-agent',agents);
   manualRecordFillSelect('mr-agent-filter',agents,{all:true});
   Object.entries(MANUAL_RECORD_OPTION_FIELDS).forEach(([kind,cfg])=>{
@@ -311655,6 +311720,21 @@ document.addEventListener('click',(ev)=>{
 function selectManualGroupOption(value){
   if($('mr-group'))$('mr-group').value=value;
   closeManualGroupPicker();
+}
+function addManualRecordAgentOption(){
+  const isAdmin=!!APP_SESSION.admin||APP_SESSION.role==='admin';
+  if(!isAdmin)return;
+  const value=prompt('Adicionar agente responsável:','')?.trim();
+  if(!value)return;
+  const current=manualRecordAgentOptions();
+  if(current.some(v=>v.toLowerCase()===value.toLowerCase())){manualRecordNotify('Esse agente já está na lista.',true);return;}
+  MANUAL_RECORD_OPTIONS.agent=[...(Array.isArray(MANUAL_RECORD_OPTIONS.agent)?MANUAL_RECORD_OPTIONS.agent:[]),value]
+    .sort((a,b)=>a.localeCompare(b,'pt-BR',{numeric:true,sensitivity:'base'}));
+  saveManualRecordOptions();
+  manualRecordControlsReady=false;
+  initManualRecordControls();
+  if($('mr-agent'))$('mr-agent').value=value;
+  manualRecordNotify('Agente adicionado à lista.');
 }
 function addManualRecordGroupOption(){
   const isAdmin=!!APP_SESSION.admin||APP_SESSION.role==='admin';
@@ -311702,7 +311782,9 @@ function openManualRecordModal(id=''){
   $('mr-date').value=item?.date||manualRecordToday();
   $('mr-start-time').value=item?.startTime||manualRecordTimeNow();
   $('mr-end-time').value=item?.endTime||manualRecordTimeNow();
-  $('mr-agent').value=item?.agent||((D.agentList||[]).includes(APP_SESSION.name)?APP_SESSION.name:'');
+  const sessionName=manualRecordSessionName();
+  const agentDefault=manualRecordAgentOptions().includes(sessionName)?sessionName:'';
+  $('mr-agent').value=item?.agent||agentDefault;
   $('mr-client').value=item?.client||'';
   $('mr-group').value=item?.group||'';
   $('mr-channel').value=item?.channel||MANUAL_RECORD_CHANNELS[0];
@@ -314724,6 +314806,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

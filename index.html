@@ -497,7 +497,6 @@ canvas{cursor:pointer;}
 <nav class="nav">
   <div class="nav-in">
     <button class="ntab active" onclick="go('overview',this)"><span class="ico">◈</span> Visão Geral</button>
-    <button class="ntab" onclick="go('gestor',this)"><span class="ico">◆</span> Central do Gestor</button>
     <button class="ntab" onclick="go('tempo',this)"><span class="ico">⏱</span> Análise de Tempo</button>
     <button class="ntab" onclick="go('calendario',this)"><span class="ico">◫</span> Calendário</button>
     <button class="ntab" onclick="go('agentes',this)"><span class="ico">◉</span> Agentes</button>
@@ -590,99 +589,6 @@ canvas{cursor:pointer;}
     <div class="card">
       <div class="ch"><div><div class="ct">CSAT por Semana do Mês</div><div class="cs">Variação de satisfação semanal</div></div></div>
       <div class="h220"><canvas id="ch-csat-week"></canvas></div>
-    </div>
-  </div>
-</div>
-
-<!-- ════════════════ CENTRAL DO GESTOR ════════════════ -->
-<div id="pane-gestor" class="pane">
-  <div class="ctx">
-    <div>
-      <div class="ctx-title">Central do Gestor</div>
-      <div class="ctx-sub">Prioridades do mês para suporte e CS · leitura para ação</div>
-    </div>
-    <div class="ctx-actions">
-      <span class="ctx-badge" id="mgr-month">—</span>
-      <span class="ctx-badge" id="mgr-status">Dados tratados em análise</span>
-    </div>
-  </div>
-
-  <div class="kstrip">
-    <div class="kpi" style="--kc:var(--rust)"><div class="kl">Prioridade Alta</div><div class="kv" id="mgr-k1">—</div><div class="ks">Itens para agir primeiro</div></div>
-    <div class="kpi" style="--kc:var(--amber)"><div class="kl">Clientes em Risco</div><div class="kv" id="mgr-k2">—</div><div class="ks">Volume alto e/ou CSAT baixo</div></div>
-    <div class="kpi" style="--kc:var(--moss2)"><div class="kl">Gargalos de Grupo</div><div class="kv" id="mgr-k3">—</div><div class="ks">Alta vs mês anterior</div></div>
-    <div class="kpi" style="--kc:var(--sage)"><div class="kl">Agentes Atenção</div><div class="kv" id="mgr-k4">—</div><div class="ks">CSAT, cobertura ou tempo</div></div>
-    <div class="kpi" style="--kc:var(--moss3)"><div class="kl">Sem Avaliação</div><div class="kv" id="mgr-k5">—</div><div class="ks">Atendimentos sem CSAT</div></div>
-  </div>
-
-  <div class="card" style="margin-bottom:1rem;">
-    <div class="ch"><div><div class="ct">Fila de Prioridades</div><div class="cs">Clique em qualquer item para abrir os atendimentos relacionados</div></div></div>
-    <div class="tsc">
-      <table class="dt">
-        <thead><tr><th>Prioridade</th><th>Tipo</th><th>Leitura</th><th style="text-align:right">Impacto</th><th>Ação sugerida</th></tr></thead>
-        <tbody id="mgr-priority-tbody"></tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="g3" style="margin-bottom:1rem;">
-    <div class="card">
-      <div class="ch"><div><div class="ct">Clientes para Acompanhamento</div><div class="cs">Recorrência, baixa satisfação e concentração de demanda</div></div></div>
-      <div class="tsc"><table class="dt"><thead><tr><th>Cliente</th><th style="text-align:right">Atend.</th><th style="text-align:right">CSAT</th><th>Risco</th></tr></thead><tbody id="mgr-clients-tbody"></tbody></table></div>
-    </div>
-    <div class="card">
-      <div class="ch"><div><div class="ct">Capacidade do Time</div><div class="cs">Agentes que precisam de apoio ou calibração</div></div></div>
-      <div class="tsc"><table class="dt"><thead><tr><th>Agente</th><th style="text-align:right">Atend.</th><th style="text-align:right">CSAT</th><th>Status</th></tr></thead><tbody id="mgr-agents-tbody"></tbody></table></div>
-    </div>
-    <div class="card">
-      <div class="ch"><div><div class="ct">Núcleos e Gargalos</div><div class="cs">Grupos com maior pressão operacional</div></div></div>
-      <div class="tsc"><table class="dt"><thead><tr><th>Grupo</th><th style="text-align:right">Mês</th><th style="text-align:right">Variação</th><th>Leitura</th></tr></thead><tbody id="mgr-groups-tbody"></tbody></table></div>
-    </div>
-  </div>
-
-  <div class="g3" style="margin-bottom:1rem;">
-    <div class="card">
-      <div class="ch"><div><div class="ct">Score de Saúde do Cliente</div><div class="cs">Recorrência, variação, CSAT e cobertura</div></div></div>
-      <div class="tsc"><table class="dt"><thead><tr><th>Cliente</th><th style="text-align:right">Score</th><th>Status</th></tr></thead><tbody id="mgr-health-tbody"></tbody></table></div>
-    </div>
-    <div class="card">
-      <div class="ch"><div><div class="ct">Aging de Recorrência</div><div class="cs">Clientes que voltaram em janelas curtas</div></div></div>
-      <div class="tsc"><table class="dt"><thead><tr><th>Cliente</th><th style="text-align:right">7d</th><th style="text-align:right">15d</th><th style="text-align:right">30d</th></tr></thead><tbody id="mgr-aging-tbody"></tbody></table></div>
-    </div>
-    <div class="card">
-      <div class="ch"><div><div class="ct">Motivos dos Ajustes Manuais</div><div class="cs">Classificação automática baseada nas justificativas registradas nos tratamentos</div></div></div>
-      <div class="tsc"><table class="dt"><thead><tr><th>Motivo identificado</th><th style="text-align:right">Protocolos</th><th>Exemplos</th></tr></thead><tbody id="mgr-root-tbody"></tbody></table></div>
-    </div>
-  </div>
-
-  <div class="g3" style="margin-bottom:1rem;">
-    <div class="card">
-      <div class="ch"><div><div class="ct">Capacidade por Núcleo</div><div class="cs">Carga, qualidade e tempo por divisão</div></div></div>
-      <div class="tsc"><table class="dt"><thead><tr><th>Núcleo</th><th style="text-align:right">Atend.</th><th style="text-align:right">CSAT</th><th style="text-align:right">TMA</th></tr></thead><tbody id="mgr-nucleus-tbody"></tbody></table></div>
-    </div>
-    <div class="card">
-      <div class="ch"><div><div class="ct">Fechamento do Dia</div><div class="cs">Resumo do último dia com atendimento</div></div></div>
-      <div id="mgr-day-close" class="insight-list"></div>
-    </div>
-    <div class="card">
-      <div class="ch"><div><div class="ct">Auditoria de Qualidade</div><div class="cs">Amostras para revisão de conversa</div></div></div>
-      <div class="tsc"><table class="dt"><thead><tr><th>Protocolo</th><th>Motivo</th><th style="text-align:right">CSAT</th></tr></thead><tbody id="mgr-audit-tbody"></tbody></table></div>
-    </div>
-  </div>
-
-  <div class="g2">
-    <div class="card">
-      <div class="ch"><div><div class="ct">Narrativa do Fechamento</div><div class="cs">Resumo pronto para reunião</div></div></div>
-      <div id="mgr-narrative" class="insight-list"></div>
-    </div>
-    <div class="card">
-      <div class="ch"><div><div class="ct">Tratamentos Manuais Aplicados</div><div class="cs">CSAT, TMA, TE e justificativas auditáveis</div></div><button class="rel-action" onclick="openAdjustmentForm()">Novo ajuste</button></div>
-      <div class="insight-list" id="mgr-adjustments">
-        <div class="insight"><b>CSAT fora do escopo</b><br>Exemplo: nota dada ao produto, não ao atendimento. Deve ser desconsiderada com justificativa no diário.</div>
-        <div class="insight"><b>Ajuste de tempo</b><br>TMA ou TE contaminado por erro de plataforma, espera externa ou atendimento travado precisa de tratamento auditável.</div>
-        <div class="insight"><b>Problema de plataforma</b><br>Atendimento com instabilidade deve manter protocolo, evidência, impacto e motivo do ajuste.</div>
-      </div>
-      <div style="margin-top:.7rem;font-family:'Geist Mono',monospace;font-size:.62rem;color:var(--ghost);" id="mgr-adjust-status"></div>
     </div>
   </div>
 </div>
@@ -1636,7 +1542,7 @@ const D = {
                   1691,
                   1866,
                   1794,
-                  311
+                  312
               ],
     "aval":  [
                  958,
@@ -1645,7 +1551,7 @@ const D = {
                  847,
                  961,
                  870,
-                 154
+                 155
              ],
     "closed":  [
                    1952,
@@ -1654,7 +1560,7 @@ const D = {
                    1691,
                    1866,
                    1794,
-                   307
+                   308
                ],
     "open":  [
                  0,
@@ -1672,7 +1578,7 @@ const D = {
                    0.5009,
                    0.515,
                    0.4849,
-                   0.5016
+                   0.5032
                ],
     "sat":  [
                 9.817,
@@ -1681,7 +1587,7 @@ const D = {
                 9.732,
                 9.743,
                 9.663,
-                9.864
+                9.865
             ],
     "tma":  [
                 "00:28:51",
@@ -1690,7 +1596,7 @@ const D = {
                 "00:36:11",
                 "00:43:05",
                 "00:25:53",
-                "00:25:27"
+                "00:25:29"
             ],
     "tme":  [
                 "00:05:30",
@@ -2245,8 +2151,8 @@ const D = {
                                       "c":  9.868
                                   },
                             "6":  {
-                                      "v":  64,
-                                      "c":  9.921
+                                      "v":  65,
+                                      "c":  9.923
                                   }
                         }
               },
@@ -2294,7 +2200,7 @@ const D = {
                           286
                       ],
                 "7":  [
-                          64,
+                          65,
                           0,
                           86,
                           81,
@@ -2344,12 +2250,12 @@ const D = {
                               172
                           ],
                     "7":  [
-                              311
+                              312
                           ]
                 },
     "semDow":  {
                    "Sem.1":  [
-                                 64,
+                                 65,
                                  0,
                                  86,
                                  81,
@@ -2463,7 +2369,7 @@ const D = {
                                0
                            ],
                    "jul":  [
-                               87,
+                               88,
                                78,
                                46,
                                34,
@@ -2606,9 +2512,9 @@ const D = {
                                            ],
                                            [
                                                39,
-                                               12,
-                                               9.33,
-                                               "00:19:25"
+                                               13,
+                                               9.38,
+                                               "00:19:52"
                                            ]
                                        ],
                     "Dhon Freitas":  [
@@ -3133,7 +3039,7 @@ const D = {
                                              "00:28:17"
                                          ],
                                          [
-                                             4,
+                                             5,
                                              3,
                                              10,
                                              "00:24:47"
@@ -3446,6 +3352,33 @@ const D = {
                  [
                      7,
                      6,
+                     "Marcus Silva",
+                     "Estoque Animais",
+                     0,
+                     9,
+                     null,
+                     "WA00000127499",
+                     "4 Periodo",
+                     14,
+                     "06/07/2026 14:27",
+                     "06/07/2026 14:40",
+                     "Cliente #543 · 4 atendimentos",
+                     "",
+                     "WHATSAPP",
+                     "OPEN",
+                     127499,
+                     "MODELO",
+                     "Cliente #543",
+                     "Cliente #543 · 4 atendimentos",
+                     "CLIENTE:C543",
+                     "",
+                     "",
+                     "",
+                     4
+                 ],
+                 [
+                     7,
+                     6,
                      "Dhon Freitas",
                      "Infraestrutura",
                      279,
@@ -3510,19 +3443,19 @@ const D = {
                      14,
                      "06/07/2026 14:08",
                      "06/07/2026 14:22",
-                     "Cliente #543 · 3 atendimentos",
+                     "Cliente #543 · 4 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      127493,
                      "MODELO",
                      "Cliente #543",
-                     "Cliente #543 · 3 atendimentos",
+                     "Cliente #543 · 4 atendimentos",
                      "CLIENTE:C543",
                      "",
                      "",
                      "",
-                     3
+                     4
                  ],
                  [
                      7,
@@ -3583,18 +3516,18 @@ const D = {
                      6,
                      "Beatriz Araujo",
                      "SISBOV",
-                     0,
+                     2154,
                      8,
-                     null,
+                     10,
                      "WA00000127487",
                      "4 Periodo",
                      14,
                      "06/07/2026 14:06",
-                     "",
+                     "06/07/2026 14:42",
                      "Cliente #182 · 21 atendimentos",
                      "",
                      "WHATSAPP",
-                     "OPEN",
+                     "CLOSED",
                      127487,
                      "MODELO",
                      "Cliente #182",
@@ -83943,19 +83876,19 @@ const D = {
                      10,
                      "11/02/2026 10:48",
                      "11/02/2026 11:12",
-                     "Cliente #543 · 3 atendimentos",
+                     "Cliente #543 · 4 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      109424,
                      "MODELO",
                      "Cliente #543",
-                     "Cliente #543 · 3 atendimentos",
+                     "Cliente #543 · 4 atendimentos",
                      "CLIENTE:C543",
                      "",
                      "",
                      "",
-                     3
+                     4
                  ],
                  [
                      2,
@@ -84186,19 +84119,19 @@ const D = {
                      11,
                      "11/02/2026 11:41",
                      "11/02/2026 12:02",
-                     "Cliente #543 · 3 atendimentos",
+                     "Cliente #543 · 4 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      109442,
                      "MODELO",
                      "Cliente #543",
-                     "Cliente #543 · 3 atendimentos",
+                     "Cliente #543 · 4 atendimentos",
                      "CLIENTE:C543",
                      "",
                      "",
                      "",
-                     3
+                     4
                  ],
                  [
                      2,
@@ -307613,8 +307546,8 @@ const D = {
                                     28
                                 ],
                   "Beatriz Araujo":  [
-                                         18.4,
-                                         17.9,
+                                         19.3,
+                                         18.6,
                                          50.1,
                                          39
                                      ],
@@ -307667,10 +307600,10 @@ const D = {
                                          27
                                      ],
                   "Marcus Silva":  [
-                                       24.8,
-                                       24.7,
+                                       19.8,
+                                       21.8,
                                        37.8,
-                                       4
+                                       5
                                    ],
                   "Raissa Ribeiro":  [
                                          32.4,
@@ -307689,7 +307622,7 @@ const D = {
                     61,
                     98,
                     68,
-                    41,
+                    42,
                     19,
                     24
                 ],
@@ -307698,7 +307631,7 @@ const D = {
                    "7":  1,
                    "8":  3,
                    "9":  7,
-                   "10":  142
+                   "10":  143
                },
     "avBaixa":  {
                     "Beatriz Araujo":  2,
@@ -307762,7 +307695,7 @@ const D = {
                         3
                     ],
                     [
-                        6,
+                        7,
                         0,
                         10,
                         7,
@@ -307797,7 +307730,7 @@ const D = {
                     12.1,
                     13.5,
                     6.2,
-                    66,
+                    64.2,
                     5.5,
                     4.5,
                     3.8
@@ -307810,7 +307743,7 @@ const D = {
                                             12,
                                             8,
                                             4,
-                                            5,
+                                            6,
                                             8,
                                             6,
                                             5
@@ -307888,13 +307821,6 @@ const D = {
                                     "Confinamento":  6,
                                     "Financeiro":  1
                                 },
-                  "Wiviane Borges":  {
-                                         "Confinamento":  11,
-                                         "Estoque Animais":  7,
-                                         "SISBOV":  6,
-                                         "Agrícola":  2,
-                                         "Retorno envio ativo":  1
-                                     },
                   "Raissa Ribeiro":  {
                                          "Reproducao":  13,
                                          "Estoque Animais":  10,
@@ -307907,6 +307833,13 @@ const D = {
                                          "SISBOV":  6,
                                          "Retorno envio ativo":  1,
                                          "Financeiro":  1
+                                     },
+                  "Wiviane Borges":  {
+                                         "Confinamento":  11,
+                                         "Estoque Animais":  7,
+                                         "SISBOV":  6,
+                                         "Agrícola":  2,
+                                         "Retorno envio ativo":  1
                                      },
                   "Julia Almeida":  {
                                         "Reproducao":  11,
@@ -307923,17 +307856,17 @@ const D = {
                                        "Estoque Animais":  5,
                                        "Retorno envio ativo":  1
                                    },
+                  "Gabriel Freire":  {
+                                         "Infraestrutura":  15
+                                     },
                   "Marcelo Costa":  {
                                         "Infraestrutura":  14,
                                         "Configuracao de balanca e bastao":  1
                                     },
-                  "Gabriel Freire":  {
-                                         "Infraestrutura":  15
-                                     },
                   "Marcus Silva":  {
                                        "SISBOV":  2,
-                                       "Financeiro":  1,
-                                       "Estoque Animais":  1
+                                       "Estoque Animais":  2,
+                                       "Financeiro":  1
                                    },
                   "Gabriel Simãµes":  {
                                           "Multsoft":  1
@@ -309608,7 +309541,7 @@ const D = {
                                                    "3":  10
                                                },
                             "Marcus Silva":  {
-                                                 "6":  4
+                                                 "6":  5
                                              },
                             "Raissa Ribeiro":  {
                                                    "1":  10,
@@ -310122,7 +310055,7 @@ const D = {
                            ]
                },
     "csatDow":  [
-                    9.921,
+                    9.923,
                     0,
                     9.692,
                     9.974,
@@ -310133,7 +310066,7 @@ const D = {
                                     "Sem.1"
                                 ],
                      "data":  [
-                                  9.864
+                                  9.865
                               ]
                  },
     "byMonth":  {
@@ -313427,8 +313360,8 @@ const D = {
                                                                 28
                                                             ],
                                               "Beatriz Araujo":  [
-                                                                     18.4,
-                                                                     17.9,
+                                                                     19.3,
+                                                                     18.6,
                                                                      50.1,
                                                                      39
                                                                  ],
@@ -313481,10 +313414,10 @@ const D = {
                                                                      27
                                                                  ],
                                               "Marcus Silva":  [
-                                                                   24.8,
-                                                                   24.7,
+                                                                   19.8,
+                                                                   21.8,
                                                                    37.8,
-                                                                   4
+                                                                   5
                                                                ],
                                               "Raissa Ribeiro":  [
                                                                      32.4,
@@ -313503,7 +313436,7 @@ const D = {
                                                 61,
                                                 98,
                                                 68,
-                                                41,
+                                                42,
                                                 19,
                                                 24
                                             ],
@@ -313512,7 +313445,7 @@ const D = {
                                                "7":  1,
                                                "8":  3,
                                                "9":  7,
-                                               "10":  142
+                                               "10":  143
                                            },
                                 "avBaixa":  {
                                                 "Beatriz Araujo":  2,
@@ -313564,7 +313497,7 @@ const D = {
                                                     3
                                                 ],
                                                 [
-                                                    6,
+                                                    7,
                                                     0,
                                                     10,
                                                     7,
@@ -313599,7 +313532,7 @@ const D = {
                                                 12.1,
                                                 13.5,
                                                 6.2,
-                                                66,
+                                                64.2,
                                                 5.5,
                                                 4.5,
                                                 3.8
@@ -313612,7 +313545,7 @@ const D = {
                                                                         12,
                                                                         8,
                                                                         4,
-                                                                        5,
+                                                                        6,
                                                                         8,
                                                                         6,
                                                                         5
@@ -313690,13 +313623,6 @@ const D = {
                                                                 "Confinamento":  6,
                                                                 "Financeiro":  1
                                                             },
-                                              "Wiviane Borges":  {
-                                                                     "Confinamento":  11,
-                                                                     "Estoque Animais":  7,
-                                                                     "SISBOV":  6,
-                                                                     "Agrícola":  2,
-                                                                     "Retorno envio ativo":  1
-                                                                 },
                                               "Raissa Ribeiro":  {
                                                                      "Reproducao":  13,
                                                                      "Estoque Animais":  10,
@@ -313709,6 +313635,13 @@ const D = {
                                                                      "SISBOV":  6,
                                                                      "Retorno envio ativo":  1,
                                                                      "Financeiro":  1
+                                                                 },
+                                              "Wiviane Borges":  {
+                                                                     "Confinamento":  11,
+                                                                     "Estoque Animais":  7,
+                                                                     "SISBOV":  6,
+                                                                     "Agrícola":  2,
+                                                                     "Retorno envio ativo":  1
                                                                  },
                                               "Julia Almeida":  {
                                                                     "Reproducao":  11,
@@ -313725,17 +313658,17 @@ const D = {
                                                                    "Estoque Animais":  5,
                                                                    "Retorno envio ativo":  1
                                                                },
+                                              "Gabriel Freire":  {
+                                                                     "Infraestrutura":  15
+                                                                 },
                                               "Marcelo Costa":  {
                                                                     "Infraestrutura":  14,
                                                                     "Configuracao de balanca e bastao":  1
                                                                 },
-                                              "Gabriel Freire":  {
-                                                                     "Infraestrutura":  15
-                                                                 },
                                               "Marcus Silva":  {
                                                                    "SISBOV":  2,
-                                                                   "Financeiro":  1,
-                                                                   "Estoque Animais":  1
+                                                                   "Estoque Animais":  2,
+                                                                   "Financeiro":  1
                                                                },
                                               "Gabriel Simãµes":  {
                                                                       "Multsoft":  1
@@ -313854,7 +313787,7 @@ const D = {
                                                  }
                                              ],
                                 "csatDow":  [
-                                                9.921,
+                                                9.923,
                                                 0,
                                                 9.692,
                                                 9.974,
@@ -313865,12 +313798,12 @@ const D = {
                                                                 "Sem.1"
                                                             ],
                                                  "data":  [
-                                                              9.864
+                                                              9.865
                                                           ]
                                              },
                                 "semDow":  {
                                                "Sem.1":  [
-                                                             64,
+                                                             65,
                                                              0,
                                                              86,
                                                              81,
@@ -314701,7 +314634,6 @@ function go(id,el){
   document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
   if(el)el.classList.add('active');$('pane-'+id)?.classList.add('active');
-  if(id==='gestor')renderManager(appM);
   if(id==='calendario')renderCal();
   if(id==='agentes')buildAgentes(agM);
   if(id==='clientes')renderClientsMonth(appM);
@@ -316763,210 +316695,6 @@ function renderClientsMonth(m){
   $('cli-tbody').innerHTML=all.map((c,i)=>{const rc=i===0?'r1':i===1?'r2':i===2?'r3':'rn';return`<tr><td><span class="rb ${rc}">${i+1}</span></td><td><button class="rel-client" onclick="showClientPopup('${esc(c.code)}')">${esc(c.name)}</button><br><span class="op-mono">${esc(clientDisplayCode(c.code))}</span></td><td><b>${clientLastActionText(c.lastActionTs)}</b><br><span class="op-mono">${esc(clientDaysSinceText(c.lastActionTs))}</span></td>${c.months.map(v=>`<td class="tn">${fN(v)}</td>`).join('')}<td class="th">${fN(c.total)}</td><td>${esc(c.group)}</td><td class="tn">${c.monthlyFee?fMoney(c.monthlyFee):'—'}</td><td class="tn">${c.csat!=null?fS(c.csat):'—'}</td></tr>`;}).join('');
 }
 
-function managerAgentRows(m){
-  const map={};
-  (D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===m+1).forEach(r=>{
-    const agent=r[2]||'Sem agente';
-    if(!map[agent])map[agent]={agent,total:0,ratings:[],tma:[],tme:[],slow:0,unrated:0};
-    const a=map[agent];a.total++;
-    if(r[6]!=null)a.ratings.push(r[6]);else a.unrated++;
-    if(r[4]!=null)a.tma.push(r[4]);
-    if(r[5]!=null){a.tme.push(r[5]);if(r[5]>120)a.slow++;}
-  });
-  return Object.values(map).map(a=>{
-    a.csat=a.ratings.length?avgArr(a.ratings):null;
-    a.cov=a.total?a.ratings.length/a.total:0;
-    a.avgTma=avgArr(a.tma);
-    a.avgTme=avgArr(a.tme);
-    a.score=(a.csat!=null&&a.csat<9.8?35:0)+(a.cov<.45?25:0)+(a.avgTma&&a.avgTma>2100?20:0)+(a.slow>0?10:0)+Math.min(20,a.total/8);
-    a.status=a.csat!=null&&a.csat<9.8?'Atenção CSAT':a.cov<.45?'Baixa cobertura':a.avgTma&&a.avgTma>2100?'TMA alto':a.slow>0?'TE > 2 min':'Ok';
-    a.statusDetail=a.status==='Atenção CSAT'?'CSAT médio abaixo de 9,80':
-      a.status==='Baixa cobertura'?'Menos de 45% dos atendimentos possuem avaliação':
-      a.status==='TMA alto'?'Tempo médio de atendimento acima de 35 minutos':
-      a.status==='TE > 2 min'?`${a.slow} atendimento(s) com tempo de espera acima de 2 minutos`:
-      'Indicadores dentro dos limites definidos';
-    return a;
-  }).sort((a,b)=>b.score-a.score||b.total-a.total);
-}
-function managerClientRows(m){
-  return clientSummaries().map(c=>{
-    const monthRows=c.rows.filter(r=>r[0]===m+1), ratings=monthRows.filter(r=>r[6]!=null).map(r=>r[6]);
-    const monthTotal=monthRows.length, csat=ratings.length?avgArr(ratings):null;
-    const prev=c.months[m-1]||0, delta=monthTotal-prev;
-    const score=monthTotal*2+Math.max(0,delta)*3+(csat!=null?Math.max(0,9.8-csat)*20:4)+(monthTotal>=10?20:0);
-    const risk=csat!=null&&csat<9.5?'Crítico':monthTotal>=10||delta>=5||csat<9.8?'Atenção':'Monitorar';
-    return {...c,monthRows,monthTotal,monthCsat:csat,delta,score,risk};
-  }).filter(c=>c.monthTotal>0).sort((a,b)=>b.score-a.score||b.monthTotal-a.monthTotal);
-}
-function managerGroupRows(m){
-  return D.grupos.nomes.map((n,i)=>{
-    const cur=D.grupos[monthKeys[m]]?.[i]||0, prev=m>0?(D.grupos[monthKeys[m-1]]?.[i]||0):0;
-    const delta=cur-prev, pct=prev?delta/prev:null;
-    const status=delta>=20||pct>=.25?'Pressão subindo':cur>=100?'Alta demanda':delta<0?'Queda':'Estável';
-    return {n,cur,prev,delta,pct,status,score:Math.abs(delta)+cur/8};
-  }).filter(g=>g.cur>0||g.prev>0).sort((a,b)=>b.score-a.score);
-}
-function managerRootCauseLabel(adj){
-  const text=normName([adj.tipo,adj.acao,adj.motivo,adj.impacto,adj.diario].filter(Boolean).join(' '));
-  if(text.match(/produto|regra de negocio|prazo|demanda/))return 'Produto / regra de negócio';
-  if(text.match(/treinamento|sem treinamento|orienta/))return 'Treinamento / uso';
-  if(text.match(/plataforma|instabilidade|queda|erro|falha|sistema/))return 'Falha de plataforma';
-  if(text.match(/bot|sair|fluxo automatico|voltar ao bot/))return 'Bot / fluxo automático';
-  if(text.match(/tempo|tma|tme|espera|fila|parado/))return 'Tempo contaminado';
-  if(text.match(/comercial|financeiro|outra area|direcionado/))return 'Outra área / encaminhamento';
-  if(text.match(/avaliou errado|avaliacao|csat|nota/))return 'Avaliação fora do escopo';
-  return 'Outros ajustes';
-}
-function managerRootCauseDescription(cause){
-  return {
-    'Produto / regra de negócio':'Justificativa menciona produto, demanda, prazo ou regra de negócio.',
-    'Treinamento / uso':'Justificativa indica dúvida de uso, orientação ou falta de treinamento.',
-    'Falha de plataforma':'Justificativa menciona erro, falha, queda ou instabilidade do sistema.',
-    'Bot / fluxo automático':'Justificativa menciona bot, retorno ou fluxo automático.',
-    'Tempo contaminado':'Justificativa indica espera, fila ou tempo que não representa o atendimento.',
-    'Outra área / encaminhamento':'Justificativa envolve comercial, financeiro ou outra área.',
-    'Avaliação fora do escopo':'Justificativa indica nota ou avaliação que não representa o atendimento.',
-    'Outros ajustes':'Justificativa sem uma das palavras-chave das categorias anteriores.'
-  }[cause]||'Motivo identificado automaticamente pelo texto da justificativa.';
-}
-function managerRootCauseRows(m){
-  const rawRows=D.rawRows||D.rows||[];
-  const map={};
-  (D.manualAdjustments||[]).forEach(adj=>{
-    const row=rawRows.find(r=>Array.isArray(r)&&String(r[7]||'').toUpperCase()===String(adj.protocolo||'').toUpperCase());
-    if(!row||row[0]!==m+1)return;
-    const cause=managerRootCauseLabel(adj);
-    if(!map[cause])map[cause]={cause,protocols:[]};
-    if(!map[cause].protocols.includes(adj.protocolo))map[cause].protocols.push(adj.protocolo);
-  });
-  return Object.values(map).map(c=>({...c,count:c.protocols.length,description:managerRootCauseDescription(c.cause)})).sort((a,b)=>b.count-a.count||a.cause.localeCompare(b.cause,'pt-BR'));
-}
-function managerNucleusRows(m){
-  const monthRows=(D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===m+1);
-  const assigned=new Set(NUCLEOS.flatMap(n=>(n.a||[]).map(normName)));
-  const rows=NUCLEOS.map(n=>{
-    const agents=nucAgentSet(n);
-    const items=monthRows.filter(r=>agents.has(normName(r[2])));
-    const rated=items.filter(r=>r[6]!=null);
-    return {name:n.n,total:items.length,csat:rated.length?avgArr(rated.map(r=>r[6])):null,tma:avgArr(items.map(r=>r[4]||0)),rated:rated.length};
-  });
-  const other=monthRows.filter(r=>!assigned.has(normName(r[2])));
-  if(other.length){
-    const rated=other.filter(r=>r[6]!=null);
-    rows.push({name:'Outros / sem núcleo',total:other.length,csat:rated.length?avgArr(rated.map(r=>r[6])):null,tma:avgArr(other.map(r=>r[4]||0)),rated:rated.length});
-  }
-  return rows.filter(r=>r.total>0).sort((a,b)=>b.total-a.total);
-}
-function managerAgingRows(m){
-  const monthRows=(D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===m+1);
-  const maxDay=Math.max(0,...monthRows.map(r=>Number(r[1]||0)));
-  const clients=clientSummaries().map(c=>{
-    const mr=c.rows.filter(r=>r[0]===m+1);
-    const inDays=days=>mr.filter(r=>Number(r[1]||0)>=Math.max(1,maxDay-days+1)).length;
-    return {...c,d7:inDays(7),d15:inDays(15),d30:inDays(30),monthTotal:mr.length};
-  }).filter(c=>c.monthTotal>0).sort((a,b)=>b.d7-a.d7||b.d15-a.d15||b.monthTotal-a.monthTotal);
-  return clients;
-}
-function managerHealthRows(clients){
-  return clients.map(c=>{
-    const cov=c.monthRows.length?c.monthRows.filter(r=>r[6]!=null).length/c.monthRows.length:0;
-    const score=Math.round(Math.min(100,
-      Math.max(0,c.monthTotal*4)+
-      Math.max(0,c.delta)*5+
-      (c.monthCsat!=null?Math.max(0,9.9-c.monthCsat)*45:8)+
-      (cov<.45?12:0)
-    ));
-    const status=score>=70?'Crítico':score>=40?'Atenção':'Saudável';
-    return {...c,healthScore:score,healthStatus:status,cov};
-  }).sort((a,b)=>b.healthScore-a.healthScore||b.monthTotal-a.monthTotal);
-}
-function managerDayCloseRows(m){
-  const monthRows=(D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===m+1);
-  const day=Math.max(0,...monthRows.map(r=>Number(r[1]||0)));
-  const rows=monthRows.filter(r=>Number(r[1])===day);
-  const rated=rows.filter(r=>r[6]!=null);
-  const groups=Object.entries(rows.reduce((a,r)=>{const g=r[3]||'Sem grupo';a[g]=(a[g]||0)+1;return a;},{})).sort((a,b)=>b[1]-a[1]);
-  const low=rows.filter(r=>r[6]!=null&&r[6]<9);
-  const noRating=rows.filter(r=>r[6]==null);
-  return {day,rows,rated,groups,low,noRating};
-}
-function managerAuditRows(m){
-  const monthRows=(D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===m+1);
-  const candidates=[];
-  monthRows.filter(r=>r[6]!=null&&r[6]<9).forEach(r=>candidates.push({row:r,reason:'Nota abaixo de 9',score:90-Number(r[6])}));
-  monthRows.filter(r=>r[4]>45*60).forEach(r=>candidates.push({row:r,reason:'TMA acima de 45min',score:60+r[4]/60}));
-  monthRows.filter(r=>r[6]==null).slice(0,40).forEach(r=>candidates.push({row:r,reason:'Sem avaliação',score:20}));
-  return candidates.sort((a,b)=>b.score-a.score).filter((item,idx,arr)=>arr.findIndex(x=>x.row[7]===item.row[7])===idx).slice(0,10);
-}
-function managerRootCauseDrill(m,key,cause){
-  const protocols=(window.__mgrRootProtocols&&window.__mgrRootProtocols[key])||[];
-  const set=new Set(protocols.map(p=>String(p||'').toUpperCase()));
-  const rows=(D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===m+1&&set.has(String(r[7]||'').toUpperCase()));
-  chartDrill(cause,D.mesNomes[m]+' · protocolos tratados',rows);
-}
-function managerNucleusDrill(m,name){
-  const rows=(D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===m+1&&agentNucleus(r[2])===name);
-  chartDrill(name,D.mesNomes[m]+' · capacidade por núcleo',rows);
-}
-function renderManager(m){
-  $('mgr-month').textContent=D.mesNomes[m]+' 2026';
-  $('mgr-status').textContent=monthIsPartial(m+1)?'Mês parcial':'Mês fechado';
-  const monthRows=(D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===m+1);
-  const rated=monthRows.filter(r=>r[6]!=null), unrated=monthRows.length-rated.length;
-  const clients=managerClientRows(m), agents=managerAgentRows(m), groups=managerGroupRows(m);
-  const clientsByVolume=clients.slice().sort((a,b)=>b.monthTotal-a.monthTotal||b.score-a.score||a.name.localeCompare(b.name,'pt-BR',{numeric:true,sensitivity:'base'}));
-  const riskClients=clients.filter(c=>c.risk!=='Monitorar');
-  const healthClients=managerHealthRows(clients);
-  const agingClients=managerAgingRows(m);
-  const rootCauses=managerRootCauseRows(m);
-  const nucleusRows=managerNucleusRows(m);
-  const dayClose=managerDayCloseRows(m);
-  const auditRows=managerAuditRows(m);
-  const attentionAgents=agents.filter(a=>a.status!=='Ok');
-  const pressureGroups=groups.filter(g=>g.status==='Pressão subindo'||g.status==='Alta demanda');
-  const priorities=[];
-  riskClients.slice(0,4).forEach(c=>priorities.push({level:c.risk==='Crítico'?'Alta':'Média',type:'Cliente',title:c.name,impact:`${fN(c.monthTotal)} atend. · CSAT ${c.monthCsat!=null?fS(c.monthCsat):'sem avaliação'} · ${c.delta>=0?'+':''}${fN(c.delta)} vs mês ant.`,action:'Contato ativo e leitura dos protocolos recorrentes',click:`showClientPopup('${esc(c.code)}')`}));
-  pressureGroups.slice(0,3).forEach(g=>priorities.push({level:g.status==='Pressão subindo'?'Alta':'Média',type:'Grupo',title:g.n,impact:`${fN(g.cur)} atend. · ${g.delta>=0?'+':''}${fN(g.delta)} vs mês ant.`,action:'Checar causa da alta, distribuição e capacidade',click:`chartDrill('${esc(g.n)}','${D.mesNomes[m]} · gargalo do grupo',drillRows(${m},{group:'${esc(g.n)}'}))`}));
-  attentionAgents.slice(0,4).forEach(a=>priorities.push({level:a.status.includes('CSAT')?'Alta':'Média',type:'Agente',title:a.agent,impact:`${fN(a.total)} atend. · CSAT ${a.csat!=null?fS(a.csat):'—'} · cobert. ${pct1(a.cov)}`,action:'Acompanhar qualidade, cobertura e tempo médio',click:`chartDrill('${esc(a.agent)}','${D.mesNomes[m]} · atenção do agente',drillRows(${m},{agent:'${esc(a.agent)}'}))`}));
-  if(unrated>0)priorities.push({level:'Média',type:'Dados',title:'Atendimentos sem avaliação',impact:`${fN(unrated)} sem CSAT · ${pct1(unrated/Math.max(1,monthRows.length))}`,action:'Verificar solicitação de feedback e regra de tratamento',click:`chartDrill('Sem avaliação','${D.mesNomes[m]} · atendimentos sem CSAT',drillRows(${m},{unrated:true}))`});
-  const high=priorities.filter(p=>p.level==='Alta').length;
-  $('mgr-k1').textContent=fN(high);
-  $('mgr-k2').textContent=fN(riskClients.length);
-  $('mgr-k3').textContent=fN(pressureGroups.length);
-  $('mgr-k4').textContent=fN(attentionAgents.length);
-  $('mgr-k5').textContent=fN(unrated);
-  $('mgr-priority-tbody').innerHTML=priorities.slice(0,14).map(p=>`<tr onclick="${p.click}" style="cursor:pointer"><td><span class="kd ${p.level==='Alta'?'kdn':'knt'}">${p.level}</span></td><td>${esc(p.type)}</td><td><b>${esc(p.title)}</b></td><td class="tn">${esc(p.impact)}</td><td>${esc(p.action)}</td></tr>`).join('')||'<tr><td colspan="5">Nenhuma prioridade crítica no mês selecionado.</td></tr>';
-  $('mgr-clients-tbody').innerHTML=clientsByVolume.slice(0,10).map(c=>`<tr onclick="showClientPopup('${esc(c.code)}')" style="cursor:pointer"><td><button class="rel-client" onclick="event.stopPropagation();showClientPopup('${esc(c.code)}')">${esc(c.name)}</button><br><span class="op-mono">${esc(c.group)} · ${c.delta>=0?'+':''}${fN(c.delta)} vs ant.</span></td><td class="th">${fN(c.monthTotal)}</td><td class="tn">${c.monthCsat!=null?fS(c.monthCsat):'—'}</td><td><span class="kd ${c.risk==='Crítico'?'kdn':c.risk==='Atenção'?'knt':'kup'}">${c.risk}</span></td></tr>`).join('');
-  $('mgr-agents-tbody').innerHTML=agents.slice(0,10).map(a=>`<tr onclick="chartDrill('${esc(a.agent)}','${D.mesNomes[m]} · capacidade do time',drillRows(${m},{agent:'${esc(a.agent)}'}))" style="cursor:pointer"><td><b>${esc(a.agent)}</b><br><span class="op-mono">${fmtDur(a.avgTma)} TMA · ${pct1(a.cov)} cobert.${a.slow?` · ${fN(a.slow)} espera(s) >2min`:''}</span></td><td class="th">${fN(a.total)}</td><td class="tn">${a.csat!=null?fS(a.csat):'—'}</td><td><span class="kd ${a.status==='Ok'?'kup':'kdn'}" title="${esc(a.statusDetail)}">${esc(a.status)}</span></td></tr>`).join('');
-  $('mgr-groups-tbody').innerHTML=groups.slice(0,10).map(g=>`<tr onclick="chartDrill('${esc(g.n)}','${D.mesNomes[m]} · núcleo operacional',drillRows(${m},{group:'${esc(g.n)}'}))" style="cursor:pointer"><td><b>${esc(g.n)}</b><br><span class="op-mono">${esc(SEASON_HINTS[g.n]||'monitorar')}</span></td><td class="th">${fN(g.cur)}</td><td class="tn">${deltaBadge(g.cur,g.prev)}</td><td><span class="kd ${g.status==='Pressão subindo'?'kdn':g.status==='Alta demanda'?'knt':'kup'}">${esc(g.status)}</span></td></tr>`).join('');
-  $('mgr-health-tbody').innerHTML=healthClients.slice(0,10).map(c=>`<tr onclick="showClientPopup('${esc(c.code)}')" style="cursor:pointer"><td><button class="rel-client" onclick="event.stopPropagation();showClientPopup('${esc(c.code)}')">${esc(c.name)}</button><br><span class="op-mono">${fN(c.monthTotal)} atend. · cobert. ${pct1(c.cov)}</span></td><td class="th">${fN(c.healthScore)}</td><td><span class="kd ${c.healthStatus==='Crítico'?'kdn':c.healthStatus==='Atenção'?'knt':'kup'}">${esc(c.healthStatus)}</span></td></tr>`).join('')||'<tr><td colspan="3">Sem clientes no mês.</td></tr>';
-  $('mgr-aging-tbody').innerHTML=agingClients.slice(0,10).map(c=>`<tr onclick="showClientPopup('${esc(c.code)}')" style="cursor:pointer"><td><button class="rel-client" onclick="event.stopPropagation();showClientPopup('${esc(c.code)}')">${esc(c.name)}</button><br><span class="op-mono">${esc(c.group)} · total ${fN(c.monthTotal)}</span></td><td class="th">${fN(c.d7)}</td><td class="th">${fN(c.d15)}</td><td class="th">${fN(c.d30)}</td></tr>`).join('')||'<tr><td colspan="4">Sem recorrência no mês.</td></tr>';
-  window.__mgrRootProtocols={};
-  $('mgr-root-tbody').innerHTML=rootCauses.slice(0,8).map((c,i)=>{const key=`${m}-${i}`;window.__mgrRootProtocols[key]=c.protocols;return `<tr onclick="managerRootCauseDrill(${m},'${esc(key)}','${esc(c.cause)}')" style="cursor:pointer"><td><b>${esc(c.cause)}</b><br><span class="op-mono">${esc(c.description)}</span></td><td class="th">${fN(c.count)}</td><td><span class="op-mono">${esc(c.protocols.slice(0,3).join(' · '))}${c.protocols.length>3?` · +${fN(c.protocols.length-3)} protocolo(s)`:''}<br>Clique para abrir os atendimentos</span></td></tr>`}).join('')||'<tr><td colspan="3">Nenhum ajuste manual classificado neste mês.</td></tr>';
-  $('mgr-nucleus-tbody').innerHTML=nucleusRows.map(n=>`<tr onclick="managerNucleusDrill(${m},'${esc(n.name)}')" style="cursor:pointer"><td><b>${esc(n.name)}</b><br><span class="op-mono">${fN(n.rated)} avaliação(ões)</span></td><td class="th">${fN(n.total)}</td><td class="tn">${n.csat!=null?fS(n.csat):'—'}</td><td class="tn">${fmtDur(n.tma)}</td></tr>`).join('')||'<tr><td colspan="4">Sem atendimentos por núcleo.</td></tr>';
-  $('mgr-day-close').innerHTML=dayClose.day?[
-    `<div class="insight"><b>Dia ${String(dayClose.day).padStart(2,'0')}/${String(m+1).padStart(2,'0')}</b><br>${fN(dayClose.rows.length)} atendimentos · ${fN(dayClose.rated.length)} avaliações · CSAT ${dayClose.rated.length?fS(avgArr(dayClose.rated.map(r=>r[6]))):'—'}.</div>`,
-    `<div class="insight"><b>Maior carga</b><br>${dayClose.groups[0]?`${esc(dayClose.groups[0][0])} com ${fN(dayClose.groups[0][1])} atendimento(s).`:'Sem grupo dominante.'}</div>`,
-    `<div class="insight"><b>Pendências</b><br>${fN(dayClose.noRating.length)} sem avaliação · ${fN(dayClose.low.length)} nota(s) abaixo de 9.</div>`
-  ].join(''):'<div class="insight"><b>Sem fechamento diário</b><br>Nenhum atendimento encontrado no mês selecionado.</div>';
-  $('mgr-audit-tbody').innerHTML=auditRows.map(a=>`<tr onclick="showAttendanceDetail('${esc(clientCode(a.row))}','${esc(a.row[7]||'')}')" style="cursor:pointer"><td><b>${esc(a.row[7]||'sem protocolo')}</b><br><span class="op-mono">${esc(a.row[2])} · ${String(a.row[1]).padStart(2,'0')}/${String(a.row[0]).padStart(2,'0')}</span></td><td>${esc(a.reason)}</td><td class="tn">${a.row[6]!=null?fS(a.row[6]):'—'}</td></tr>`).join('')||'<tr><td colspan="3">Sem amostra crítica no mês.</td></tr>';
-  const topClient=clientsByVolume[0], topGroup=groups[0], topAgent=agents[0];
-  $('mgr-narrative').innerHTML=[
-    `<div class="insight"><b>O que aconteceu</b><br>${D.mesNomes[m]} teve ${fN(monthRows.length)} atendimentos, ${fN(rated.length)} avaliações e CSAT médio ${rated.length?fS(avgArr(rated.map(r=>r[6]))):'—'}.</div>`,
-    `<div class="insight"><b>Onde olhar primeiro</b><br>${topClient?`Cliente ${esc(topClient.name)} concentrou ${fN(topClient.monthTotal)} atendimentos no mês.`:'Sem cliente recorrente relevante.'} ${topGroup?`O grupo ${esc(topGroup.n)} aparece como principal variação operacional.`:''}</div>`,
-    `<div class="insight"><b>Causa raiz</b><br>${rootCauses[0]?`${esc(rootCauses[0].cause)} lidera os tratamentos com ${fN(rootCauses[0].count)} ocorrência(s).`:'Sem causa raiz dominante registrada.'}</div>`,
-    `<div class="insight"><b>Time</b><br>${topAgent?`${esc(topAgent.agent)} pede leitura por ${esc(topAgent.status.toLowerCase())}, com ${fN(topAgent.total)} atendimentos.`:'Sem agente em destaque.'}</div>`,
-    `<div class="insight"><b>Próxima decisão</b><br>Usar saúde do cliente, aging e auditoria para separar contato ativo, correção interna e evidência para produto/diretoria.</div>`
-  ].join('');
-  const applied=(D.manualAdjustments||[]).filter(a=>{
-    const r=(D.rawRows||[]).find(x=>Array.isArray(x)&&String(x[7]||'').toUpperCase()===String(a.protocolo||'').toUpperCase());
-    return r&&r[0]===m+1;
-  });
-  $('mgr-adjustments').innerHTML=applied.length?applied.map(a=>`<div class="insight"><b>${esc(a.protocolo||'Protocolo')}</b><br>${esc(a.acao||'Tratamento aplicado')}<br><span style="color:var(--sub)">${esc(a.motivo||'Sem motivo informado')}</span>${a.diario?`<br><span style="color:var(--ghost)">${esc(a.diario)}</span>`:''}</div>`).join(''):`<div class="insight"><b>Nenhum ajuste manual aplicado neste mês</b><br>Quando houver CSAT fora do escopo, TMA/TE corrigido ou problema de plataforma, clique em <b>Novo ajuste</b> e registre pelo próprio site.</div><div class="insight"><b>Regras já preparadas</b><br>desconsiderarCsat, corrigir CSAT, corrigir TMA/TE e ignorar atendimento inteiro.</div>`;
-  const status=$('mgr-adjust-status');
-  if(status)status.textContent=`${fN((D.manualAdjustments||[]).length)} ajuste(s) aplicado(s) · ${localManualAdjustments().length} salvo(s) neste navegador`;
-}
-
 function adjustmentSeconds(value){
   const v=String(value||'').trim();
   if(!v)return undefined;
@@ -317522,7 +317250,6 @@ function setGlobalMonth(m){
   updateOvKPIs(m);
   updateDailyChart(m);
   renderOverviewMonth(m);
-  renderManager(m);
   renderTempoMonth(m);
   buildAgentes(m);
   renderGroupsMonth(m);
@@ -317550,6 +317277,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

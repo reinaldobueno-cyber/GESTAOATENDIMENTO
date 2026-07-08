@@ -506,6 +506,7 @@ canvas{cursor:pointer;}
     <button class="ntab" onclick="go('avaliacoes',this)"><span class="ico">★</span> Avaliações</button>
     <button class="ntab" onclick="go('fluxo',this)"><span class="ico">◈</span> Fluxo Horário</button>
     <button class="ntab" onclick="go('atendimentos',this)"><span class="ico">▤</span> Atendimentos</button>
+    <button class="ntab" onclick="go('whatsapp-grupo',this)"><span class="ico">◬</span> WhatsApp Grupo</button>
     <button class="ntab" onclick="go('registro-manual',this)"><span class="ico">▣</span> Registro Manual</button>
     <button class="ntab" onclick="go('revisoes',this)"><span class="ico">☑</span> Revisões</button>
     <button class="ntab treatment-admin-only" onclick="go('tratamentos',this)"><span class="ico">✓</span> Tratamentos</button>
@@ -1038,6 +1039,107 @@ canvas{cursor:pointer;}
   </div>
 </div>
 
+<!-- ════════════════ WHATSAPP GRUPO ════════════════ -->
+<div id="pane-whatsapp-grupo" class="pane">
+  <div class="sh"><span class="sh-title">WhatsApp Grupo</span><span class="sh-sub">Mensagens automáticas recebidas via Evolution API · origem WHATSAPP_GRUPO</span><div class="sh-line"></div></div>
+
+  <div class="ctx">
+    <div>
+      <div class="ctx-title">Atendimentos capturados de grupos</div>
+      <div class="ctx-sub">Base centralizada no D1, isolada das métricas oficiais até validação operacional</div>
+    </div>
+    <div class="ctx-actions">
+      <span class="ctx-badge">Métricas oficiais desativadas</span>
+      <button class="rel-action" type="button" onclick="loadWhatsappGroupData(true)">Atualizar</button>
+    </div>
+  </div>
+
+  <div class="kstrip" style="margin-bottom:1rem">
+    <div class="kpi" style="--kc:var(--moss)"><div class="kl">Mensagens</div><div class="kv" id="wg-k-total">0</div><div class="ks">No filtro atual</div></div>
+    <div class="kpi" style="--kc:var(--sage)"><div class="kl">Grupos</div><div class="kv" id="wg-k-groups">0</div><div class="ks">Com mensagem recebida</div></div>
+    <div class="kpi" style="--kc:var(--sky)"><div class="kl">Remetentes</div><div class="kv" id="wg-k-senders">0</div><div class="ks">Participantes únicos</div></div>
+    <div class="kpi" style="--kc:var(--rust)"><div class="kl">Do próprio número</div><div class="kv" id="wg-k-fromme">0</div><div class="ks">fromMe=true</div></div>
+  </div>
+
+  <div class="fbar">
+    <span class="fl">Período:</span>
+    <input class="fs" id="wg-start" type="date" onchange="renderWhatsappGroupRecords()">
+    <input class="fs" id="wg-end" type="date" onchange="renderWhatsappGroupRecords()">
+    <span class="fl">Grupo:</span>
+    <select class="fs" id="wg-group-filter" onchange="renderWhatsappGroupRecords()"></select>
+    <span class="fl">Tipo:</span>
+    <select class="fs" id="wg-type-filter" onchange="renderWhatsappGroupRecords()">
+      <option value="">Todos</option>
+      <option value="text">Texto</option>
+      <option value="image">Imagem</option>
+      <option value="audio">Áudio</option>
+      <option value="video">Vídeo</option>
+      <option value="document">Documento</option>
+      <option value="sticker">Sticker</option>
+      <option value="reaction">Reação</option>
+    </select>
+    <span class="fl">Direção:</span>
+    <select class="fs" id="wg-fromme-filter" onchange="renderWhatsappGroupRecords()">
+      <option value="">Todas</option>
+      <option value="false">Cliente/participante</option>
+      <option value="true">Próprio número</option>
+    </select>
+    <input class="fs search" id="wg-search" oninput="renderWhatsappGroupRecords()" placeholder="Pesquisar grupo, remetente ou mensagem...">
+  </div>
+
+  <div class="op-tools">
+    <div class="op-summary" id="wg-summary">Carregando mensagens de WhatsApp Grupo...</div>
+    <div class="op-summary">Origem WHATSAPP_GRUPO não entra em volume, SLA, TMA, TME, CSAT, ranking ou bonificação.</div>
+  </div>
+
+  <div class="g2" style="margin-bottom:1rem">
+    <div class="card">
+      <div class="ch"><div><div class="ct">Grupos Monitorados</div><div class="cs" id="wg-config-sub">Modo atual: todos os grupos</div></div></div>
+      <div class="fbar">
+        <span class="fl">Modo:</span>
+        <select class="fs" id="wg-monitor-mode">
+          <option value="ALL_GROUPS">Todos os grupos</option>
+          <option value="REGISTERED_ONLY">Somente grupos cadastrados</option>
+        </select>
+        <button class="rel-action admin-only" type="button" onclick="saveWhatsappGroupMode()">Salvar modo</button>
+      </div>
+      <div class="fbar admin-only">
+        <input class="fs" id="wg-config-instance" placeholder="Instância">
+        <input class="fs" id="wg-config-group-id" placeholder="grupoid@g.us">
+        <input class="fs" id="wg-config-group-name" placeholder="Nome do grupo">
+        <button class="rel-action" type="button" onclick="saveWhatsappGroupConfig()">Adicionar grupo</button>
+      </div>
+      <div class="blist" id="wg-config-groups"></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div><div class="ct">Resumo por Grupo</div><div class="cs">Mensagens capturadas no filtro atual</div></div></div>
+      <div class="blist" id="wg-group-list"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ch"><div><div class="ct">Mensagens registradas</div><div class="cs">Últimas mensagens recebidas pelo webhook da Evolution API</div></div></div>
+    <div class="tsc">
+      <table class="dt manual-record-table">
+        <thead>
+          <tr>
+            <th>Horário</th>
+            <th>Grupo</th>
+            <th>Remetente</th>
+            <th>Direção</th>
+            <th>Tipo</th>
+            <th>Conteúdo</th>
+            <th>Instância</th>
+            <th>Mensagem</th>
+          </tr>
+        </thead>
+        <tbody id="wg-tbody"></tbody>
+      </table>
+      <div class="op-empty" id="wg-empty" style="display:none">Nenhuma mensagem de WhatsApp Grupo encontrada.</div>
+    </div>
+  </div>
+</div>
+
 <!-- ════════════════ REGISTRO MANUAL ════════════════ -->
 <div id="pane-registro-manual" class="pane">
   <div class="sh"><span class="sh-title">Registro Manual</span><span class="sh-sub">Controle paralelo de atendimentos feitos em grupos de WhatsApp · não impacta métricas oficiais</span><div class="sh-line"></div></div>
@@ -1542,7 +1644,7 @@ const D = {
                   1691,
                   1866,
                   1794,
-                  473
+                  474
               ],
     "aval":  [
                  958,
@@ -1560,7 +1662,7 @@ const D = {
                    1691,
                    1866,
                    1794,
-                   467
+                   468
                ],
     "open":  [
                  0,
@@ -1578,7 +1680,7 @@ const D = {
                    0.5009,
                    0.515,
                    0.4849,
-                   0.469
+                   0.4679
                ],
     "sat":  [
                 9.817,
@@ -2159,7 +2261,7 @@ const D = {
                                       "c":  9.75
                                   },
                             "8":  {
-                                      "v":  47,
+                                      "v":  48,
                                       "c":  9.421
                                   }
                         }
@@ -2210,7 +2312,7 @@ const D = {
                 "7":  [
                           93,
                           86,
-                          133,
+                          134,
                           81,
                           80
                       ]
@@ -2259,7 +2361,7 @@ const D = {
                           ],
                     "7":  [
                               426,
-                              47
+                              48
                           ]
                 },
     "semDow":  {
@@ -2273,7 +2375,7 @@ const D = {
                    "Sem.2":  [
                                  0,
                                  0,
-                                 47,
+                                 48,
                                  0,
                                  0
                              ]
@@ -2387,7 +2489,7 @@ const D = {
                    "jul":  [
                                136,
                                113,
-                               71,
+                               72,
                                57,
                                37,
                                22,
@@ -2618,7 +2720,7 @@ const D = {
                                                  55,
                                                  25,
                                                  9.88,
-                                                 "00:18:32"
+                                                 "00:18:42"
                                              ]
                                          ],
                     "Gabriel Almeida":  [
@@ -2967,7 +3069,7 @@ const D = {
                                               "00:23:48"
                                           ],
                                           [
-                                              32,
+                                              33,
                                               18,
                                               9.5,
                                               "00:27:22"
@@ -3368,6 +3470,33 @@ const D = {
                  [
                      7,
                      8,
+                     "Marcelo Costa",
+                     "Infraestrutura",
+                     0,
+                     1,
+                     null,
+                     "WA00000127840",
+                     "3 Periodo",
+                     13,
+                     "08/07/2026 13:56",
+                     "",
+                     "Cliente #914 · 3 atendimentos",
+                     "",
+                     "WHATSAPP",
+                     "OPEN",
+                     127840,
+                     "MODELO",
+                     "Cliente #914",
+                     "Cliente #914 · 3 atendimentos",
+                     "CLIENTE:C914",
+                     "",
+                     "",
+                     "",
+                     3
+                 ],
+                 [
+                     7,
+                     8,
                      "Ana Paula",
                      "SISBOV",
                      0,
@@ -3478,18 +3607,18 @@ const D = {
                      8,
                      "Evelyn Gonçalves",
                      "Reproducao",
-                     0,
+                     1654,
                      22,
                      null,
                      "WA00000127830",
                      "3 Periodo",
                      13,
                      "08/07/2026 13:38",
-                     "",
+                     "08/07/2026 14:06",
                      "Cliente #156 · 37 atendimentos",
                      "",
                      "WHATSAPP",
-                     "OPEN",
+                     "CLOSED",
                      127830,
                      "MODELO",
                      "Cliente #156",
@@ -3864,19 +3993,19 @@ const D = {
                      10,
                      "08/07/2026 10:19",
                      "08/07/2026 10:40",
-                     "Cliente #914 · 2 atendimentos",
+                     "Cliente #914 · 3 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      127802,
                      "MODELO",
                      "Cliente #914",
-                     "Cliente #914 · 2 atendimentos",
+                     "Cliente #914 · 3 atendimentos",
                      "CLIENTE:C914",
                      "",
                      "",
                      "",
-                     2
+                     3
                  ],
                  [
                      7,
@@ -9048,19 +9177,19 @@ const D = {
                      9,
                      "06/07/2026 09:01",
                      "06/07/2026 09:09",
-                     "Cliente #914 · 2 atendimentos",
+                     "Cliente #914 · 3 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      127393,
                      "MODELO",
                      "Cliente #914",
-                     "Cliente #914 · 2 atendimentos",
+                     "Cliente #914 · 3 atendimentos",
                      "CLIENTE:C914",
                      "",
                      "",
                      "",
-                     2
+                     3
                  ],
                  [
                      7,
@@ -311921,8 +312050,8 @@ const D = {
                                        35
                                    ],
                   "Evelyn Gonçalves":  [
-                                           18.2,
-                                           16.8,
+                                           18.7,
+                                           17.9,
                                            72.7,
                                            55
                                        ],
@@ -311951,10 +312080,10 @@ const D = {
                                         41
                                     ],
                   "Marcelo Costa":  [
-                                        26.5,
+                                        25.7,
                                         19.1,
                                         102.6,
-                                        32
+                                        33
                                     ],
                   "Marcelo Santos":  [
                                          27.4,
@@ -311984,7 +312113,7 @@ const D = {
     "tmaDist":  [
                     83,
                     143,
-                    111,
+                    112,
                     71,
                     29,
                     36
@@ -312056,7 +312185,7 @@ const D = {
                     [
                         8,
                         9,
-                        19,
+                        20,
                         9,
                         3
                     ],
@@ -312095,7 +312224,7 @@ const D = {
                     15.2,
                     11,
                     11.8,
-                    7.4,
+                    7.2,
                     60.7,
                     5.4,
                     5.2,
@@ -312132,7 +312261,7 @@ const D = {
                                            8,
                                            9,
                                            0,
-                                           12,
+                                           13,
                                            7,
                                            6,
                                            8,
@@ -312195,6 +312324,10 @@ const D = {
                                         "PMG e Comunicacao para Associacao":  6,
                                         "Retorno envio ativo":  4
                                     },
+                  "Dhon Freitas":  {
+                                       "Infraestrutura":  29,
+                                       "Configuracao de balanca e bastao":  6
+                                   },
                   "Wiviane Borges":  {
                                          "Confinamento":  15,
                                          "Estoque Animais":  9,
@@ -312202,12 +312335,8 @@ const D = {
                                          "Agrícola":  2,
                                          "Retorno envio ativo":  2
                                      },
-                  "Dhon Freitas":  {
-                                       "Infraestrutura":  29,
-                                       "Configuracao de balanca e bastao":  6
-                                   },
                   "Marcelo Costa":  {
-                                        "Infraestrutura":  27,
+                                        "Infraestrutura":  28,
                                         "Configuracao de balanca e bastao":  3,
                                         "Retorno envio ativo":  2
                                     },
@@ -312216,18 +312345,18 @@ const D = {
                                        "Estoque Animais":  9,
                                        "Retorno envio ativo":  1
                                    },
-                  "Raissa Ribeiro":  {
-                                         "Reproducao":  13,
-                                         "Estoque Animais":  10,
-                                         "Retorno envio ativo":  2,
-                                         "PMG e Comunicacao para Associacao":  2
-                                     },
                   "Marcelo Santos":  {
                                          "Estoque Animais":  10,
                                          "Confinamento":  9,
                                          "SISBOV":  6,
                                          "Retorno envio ativo":  1,
                                          "Financeiro":  1
+                                     },
+                  "Raissa Ribeiro":  {
+                                         "Reproducao":  13,
+                                         "Estoque Animais":  10,
+                                         "Retorno envio ativo":  2,
+                                         "PMG e Comunicacao para Associacao":  2
                                      },
                   "Marcus Silva":  {
                                        "Confinamento":  6,
@@ -313921,7 +314050,7 @@ const D = {
                                                   "3":  4,
                                                   "6":  6,
                                                   "7":  10,
-                                                  "8":  6
+                                                  "8":  7
                                               },
                             "Marcelo Santos":  {
                                                    "1":  9,
@@ -317766,8 +317895,8 @@ const D = {
                                                                    35
                                                                ],
                                               "Evelyn Gonçalves":  [
-                                                                       18.2,
-                                                                       16.8,
+                                                                       18.7,
+                                                                       17.9,
                                                                        72.7,
                                                                        55
                                                                    ],
@@ -317796,10 +317925,10 @@ const D = {
                                                                     41
                                                                 ],
                                               "Marcelo Costa":  [
-                                                                    26.5,
+                                                                    25.7,
                                                                     19.1,
                                                                     102.6,
-                                                                    32
+                                                                    33
                                                                 ],
                                               "Marcelo Santos":  [
                                                                      27.4,
@@ -317829,7 +317958,7 @@ const D = {
                                 "tmaDist":  [
                                                 83,
                                                 143,
-                                                111,
+                                                112,
                                                 71,
                                                 29,
                                                 36
@@ -317889,7 +318018,7 @@ const D = {
                                                 [
                                                     8,
                                                     9,
-                                                    19,
+                                                    20,
                                                     9,
                                                     3
                                                 ],
@@ -317928,7 +318057,7 @@ const D = {
                                                 15.2,
                                                 11,
                                                 11.8,
-                                                7.4,
+                                                7.2,
                                                 60.7,
                                                 5.4,
                                                 5.2,
@@ -317965,7 +318094,7 @@ const D = {
                                                                        8,
                                                                        9,
                                                                        0,
-                                                                       12,
+                                                                       13,
                                                                        7,
                                                                        6,
                                                                        8,
@@ -318028,6 +318157,10 @@ const D = {
                                                                     "PMG e Comunicacao para Associacao":  6,
                                                                     "Retorno envio ativo":  4
                                                                 },
+                                              "Dhon Freitas":  {
+                                                                   "Infraestrutura":  29,
+                                                                   "Configuracao de balanca e bastao":  6
+                                                               },
                                               "Wiviane Borges":  {
                                                                      "Confinamento":  15,
                                                                      "Estoque Animais":  9,
@@ -318035,12 +318168,8 @@ const D = {
                                                                      "Agrícola":  2,
                                                                      "Retorno envio ativo":  2
                                                                  },
-                                              "Dhon Freitas":  {
-                                                                   "Infraestrutura":  29,
-                                                                   "Configuracao de balanca e bastao":  6
-                                                               },
                                               "Marcelo Costa":  {
-                                                                    "Infraestrutura":  27,
+                                                                    "Infraestrutura":  28,
                                                                     "Configuracao de balanca e bastao":  3,
                                                                     "Retorno envio ativo":  2
                                                                 },
@@ -318049,18 +318178,18 @@ const D = {
                                                                    "Estoque Animais":  9,
                                                                    "Retorno envio ativo":  1
                                                                },
-                                              "Raissa Ribeiro":  {
-                                                                     "Reproducao":  13,
-                                                                     "Estoque Animais":  10,
-                                                                     "Retorno envio ativo":  2,
-                                                                     "PMG e Comunicacao para Associacao":  2
-                                                                 },
                                               "Marcelo Santos":  {
                                                                      "Estoque Animais":  10,
                                                                      "Confinamento":  9,
                                                                      "SISBOV":  6,
                                                                      "Retorno envio ativo":  1,
                                                                      "Financeiro":  1
+                                                                 },
+                                              "Raissa Ribeiro":  {
+                                                                     "Reproducao":  13,
+                                                                     "Estoque Animais":  10,
+                                                                     "Retorno envio ativo":  2,
+                                                                     "PMG e Comunicacao para Associacao":  2
                                                                  },
                                               "Marcus Silva":  {
                                                                    "Confinamento":  6,
@@ -318216,7 +318345,7 @@ const D = {
                                                "Sem.2":  [
                                                              0,
                                                              0,
-                                                             47,
+                                                             48,
                                                              0,
                                                              0
                                                          ]
@@ -318665,6 +318794,145 @@ function updateStaticBands(){
 
 
 // ════════ TABS ════════
+let WHATSAPP_GROUP_RECORDS=[];
+let WHATSAPP_GROUP_CONFIG={settings:{mode:'ALL_GROUPS'},groups:[]};
+let whatsappGroupLoaded=false;
+function whatsappGroupLocalDate(value){
+  if(!value)return '';
+  const d=new Date(value);
+  if(Number.isNaN(d.getTime()))return String(value||'');
+  return d.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+function whatsappGroupLabel(r){
+  return String(r.grupoNome||r.grupoId||'Grupo não identificado');
+}
+function whatsappGroupFillGroups(){
+  const select=$('wg-group-filter');if(!select)return;
+  const current=select.value;
+  const groups=[...new Map((WHATSAPP_GROUP_RECORDS||[]).map(r=>[String(r.grupoId||''),whatsappGroupLabel(r)]).filter(([id])=>id)).entries()]
+    .sort((a,b)=>a[1].localeCompare(b[1],'pt-BR',{numeric:true,sensitivity:'base'}));
+  select.innerHTML='<option value="">Todos</option>'+groups.map(([id,label])=>`<option value="${esc(id)}">${esc(label)}</option>`).join('');
+  if([...select.options].some(o=>o.value===current))select.value=current;
+}
+async function loadWhatsappGroupConfig(){
+  try{
+    const res=await fetch('/api/whatsapp-grupo/config',{cache:'no-store',credentials:'same-origin'});
+    if(!res.ok)return false;
+    WHATSAPP_GROUP_CONFIG=await res.json();
+    renderWhatsappGroupConfig();
+    return true;
+  }catch{return false;}
+}
+async function loadWhatsappGroupData(manual=false){
+  if($('wg-summary'))$('wg-summary').textContent=manual?'Atualizando WhatsApp Grupo...':'Carregando WhatsApp Grupo...';
+  try{
+    const res=await fetch('/api/atendimentos/whatsapp-grupo?limit=1000',{cache:'no-store',credentials:'same-origin'});
+    if(!res.ok){
+      $('wg-summary').textContent='Não consegui carregar mensagens de WhatsApp Grupo.';
+      return false;
+    }
+    const data=await res.json();
+    WHATSAPP_GROUP_RECORDS=Array.isArray(data.attendances)?data.attendances:[];
+    whatsappGroupLoaded=true;
+    await loadWhatsappGroupConfig();
+    whatsappGroupFillGroups();
+    renderWhatsappGroupRecords();
+    return true;
+  }catch{
+    if($('wg-summary'))$('wg-summary').textContent='WhatsApp Grupo indisponível no momento.';
+    return false;
+  }
+}
+function whatsappGroupFiltered(){
+  const start=$('wg-start')?.value||'', end=$('wg-end')?.value||'', group=$('wg-group-filter')?.value||'', type=$('wg-type-filter')?.value||'', fromMe=$('wg-fromme-filter')?.value||'';
+  const q=String($('wg-search')?.value||'').trim().toLowerCase();
+  return (WHATSAPP_GROUP_RECORDS||[]).filter(r=>{
+    const day=String(r.messageDatetime||r.createdAt||'').slice(0,10);
+    if(start&&day<start)return false;
+    if(end&&day>end)return false;
+    if(group&&String(r.grupoId||'')!==group)return false;
+    if(type&&String(r.tipoMensagem||'')!==type)return false;
+    if(fromMe&&String(!!r.fromMe)!==fromMe)return false;
+    if(q&&!['grupoId','grupoNome','remetenteId','remetenteNome','conteudo','instance','messageId'].some(k=>String(r[k]||'').toLowerCase().includes(q)))return false;
+    return true;
+  });
+}
+function renderWhatsappGroupConfig(){
+  const mode=WHATSAPP_GROUP_CONFIG?.settings?.mode||'ALL_GROUPS';
+  if($('wg-monitor-mode'))$('wg-monitor-mode').value=mode;
+  if($('wg-config-sub'))$('wg-config-sub').textContent=mode==='REGISTERED_ONLY'?'Modo atual: somente grupos cadastrados':'Modo atual: todos os grupos';
+  const host=$('wg-config-groups');if(!host)return;
+  const groups=Array.isArray(WHATSAPP_GROUP_CONFIG?.groups)?WHATSAPP_GROUP_CONFIG.groups:[];
+  host.innerHTML=groups.slice(0,12).map(g=>{
+    const label=g.grupoNome||g.grupoId;
+    const encodedInstance=encodeURIComponent(String(g.instance||'')), encodedId=encodeURIComponent(String(g.grupoId||''));
+    return `<div class="bi"><span class="bl" title="${esc(g.grupoId||'')}">${esc(label.length>24?label.slice(0,24)+'...':label)}</span><div class="bt"><div class="bfill" style="width:${g.monitorado?100:20}%;background:${g.monitorado?'var(--moss)':'var(--rust)'}"></div></div><span class="bv">${g.monitorado?'ativo':'off'}</span><button class="rel-action admin-only" type="button" onclick="deleteWhatsappGroupConfig('${encodedInstance}','${encodedId}')">Remover</button></div>`;
+  }).join('')||'<div class="op-empty">Nenhum grupo cadastrado ainda.</div>';
+}
+function renderWhatsappGroupRecords(){
+  if(!whatsappGroupLoaded){loadWhatsappGroupData();return;}
+  whatsappGroupFillGroups();
+  const rows=whatsappGroupFiltered().sort((a,b)=>String(b.messageDatetime||b.createdAt||'').localeCompare(String(a.messageDatetime||a.createdAt||'')));
+  const openGroups=new Set(rows.map(r=>r.grupoId).filter(Boolean));
+  const senders=new Set(rows.map(r=>r.remetenteId).filter(Boolean));
+  const fromMe=rows.filter(r=>r.fromMe).length;
+  if($('wg-k-total'))$('wg-k-total').textContent=fN(rows.length);
+  if($('wg-k-groups'))$('wg-k-groups').textContent=fN(openGroups.size);
+  if($('wg-k-senders'))$('wg-k-senders').textContent=fN(senders.size);
+  if($('wg-k-fromme'))$('wg-k-fromme').textContent=fN(fromMe);
+  if($('wg-summary'))$('wg-summary').textContent=`${fN(rows.length)} mensagem(ns) WHATSAPP_GRUPO no filtro · ${fN(openGroups.size)} grupo(s)`;
+  renderManualRecordList('wg-group-list',Object.entries(rows.reduce((acc,r)=>{const g=whatsappGroupLabel(r);acc[g]=(acc[g]||0)+1;return acc;},{})).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'pt-BR')),'Sem mensagens');
+  const tbody=$('wg-tbody'), empty=$('wg-empty');if(!tbody)return;
+  empty.style.display=rows.length?'none':'block';
+  tbody.innerHTML=rows.slice(0,500).map(r=>`
+    <tr>
+      <td class="op-mono">${esc(whatsappGroupLocalDate(r.messageDatetime||r.createdAt))}</td>
+      <td>${esc(whatsappGroupLabel(r))}<br><span class="op-mono">${esc(r.grupoId||'')}</span></td>
+      <td>${esc(r.remetenteNome||'Participante')}<br><span class="op-mono">${esc(r.remetenteId||'')}</span></td>
+      <td><span class="op-badge ${r.fromMe?'manual-status-closed':'manual-status-open'}">${r.fromMe?'Próprio número':'Participante'}</span></td>
+      <td><span class="op-badge">${esc(r.tipoMensagem||'')}</span></td>
+      <td class="manual-note">${esc(r.conteudo||'')}</td>
+      <td class="op-mono">${esc(r.instance||'')}</td>
+      <td class="op-mono">${esc(r.messageId||r.id||'')}</td>
+    </tr>`).join('');
+}
+async function saveWhatsappGroupMode(){
+  const mode=$('wg-monitor-mode')?.value||'ALL_GROUPS';
+  try{
+    const res=await fetch('/api/whatsapp-grupo/config',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({mode})});
+    if(!res.ok)throw new Error('falha');
+    await loadWhatsappGroupConfig();
+    toast('Configuração de grupos salva.');
+  }catch{toast('Não consegui salvar a configuração de grupos.',true);}
+}
+async function saveWhatsappGroupConfig(){
+  const item={
+    instance:String($('wg-config-instance')?.value||'').trim(),
+    grupoId:String($('wg-config-group-id')?.value||'').trim(),
+    grupoNome:String($('wg-config-group-name')?.value||'').trim(),
+    monitorado:true
+  };
+  if(!item.grupoId.endsWith('@g.us')){toast('Informe um grupo no formato grupoid@g.us.',true);return;}
+  try{
+    const res=await fetch('/api/whatsapp-grupo/config',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(item)});
+    if(!res.ok)throw new Error('falha');
+    if($('wg-config-group-id'))$('wg-config-group-id').value='';
+    if($('wg-config-group-name'))$('wg-config-group-name').value='';
+    await loadWhatsappGroupConfig();
+    toast('Grupo monitorado salvo.');
+  }catch{toast('Não consegui salvar o grupo monitorado.',true);}
+}
+async function deleteWhatsappGroupConfig(instance,grupoId){
+  const groupId=decodeURIComponent(grupoId||''), inst=decodeURIComponent(instance||'');
+  if(!groupId)return;
+  if(!confirm(`Remover o grupo monitorado ${groupId}?`))return;
+  try{
+    const res=await fetch('/api/whatsapp-grupo/config',{method:'DELETE',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({instance:inst,grupoId:groupId})});
+    if(!res.ok)throw new Error('falha');
+    await loadWhatsappGroupConfig();
+    toast('Grupo removido.');
+  }catch{toast('Não consegui remover o grupo.',true);}
+}
 const MANUAL_RECORDS_STORAGE_KEY='gestao_manual_whatsapp_records_v1';
 const MANUAL_RECORD_OPTIONS_STORAGE_KEY='gestao_manual_whatsapp_options_v1';
 const MANUAL_RECORDS_INCLUDE_OFFICIAL_METRICS=false;
@@ -319055,6 +319323,7 @@ function go(id,el){
   if(id==='clientes')renderClientsMonth(appM);
   if(id==='historico')renderHistorico();
   if(id==='atendimentos')renderAtendimentos();
+  if(id==='whatsapp-grupo')renderWhatsappGroupRecords();
   if(id==='registro-manual')renderManualRecords();
   if(id==='revisoes')loadReviewRequests();
   if(id==='tratamentos')renderTreatments();
@@ -321695,6 +321964,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

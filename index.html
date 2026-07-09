@@ -1128,6 +1128,20 @@ canvas{cursor:pointer;}
         <input class="fs" id="wg-config-agents" placeholder="Agentes do time separados por vírgula">
         <button class="rel-action" type="button" onclick="saveWhatsappGroupConfig()">Salvar grupo</button>
       </div>
+      <div class="fbar admin-only">
+        <span class="fl">Instância:</span>
+        <input class="fs" id="wg-inst-key" placeholder="principal">
+        <input class="fs" id="wg-inst-name" placeholder="Nome da instância">
+        <input class="fs" id="wg-inst-phone" placeholder="Telefone vinculado">
+        <select class="fs" id="wg-inst-status">
+          <option value="conectada">Conectada</option>
+          <option value="desconectada">Desconectada</option>
+          <option value="pendente">Pendente</option>
+          <option value="recebendo webhook">Recebendo webhook</option>
+        </select>
+        <button class="rel-action" type="button" onclick="saveWhatsappInstanceConfig()">Salvar instância</button>
+      </div>
+      <div class="blist" id="wg-instance-list"></div>
       <div class="blist" id="wg-config-groups"></div>
     </div>
     <div class="card">
@@ -1696,7 +1710,7 @@ const D = {
                  847,
                  961,
                  870,
-                 257
+                 259
              ],
     "closed":  [
                    1952,
@@ -1705,7 +1719,7 @@ const D = {
                    1691,
                    1866,
                    1794,
-                   550
+                   553
                ],
     "open":  [
                  0,
@@ -1714,7 +1728,7 @@ const D = {
                  0,
                  0,
                  0,
-                 5
+                 2
              ],
     "cobert":  [
                    0.4908,
@@ -1723,7 +1737,7 @@ const D = {
                    0.5009,
                    0.515,
                    0.4849,
-                   0.4673
+                   0.4684
                ],
     "sat":  [
                 9.817,
@@ -1732,7 +1746,7 @@ const D = {
                 9.732,
                 9.743,
                 9.663,
-                9.837
+                9.834
             ],
     "tma":  [
                 "00:28:51",
@@ -1741,7 +1755,7 @@ const D = {
                 "00:36:11",
                 "00:43:05",
                 "00:25:53",
-                "00:25:50"
+                "00:25:54"
             ],
     "tme":  [
                 "00:05:30",
@@ -2309,7 +2323,7 @@ const D = {
                                   },
                             "9":  {
                                       "v":  51,
-                                      "c":  10
+                                      "c":  9.957
                                   }
                         }
               },
@@ -3205,9 +3219,9 @@ const D = {
                                          ],
                                          [
                                              30,
-                                             16,
+                                             17,
                                              9.94,
-                                             "00:29:28"
+                                             "00:28:54"
                                          ]
                                      ],
                     "Multisoft_Pesquisa":  [
@@ -3469,9 +3483,9 @@ const D = {
                                            ],
                                            [
                                                40,
-                                               22,
-                                               10,
-                                               "00:29:52"
+                                               23,
+                                               9.96,
+                                               "00:30:55"
                                            ]
                                        ]
                 },
@@ -3546,18 +3560,18 @@ const D = {
                      9,
                      "Marcus Silva",
                      "Retorno envio ativo",
+                     771,
                      0,
-                     0,
-                     null,
+                     10,
                      "WA00000128008",
                      "4 Periodo",
                      14,
                      "09/07/2026 14:32",
-                     "",
+                     "09/07/2026 14:45",
                      "Cliente #317 · 14 atendimentos",
                      "",
                      "WHATSAPP",
-                     "OPEN",
+                     "CLOSED",
                      128008,
                      "MODELO",
                      "Cliente #317",
@@ -3654,18 +3668,18 @@ const D = {
                      9,
                      "Wiviane Borges",
                      "Fila Suporte",
-                     0,
+                     1648,
                      0,
                      null,
                      "VC00000128000",
                      "4 Periodo",
                      14,
                      "09/07/2026 14:09",
-                     "",
+                     "09/07/2026 14:37",
                      "Cliente #928 · 1 atendimentos",
                      "",
                      "VOICE",
-                     "OPEN",
+                     "CLOSED",
                      128000,
                      "MODELO",
                      "Cliente #928",
@@ -3789,9 +3803,9 @@ const D = {
                      9,
                      "Wiviane Borges",
                      "Confinamento",
+                     4458,
                      0,
-                     0,
-                     null,
+                     9,
                      "WA00000127990",
                      "3 Periodo",
                      13,
@@ -3800,7 +3814,7 @@ const D = {
                      "Cliente #142 · 26 atendimentos",
                      "",
                      "WHATSAPP",
-                     "OPEN",
+                     "CLOSED",
                      127990,
                      "MODELO",
                      "Cliente #142",
@@ -314326,7 +314340,7 @@ const D = {
                                          27
                                      ],
                   "Marcus Silva":  [
-                                       27.5,
+                                       27.9,
                                        26.3,
                                        94.3,
                                        30
@@ -314344,27 +314358,27 @@ const D = {
                                          27
                                      ],
                   "Wiviane Borges":  [
-                                         28.4,
-                                         25.9,
+                                         30.9,
+                                         26.8,
                                          76.5,
                                          40
                                      ]
               },
     "tmaDist":  [
-                    95,
-                    165,
-                    136,
+                    92,
+                    166,
+                    137,
                     85,
                     34,
-                    40
+                    41
                 ],
     "avDist":  {
                    "1":  1,
                    "5":  1,
                    "7":  2,
                    "8":  4,
-                   "9":  14,
-                   "10":  235
+                   "9":  15,
+                   "10":  236
                },
     "avBaixa":  {
                     "Beatriz Araujo":  2,
@@ -316837,7 +316851,7 @@ const D = {
                     9.923,
                     9.75,
                     9.68,
-                    9.983,
+                    9.968,
                     9.868
                 ],
     "csatWeek":  {
@@ -316847,7 +316861,7 @@ const D = {
                                 ],
                      "data":  [
                                   9.85,
-                                  9.789
+                                  9.78
                               ]
                  },
     "byMonth":  {
@@ -320195,7 +320209,7 @@ const D = {
                                                                      27
                                                                  ],
                                               "Marcus Silva":  [
-                                                                   27.5,
+                                                                   27.9,
                                                                    26.3,
                                                                    94.3,
                                                                    30
@@ -320213,27 +320227,27 @@ const D = {
                                                                      27
                                                                  ],
                                               "Wiviane Borges":  [
-                                                                     28.4,
-                                                                     25.9,
+                                                                     30.9,
+                                                                     26.8,
                                                                      76.5,
                                                                      40
                                                                  ]
                                           },
                                 "tmaDist":  [
-                                                95,
-                                                165,
-                                                136,
+                                                92,
+                                                166,
+                                                137,
                                                 85,
                                                 34,
-                                                40
+                                                41
                                             ],
                                 "avDist":  {
                                                "1":  1,
                                                "5":  1,
                                                "7":  2,
                                                "8":  4,
-                                               "9":  14,
-                                               "10":  235
+                                               "9":  15,
+                                               "10":  236
                                            },
                                 "avBaixa":  {
                                                 "Beatriz Araujo":  2,
@@ -320590,7 +320604,7 @@ const D = {
                                                 9.923,
                                                 9.75,
                                                 9.68,
-                                                9.983,
+                                                9.968,
                                                 9.868
                                             ],
                                 "csatWeek":  {
@@ -320600,7 +320614,7 @@ const D = {
                                                             ],
                                                  "data":  [
                                                               9.85,
-                                                              9.789
+                                                              9.78
                                                           ]
                                              },
                                 "semDow":  {
@@ -321066,6 +321080,7 @@ function updateStaticBands(){
 let WHATSAPP_GROUP_RECORDS=[];
 let WHATSAPP_GROUP_SESSIONS=[];
 let WHATSAPP_GROUP_CONFIG={settings:{mode:'ALL_GROUPS'},groups:[]};
+let WHATSAPP_GROUP_INSTANCES=[];
 let WHATSAPP_GROUP_ONLY_UNANSWERED=false;
 let WHATSAPP_GROUP_SOUND=false;
 let WHATSAPP_GROUP_LAST_UNANSWERED_KEY='';
@@ -321099,14 +321114,15 @@ function whatsappIsGroupRegistered(instance,grupoId){
 function whatsappSessionStatusLabel(value){
   const status=String(value||'').toUpperCase();
   if(status==='CLOSED')return 'Encerrado';
-  if(status==='ANSWERED')return 'Respondido';
-  if(status==='OPEN')return 'Aberto';
+  if(status==='RESPONDIDO'||status==='ANSWERED')return 'Respondido';
+  if(status==='EM_ATENDIMENTO')return 'Em atendimento';
+  if(status==='SEM_RESPOSTA'||status==='OPEN')return 'Sem resposta';
   return status||'Sem sessão';
 }
 function whatsappSessionStatusClass(value){
   const status=String(value||'').toUpperCase();
   if(status==='CLOSED')return 'manual-status-closed';
-  if(status==='ANSWERED')return '';
+  if(status==='RESPONDIDO'||status==='ANSWERED'||status==='EM_ATENDIMENTO')return '';
   return 'manual-status-open';
 }
 function whatsappDuration(seconds){
@@ -321139,6 +321155,7 @@ async function loadWhatsappGroupConfig(){
     const res=await fetch('/api/whatsapp-grupo/config',{cache:'no-store',credentials:'same-origin'});
     if(!res.ok)return false;
     WHATSAPP_GROUP_CONFIG=await res.json();
+    WHATSAPP_GROUP_INSTANCES=Array.isArray(WHATSAPP_GROUP_CONFIG?.instances)?WHATSAPP_GROUP_CONFIG.instances:[];
     renderWhatsappGroupConfig();
     return true;
   }catch{return false;}
@@ -321200,7 +321217,7 @@ function whatsappSessionFiltered(){
     if(end&&day>end)return false;
     if(group&&String(s.grupoId||'')!==group)return false;
     if(instance&&String(s.instance||'')!==instance)return false;
-    if(WHATSAPP_GROUP_ONLY_UNANSWERED&&String(s.status||'').toUpperCase()!=='OPEN')return false;
+    if(WHATSAPP_GROUP_ONLY_UNANSWERED&&!['OPEN','SEM_RESPOSTA'].includes(String(s.status||'').toUpperCase()))return false;
     if(q&&!['protocol','grupoId','grupoNome','clienteNome','remetenteId','remetenteNome','agenteNome'].some(k=>String(s[k]||'').toLowerCase().includes(q)))return false;
     return true;
   });
@@ -321213,6 +321230,15 @@ function renderWhatsappGroupConfig(){
   const mode=WHATSAPP_GROUP_CONFIG?.settings?.mode||'ALL_GROUPS';
   if($('wg-monitor-mode'))$('wg-monitor-mode').value=mode;
   if($('wg-config-sub'))$('wg-config-sub').textContent=mode==='REGISTERED_ONLY'?'Modo atual: somente grupos cadastrados':'Modo atual: todos os grupos';
+  const instHost=$('wg-instance-list');
+  if(instHost){
+    const instances=Array.isArray(WHATSAPP_GROUP_INSTANCES)?WHATSAPP_GROUP_INSTANCES:[];
+    instHost.innerHTML=instances.slice(0,12).map(i=>{
+      const encoded=encodeURIComponent(String(i.instance||''));
+      const detail=[i.nome,i.telefone,i.status].filter(Boolean).join(' · ');
+      return `<div class="bi"><span class="bl" title="${esc(detail)}">${esc(i.instance||'Instância')}</span><div class="bt"><div class="bfill" style="width:${String(i.status||'').toLowerCase().includes('conect')||String(i.status||'').toLowerCase().includes('webhook')?100:35}%;background:${String(i.status||'').toLowerCase().includes('descon')?'var(--rust)':'var(--moss)'}"></div></div><span class="bv">${esc(i.status||'sem status')}</span><button class="rel-action admin-only" type="button" onclick="fillWhatsappInstanceConfig('${encoded}')">Editar</button><button class="rel-action admin-only" type="button" onclick="deleteWhatsappInstanceConfig('${encoded}')">Remover</button></div>`;
+    }).join('')||'<div class="op-empty">Nenhuma instância cadastrada ainda.</div>';
+  }
   const host=$('wg-config-groups');if(!host)return;
   const groups=Array.isArray(WHATSAPP_GROUP_CONFIG?.groups)?WHATSAPP_GROUP_CONFIG.groups:[];
   host.innerHTML=groups.slice(0,12).map(g=>{
@@ -321228,8 +321254,8 @@ function renderWhatsappSessionRows(sessions){
   empty.style.display=sessions.length?'none':'block';
   tbody.innerHTML=sessions.slice(0,500).map(s=>{
     const status=String(s.status||'').toUpperCase();
-    const unanswered=status==='OPEN';
-    const closeButton=status==='OPEN'||status==='ANSWERED'
+    const unanswered=status==='OPEN'||status==='SEM_RESPOSTA';
+    const closeButton=['OPEN','SEM_RESPOSTA','EM_ATENDIMENTO','ANSWERED','RESPONDIDO'].includes(status)
       ? `<br><button class="rel-action" type="button" data-id="${esc(s.id||'')}" data-protocol="${esc(s.protocol||'')}" onclick="closeWhatsappGroupSessionFromPanel(this.dataset.id,this.dataset.protocol)">Encerrar</button>`
       : '';
     return `
@@ -321290,7 +321316,7 @@ function playWhatsappGroupAlert(){
   }catch{}
 }
 function notifyWhatsappUnanswered(sessions){
-  const pending=(sessions||[]).filter(s=>String(s.status||'').toUpperCase()==='OPEN');
+  const pending=(sessions||[]).filter(s=>['OPEN','SEM_RESPOSTA'].includes(String(s.status||'').toUpperCase()));
   const key=pending.map(s=>s.id||s.protocol||'').sort().join('|');
   if($('wg-live-badge'))$('wg-live-badge').textContent=pending.length?`${fN(pending.length)} sem resposta`:'Atualização automática ativa';
   if(key&&key!==WHATSAPP_GROUP_LAST_UNANSWERED_KEY&&WHATSAPP_GROUP_LAST_UNANSWERED_KEY){
@@ -321323,8 +321349,8 @@ function renderWhatsappGroupRecords(){
   const filteredSessions=whatsappSessionFiltered().sort((a,b)=>String(b.startedAt||b.createdAt||'').localeCompare(String(a.startedAt||a.createdAt||'')));
   const openGroups=new Set(rows.map(r=>r.grupoId).filter(Boolean));
   const sessions=filteredSessions;
-  const open=sessions.filter(s=>String(s.status||'').toUpperCase()==='OPEN').length;
-  const answered=sessions.filter(s=>String(s.status||'').toUpperCase()==='ANSWERED').length;
+  const open=sessions.filter(s=>['OPEN','SEM_RESPOSTA'].includes(String(s.status||'').toUpperCase())).length;
+  const answered=sessions.filter(s=>['ANSWERED','RESPONDIDO','EM_ATENDIMENTO'].includes(String(s.status||'').toUpperCase())).length;
   const closed=sessions.filter(s=>String(s.status||'').toUpperCase()==='CLOSED').length;
   const responseTimes=sessions.map(s=>Number(s.firstResponseSeconds||0)).filter(v=>Number.isFinite(v)&&v>0);
   const avgResponse=responseTimes.length?responseTimes.reduce((sum,value)=>sum+value,0)/responseTimes.length:0;
@@ -321384,6 +321410,41 @@ async function saveWhatsappGroupConfig(){
     renderWhatsappGroupRecords();
     toast('Grupo monitorado salvo.');
   }catch{toast('Não consegui salvar o grupo monitorado.',true);}
+}
+function fillWhatsappInstanceConfig(encodedInstance){
+  const instance=decodeURIComponent(encodedInstance||'');
+  const item=(WHATSAPP_GROUP_INSTANCES||[]).find(i=>String(i.instance||'')===instance)||{};
+  if($('wg-inst-key'))$('wg-inst-key').value=item.instance||instance;
+  if($('wg-inst-name'))$('wg-inst-name').value=item.nome||'';
+  if($('wg-inst-phone'))$('wg-inst-phone').value=item.telefone||'';
+  if($('wg-inst-status'))$('wg-inst-status').value=item.status||'conectada';
+}
+async function saveWhatsappInstanceConfig(){
+  const item={
+    instance:String($('wg-inst-key')?.value||'').trim(),
+    nome:String($('wg-inst-name')?.value||'').trim(),
+    telefone:String($('wg-inst-phone')?.value||'').trim(),
+    status:String($('wg-inst-status')?.value||'').trim()
+  };
+  if(!item.instance){toast('Informe a instância.',true);return;}
+  try{
+    const res=await fetch('/api/whatsapp-grupo/instances',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(item)});
+    if(!res.ok)throw new Error('falha');
+    await loadWhatsappGroupConfig();
+    whatsappGroupFillInstances();
+    toast('Instância salva.');
+  }catch{toast('Não consegui salvar a instância.',true);}
+}
+async function deleteWhatsappInstanceConfig(encodedInstance){
+  const instance=decodeURIComponent(encodedInstance||'');
+  if(!instance||!confirm(`Remover instância ${instance}?`))return;
+  try{
+    const res=await fetch('/api/whatsapp-grupo/instances',{method:'DELETE',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({instance})});
+    if(!res.ok)throw new Error('falha');
+    await loadWhatsappGroupConfig();
+    whatsappGroupFillInstances();
+    toast('Instância removida.');
+  }catch{toast('Não consegui remover a instância.',true);}
 }
 function fillWhatsappGroupConfig(instance,grupoId){
   const groupId=decodeURIComponent(grupoId||''), inst=decodeURIComponent(instance||'');
@@ -324540,6 +324601,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

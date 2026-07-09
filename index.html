@@ -1759,7 +1759,7 @@ const D = {
                    1691,
                    1866,
                    1794,
-                   553
+                   554
                ],
     "open":  [
                  0,
@@ -1768,7 +1768,7 @@ const D = {
                  0,
                  0,
                  0,
-                 4
+                 3
              ],
     "cobert":  [
                    0.4908,
@@ -1777,7 +1777,7 @@ const D = {
                    0.5009,
                    0.515,
                    0.4849,
-                   0.4684
+                   0.4675
                ],
     "sat":  [
                 9.817,
@@ -1795,7 +1795,7 @@ const D = {
                 "00:36:11",
                 "00:43:05",
                 "00:25:53",
-                "00:25:54"
+                "00:25:55"
             ],
     "tme":  [
                 "00:05:30",
@@ -1813,7 +1813,7 @@ const D = {
                 0.9976,
                 0.9898,
                 0.9872,
-                0.9873
+                0.9874
             ],
     "daily":  {
                   "1":  {
@@ -3349,7 +3349,7 @@ const D = {
                                                6,
                                                2,
                                                10,
-                                               "00:26:00"
+                                               "00:26:43"
                                            ]
                                        ],
                     "Raissa Ribeiro":  [
@@ -3627,18 +3627,18 @@ const D = {
                      9,
                      "Natalia Vieira",
                      "Estoque Animais",
-                     0,
+                     1819,
                      4,
                      null,
                      "WA00000128010",
                      "4 Periodo",
                      14,
                      "09/07/2026 14:33",
-                     "",
+                     "09/07/2026 15:03",
                      "Cliente #028 · 66 atendimentos",
                      "",
                      "WHATSAPP",
-                     "OPEN",
+                     "CLOSED",
                      128010,
                      "MODELO",
                      "Cliente #028",
@@ -3688,7 +3688,7 @@ const D = {
                      "4 Periodo",
                      14,
                      "09/07/2026 14:28",
-                     "",
+                     "09/07/2026 15:05",
                      "Cliente #058 · 46 atendimentos",
                      "",
                      "WHATSAPP",
@@ -314440,8 +314440,8 @@ const D = {
                                        30
                                    ],
                   "Natalia Vieira":  [
-                                         21.7,
-                                         17.7,
+                                         26.7,
+                                         25.3,
                                          42,
                                          6
                                      ],
@@ -314459,10 +314459,10 @@ const D = {
                                      ]
               },
     "tmaDist":  [
-                    94,
+                    93,
                     166,
                     137,
-                    85,
+                    86,
                     34,
                     41
                 ],
@@ -320309,8 +320309,8 @@ const D = {
                                                                    30
                                                                ],
                                               "Natalia Vieira":  [
-                                                                     21.7,
-                                                                     17.7,
+                                                                     26.7,
+                                                                     25.3,
                                                                      42,
                                                                      6
                                                                  ],
@@ -320328,10 +320328,10 @@ const D = {
                                                                  ]
                                           },
                                 "tmaDist":  [
-                                                94,
+                                                93,
                                                 166,
                                                 137,
-                                                85,
+                                                86,
                                                 34,
                                                 41
                                             ],
@@ -321244,6 +321244,13 @@ function whatsappGroupFillInstances(){
   select.innerHTML='<option value="">Todas</option>'+instances.map(i=>`<option value="${esc(i)}">${esc(i)}</option>`).join('');
   if([...select.options].some(o=>o.value===current))select.value=current;
 }
+function renderWhatsappMonitorModeHelp(){
+  const mode=$('wg-monitor-mode')?.value||'ALL_GROUPS';
+  const text=mode==='REGISTERED_ONLY'
+    ? 'Somente grupos cadastrados: o webhook ignora mensagens de grupos que não estejam salvos em Grupos cadastrados.'
+    : 'Todos os grupos: qualquer grupo recebido pelo webhook entra no sistema. Use este modo para descobrir IDs e nomes antes de restringir.';
+  if($('wg-monitor-mode-help'))$('wg-monitor-mode-help').textContent=text;
+}
 async function loadWhatsappGroupConfig(){
   try{
     const res=await fetch('/api/whatsapp-grupo/config',{cache:'no-store',credentials:'same-origin'});
@@ -321324,13 +321331,15 @@ function renderWhatsappGroupConfig(){
   const mode=WHATSAPP_GROUP_CONFIG?.settings?.mode||'ALL_GROUPS';
   if($('wg-monitor-mode'))$('wg-monitor-mode').value=mode;
   if($('wg-config-sub'))$('wg-config-sub').textContent=mode==='REGISTERED_ONLY'?'Modo atual: somente grupos cadastrados':'Modo atual: todos os grupos';
+  renderWhatsappMonitorModeHelp();
   const instHost=$('wg-instance-list');
   if(instHost){
     const instances=Array.isArray(WHATSAPP_GROUP_INSTANCES)?WHATSAPP_GROUP_INSTANCES:[];
     instHost.innerHTML=instances.slice(0,12).map(i=>{
       const encoded=encodeURIComponent(String(i.instance||''));
-      const detail=[i.nome,i.telefone,i.status].filter(Boolean).join(' · ');
-      return `<div class="bi"><span class="bl" title="${esc(detail)}">${esc(i.instance||'Instância')}</span><div class="bt"><div class="bfill" style="width:${String(i.status||'').toLowerCase().includes('conect')||String(i.status||'').toLowerCase().includes('webhook')?100:35}%;background:${String(i.status||'').toLowerCase().includes('descon')?'var(--rust)':'var(--moss)'}"></div></div><span class="bv">${esc(i.status||'sem status')}</span><button class="rel-action admin-only" type="button" onclick="fillWhatsappInstanceConfig('${encoded}')">Editar</button><button class="rel-action admin-only" type="button" onclick="deleteWhatsappInstanceConfig('${encoded}')">Remover</button></div>`;
+      const status=String(i.status||'sem status');
+      const off=status.toLowerCase().includes('descon');
+      return `<div class="wg-config-row"><div><div class="wg-config-name">${esc(i.nome||i.instance||'Instância')}</div><div class="wg-config-meta">Código: ${esc(i.instance||'')} ${i.telefone?` · Telefone: ${esc(i.telefone)}`:''}</div><div class="wg-config-tags"><span class="wg-tag"><span class="wg-status-dot ${off?'off':''}"></span>${esc(status)}</span></div></div><div class="wg-config-actions"><button class="rel-action admin-only" type="button" onclick="fillWhatsappInstanceConfig('${encoded}')">Editar</button><button class="rel-action admin-only" type="button" onclick="deleteWhatsappInstanceConfig('${encoded}')">Remover</button></div></div>`;
     }).join('')||'<div class="op-empty">Nenhuma instância cadastrada ainda.</div>';
   }
   const host=$('wg-config-groups');if(!host)return;
@@ -321338,9 +321347,8 @@ function renderWhatsappGroupConfig(){
   host.innerHTML=groups.slice(0,12).map(g=>{
     const label=g.grupoNome||g.grupoId;
     const encodedInstance=encodeURIComponent(String(g.instance||'')), encodedId=encodeURIComponent(String(g.grupoId||''));
-    const client=g.clienteNome?` · ${g.clienteNome}`:'';
-    const agents=(g.agentes||[]).length?` · Agentes: ${(g.agentes||[]).join(', ')}`:'';
-    return `<div class="bi"><span class="bl" title="${esc((g.grupoId||'')+client+agents)}">${esc(label.length>24?label.slice(0,24)+'...':label)}</span><div class="bt"><div class="bfill" style="width:${g.monitorado?100:20}%;background:${g.monitorado?'var(--moss)':'var(--rust)'}"></div></div><span class="bv">${g.monitorado?'ativo':'off'}</span><button class="rel-action admin-only" type="button" onclick="fillWhatsappGroupConfig('${encodedInstance}','${encodedId}')">Editar</button><button class="rel-action admin-only" type="button" onclick="deleteWhatsappGroupConfig('${encodedInstance}','${encodedId}')">Remover</button></div>`;
+    const agents=(g.agentes||[]).length?(g.agentes||[]).join(', '):'Sem agentes definidos';
+    return `<div class="wg-config-row"><div><div class="wg-config-name">${esc(label||'Grupo sem nome')}</div><div class="wg-config-meta">ID: ${esc(g.grupoId||'')} · Instância: ${esc(g.instance||'principal')}</div><div class="wg-config-tags"><span class="wg-tag">${g.monitorado?'ativo':'off'}</span><span class="wg-tag">Cliente: ${esc(g.clienteNome||'não associado')}</span><span class="wg-tag">Agentes: ${esc(agents)}</span></div></div><div class="wg-config-actions"><button class="rel-action admin-only" type="button" onclick="fillWhatsappGroupConfig('${encodedInstance}','${encodedId}')">Editar</button><button class="rel-action admin-only" type="button" onclick="deleteWhatsappGroupConfig('${encodedInstance}','${encodedId}')">Remover</button></div></div>`;
   }).join('')||'<div class="op-empty">Nenhum grupo cadastrado ainda.</div>';
 }
 function renderWhatsappSessionRows(sessions){
@@ -324755,6 +324763,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

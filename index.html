@@ -1692,7 +1692,7 @@ const D = {
                  847,
                  961,
                  870,
-                 250
+                 251
              ],
     "closed":  [
                    1952,
@@ -1701,7 +1701,7 @@ const D = {
                    1691,
                    1866,
                    1794,
-                   533
+                   535
                ],
     "open":  [
                  0,
@@ -1710,7 +1710,7 @@ const D = {
                  0,
                  0,
                  0,
-                 4
+                 2
              ],
     "cobert":  [
                    0.4908,
@@ -1719,7 +1719,7 @@ const D = {
                    0.5009,
                    0.515,
                    0.4849,
-                   0.469
+                   0.4692
                ],
     "sat":  [
                 9.817,
@@ -1728,7 +1728,7 @@ const D = {
                 9.732,
                 9.743,
                 9.663,
-                9.832
+                9.833
             ],
     "tma":  [
                 "00:28:51",
@@ -1746,7 +1746,7 @@ const D = {
                 "00:00:03",
                 "00:00:22",
                 "00:00:40",
-                "00:00:13"
+                "00:00:12"
             ],
     "sla":  [
                 0.9918,
@@ -2717,9 +2717,9 @@ const D = {
                                          ],
                                          [
                                              49,
-                                             21,
+                                             22,
                                              9.86,
-                                             "00:21:48"
+                                             "00:21:56"
                                          ]
                                      ],
                     "Evelyn Gonçalves":  [
@@ -3291,7 +3291,7 @@ const D = {
                                                4,
                                                2,
                                                10,
-                                               "00:31:30"
+                                               "00:28:43"
                                            ]
                                        ],
                     "Raissa Ribeiro":  [
@@ -3515,18 +3515,18 @@ const D = {
                      9,
                      "Natalia Vieira",
                      "Confinamento",
-                     0,
+                     1222,
                      5,
                      null,
                      "WA00000127970",
                      "2 Periodo",
                      10,
                      "09/07/2026 10:45",
-                     "",
+                     "09/07/2026 11:05",
                      "Cliente #927 · 1 atendimentos",
                      "",
                      "WHATSAPP",
-                     "OPEN",
+                     "CLOSED",
                      127970,
                      "MODELO",
                      "Cliente #927",
@@ -3569,18 +3569,18 @@ const D = {
                      9,
                      "Dhon Freitas",
                      "Infraestrutura",
-                     0,
+                     1720,
                      6,
-                     null,
+                     10,
                      "WA00000127966",
                      "2 Periodo",
                      10,
                      "09/07/2026 10:28",
-                     "",
+                     "09/07/2026 10:57",
                      "Cliente #026 · 71 atendimentos",
                      "",
                      "WHATSAPP",
-                     "OPEN",
+                     "CLOSED",
                      127966,
                      "MODELO",
                      "Cliente #026",
@@ -313788,8 +313788,8 @@ const D = {
                                          64
                                      ],
                   "Dhon Freitas":  [
-                                       21.4,
-                                       14.8,
+                                       21.9,
+                                       15.5,
                                        73.8,
                                        49
                                    ],
@@ -313842,8 +313842,8 @@ const D = {
                                        26
                                    ],
                   "Natalia Vieira":  [
-                                         23.6,
-                                         26.2,
+                                         28.7,
+                                         29.4,
                                          42,
                                          4
                                      ],
@@ -313861,9 +313861,9 @@ const D = {
                                      ]
               },
     "tmaDist":  [
-                    92,
+                    90,
                     160,
-                    131,
+                    133,
                     82,
                     33,
                     39
@@ -313874,7 +313874,7 @@ const D = {
                    "7":  2,
                    "8":  4,
                    "9":  14,
-                   "10":  228
+                   "10":  229
                },
     "avBaixa":  {
                     "Beatriz Araujo":  2,
@@ -316356,7 +316356,7 @@ const D = {
                                 ],
                      "data":  [
                                   9.85,
-                                  9.76
+                                  9.765
                               ]
                  },
     "byMonth":  {
@@ -319656,8 +319656,8 @@ const D = {
                                                                      64
                                                                  ],
                                               "Dhon Freitas":  [
-                                                                   21.4,
-                                                                   14.8,
+                                                                   21.9,
+                                                                   15.5,
                                                                    73.8,
                                                                    49
                                                                ],
@@ -319710,8 +319710,8 @@ const D = {
                                                                    26
                                                                ],
                                               "Natalia Vieira":  [
-                                                                     23.6,
-                                                                     26.2,
+                                                                     28.7,
+                                                                     29.4,
                                                                      42,
                                                                      4
                                                                  ],
@@ -319729,9 +319729,9 @@ const D = {
                                                                  ]
                                           },
                                 "tmaDist":  [
-                                                92,
+                                                90,
                                                 160,
-                                                131,
+                                                133,
                                                 82,
                                                 33,
                                                 39
@@ -319742,7 +319742,7 @@ const D = {
                                                "7":  2,
                                                "8":  4,
                                                "9":  14,
-                                               "10":  228
+                                               "10":  229
                                            },
                                 "avBaixa":  {
                                                 "Beatriz Araujo":  2,
@@ -320108,7 +320108,7 @@ const D = {
                                                             ],
                                                  "data":  [
                                                               9.85,
-                                                              9.76
+                                                              9.765
                                                           ]
                                              },
                                 "semDow":  {
@@ -320703,17 +320703,39 @@ function renderWhatsappGroupConfig(){
 function renderWhatsappSessionRows(sessions){
   const tbody=$('wg-session-tbody'), empty=$('wg-session-empty');if(!tbody)return;
   empty.style.display=sessions.length?'none':'block';
-  tbody.innerHTML=sessions.slice(0,500).map(s=>`
-    <tr>
+  tbody.innerHTML=sessions.slice(0,500).map(s=>{
+    const status=String(s.status||'').toUpperCase();
+    const unanswered=status==='OPEN';
+    const closeButton=status==='OPEN'||status==='ANSWERED'
+      ? `<br><button class="rel-action" type="button" data-id="${esc(s.id||'')}" data-protocol="${esc(s.protocol||'')}" onclick="closeWhatsappGroupSessionFromPanel(this.dataset.id,this.dataset.protocol)">Encerrar</button>`
+      : '';
+    return `
+    <tr class="${unanswered?'wg-unanswered-row':''}">
       <td class="op-mono"><b>${esc(s.protocol||'')}</b></td>
-      <td><span class="op-badge ${whatsappSessionStatusClass(s.status)}">${esc(whatsappSessionStatusLabel(s.status))}</span></td>
+      <td><span class="op-badge ${whatsappSessionStatusClass(s.status)}">${esc(whatsappSessionStatusLabel(s.status))}</span>${closeButton}</td>
       <td>${esc(whatsappGroupLabel(s))}<br><span class="op-mono">${esc(s.grupoId||'')}</span><br><span class="manual-note">${esc(whatsappGroupClientLabel(s))}</span></td>
       <td>${esc(s.agenteNome||'Sem agente')}<br><span class="op-mono">${esc(s.agenteId||'')}</span></td>
       <td>${esc(s.remetenteNome||'Participante')}<br><span class="op-mono">${esc(s.remetenteId||'')}</span></td>
       <td class="op-mono">${esc(whatsappGroupLocalDate(s.startedAt||s.firstMessageAt))}</td>
+      <td class="op-mono">${esc(whatsappDuration(s.firstResponseSeconds))}</td>
       <td class="op-mono">${esc(whatsappGroupLocalDate(s.closedAt))}</td>
       <td class="op-mono">${fN(Number(s.messageCount||0))}</td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
+}
+async function closeWhatsappGroupSessionFromPanel(id,protocol){
+  const label=protocol||id||'este atendimento';
+  if(!id){toast('Atendimento não identificado.',true);return;}
+  if(!confirm(`Encerrar ${label} pelo painel? Nenhuma mensagem será enviada no WhatsApp.`))return;
+  try{
+    const res=await fetch('/api/whatsapp-grupo/sessions/close',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id})});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok)throw new Error(data.error||'falha');
+    await loadWhatsappGroupData(true);
+    toast(data.alreadyClosed?'Atendimento já estava encerrado.':'Atendimento encerrado pelo painel.');
+  }catch(err){
+    toast(err?.message||'Não consegui encerrar o atendimento.',true);
+  }
 }
 function renderWhatsappGroupRecords(){
   if(!whatsappGroupLoaded){loadWhatsappGroupData();return;}
@@ -320726,11 +320748,14 @@ function renderWhatsappGroupRecords(){
   const open=sessions.filter(s=>String(s.status||'').toUpperCase()==='OPEN').length;
   const answered=sessions.filter(s=>String(s.status||'').toUpperCase()==='ANSWERED').length;
   const closed=sessions.filter(s=>String(s.status||'').toUpperCase()==='CLOSED').length;
+  const responseTimes=sessions.map(s=>Number(s.firstResponseSeconds||0)).filter(v=>Number.isFinite(v)&&v>0);
+  const avgResponse=responseTimes.length?responseTimes.reduce((sum,value)=>sum+value,0)/responseTimes.length:0;
   if($('wg-k-sessions'))$('wg-k-sessions').textContent=fN(sessions.length);
   if($('wg-k-total'))$('wg-k-total').textContent=fN(rows.length);
-  if($('wg-k-open'))$('wg-k-open').textContent=fN(open+answered);
+  if($('wg-k-open'))$('wg-k-open').textContent=fN(open);
+  if($('wg-k-first-response'))$('wg-k-first-response').textContent=whatsappDuration(avgResponse);
   if($('wg-k-closed'))$('wg-k-closed').textContent=fN(closed);
-  if($('wg-summary'))$('wg-summary').textContent=`${fN(sessions.length)} atendimento(s) · ${fN(rows.length)} mensagem(ns) · ${fN(openGroups.size)} grupo(s)`;
+  if($('wg-summary'))$('wg-summary').textContent=`${fN(sessions.length)} atendimento(s) · ${fN(rows.length)} mensagem(ns) · ${fN(open)} sem resposta · ${fN(answered)} respondido(s) · ${fN(closed)} encerrado(s) · ${fN(openGroups.size)} grupo(s)`;
   renderManualRecordList('wg-group-list',Object.entries(rows.reduce((acc,r)=>{const g=whatsappGroupLabel(r);acc[g]=(acc[g]||0)+1;return acc;},{})).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'pt-BR')),'Sem mensagens');
   renderWhatsappSessionRows(filteredSessions);
   const tbody=$('wg-tbody'), empty=$('wg-empty');if(!tbody)return;
@@ -322089,7 +322114,7 @@ async function submitReviewRequest(event){
   const defesa=$('review-defense').value.trim();
   const tipo=$('review-type').value;
   const evidencia=$('review-evidence').value.trim();
-  
+
   if(!protocolo||!defesa){
     const msg='Protocolo e defesa são obrigatórios.';
     $('review-form-status').textContent=msg;
@@ -322097,7 +322122,7 @@ async function submitReviewRequest(event){
     if(button)button.disabled=false;
     return;
   }
-  
+
   const payload={protocolo,tipo,defesa,evidencia};
   $('review-form-status').textContent='Enviando...';
   try{
@@ -323934,11 +323959,6 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
-
-
-
-
-
 
 
 

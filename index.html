@@ -1055,9 +1055,9 @@ canvas{cursor:pointer;}
   </div>
 
   <div class="kstrip" style="margin-bottom:1rem">
-    <div class="kpi" style="--kc:var(--moss)"><div class="kl">Mensagens</div><div class="kv" id="wg-k-total">0</div><div class="ks">No filtro atual</div></div>
-    <div class="kpi" style="--kc:var(--amber)"><div class="kl">Abertos</div><div class="kv" id="wg-k-open">0</div><div class="ks">Atendimentos em andamento</div></div>
-    <div class="kpi" style="--kc:var(--sky)"><div class="kl">Respondidos</div><div class="kv" id="wg-k-answered">0</div><div class="ks">Com resposta do número</div></div>
+    <div class="kpi" style="--kc:var(--moss)"><div class="kl">Atendimentos</div><div class="kv" id="wg-k-sessions">0</div><div class="ks">Unidade principal</div></div>
+    <div class="kpi" style="--kc:var(--sage)"><div class="kl">Mensagens</div><div class="kv" id="wg-k-total">0</div><div class="ks">Contagem de interações</div></div>
+    <div class="kpi" style="--kc:var(--amber)"><div class="kl">Em aberto</div><div class="kv" id="wg-k-open">0</div><div class="ks">Abertos ou respondidos</div></div>
     <div class="kpi" style="--kc:var(--moss2)"><div class="kl">Encerrados</div><div class="kv" id="wg-k-closed">0</div><div class="ks">Finalizados pelo WhatsApp</div></div>
   </div>
 
@@ -1107,13 +1107,37 @@ canvas{cursor:pointer;}
         <input class="fs" id="wg-config-instance" placeholder="Instância">
         <input class="fs" id="wg-config-group-id" placeholder="grupoid@g.us">
         <input class="fs" id="wg-config-group-name" placeholder="Nome do grupo">
-        <button class="rel-action" type="button" onclick="saveWhatsappGroupConfig()">Adicionar grupo</button>
+        <input class="fs" id="wg-config-client-name" placeholder="Cliente associado">
+        <input class="fs" id="wg-config-agents" placeholder="Agentes: Guilherme, Maria">
+        <button class="rel-action" type="button" onclick="saveWhatsappGroupConfig()">Salvar grupo</button>
       </div>
       <div class="blist" id="wg-config-groups"></div>
     </div>
     <div class="card">
       <div class="ch"><div><div class="ct">Resumo por Grupo</div><div class="cs">Mensagens capturadas no filtro atual</div></div></div>
       <div class="blist" id="wg-group-list"></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:1rem">
+    <div class="ch"><div><div class="ct">Atendimentos registrados</div><div class="cs">Cada protocolo representa um atendimento, com mensagens como detalhe</div></div></div>
+    <div class="tsc">
+      <table class="dt manual-record-table">
+        <thead>
+          <tr>
+            <th>Protocolo</th>
+            <th>Status</th>
+            <th>Grupo / Cliente</th>
+            <th>Agente</th>
+            <th>Cliente/Remetente</th>
+            <th>Início</th>
+            <th>Fim</th>
+            <th>Mensagens</th>
+          </tr>
+        </thead>
+        <tbody id="wg-session-tbody"></tbody>
+      </table>
+      <div class="op-empty" id="wg-session-empty" style="display:none">Nenhum atendimento de WhatsApp Grupo encontrado.</div>
     </div>
   </div>
 
@@ -1645,7 +1669,7 @@ const D = {
                   1691,
                   1866,
                   1794,
-                  531
+                  533
               ],
     "aval":  [
                  958,
@@ -1654,7 +1678,7 @@ const D = {
                  847,
                  961,
                  870,
-                 246
+                 247
              ],
     "closed":  [
                    1952,
@@ -1663,7 +1687,7 @@ const D = {
                    1691,
                    1866,
                    1794,
-                   528
+                   529
                ],
     "open":  [
                  0,
@@ -1672,7 +1696,7 @@ const D = {
                  0,
                  0,
                  0,
-                 3
+                 4
              ],
     "cobert":  [
                    0.4908,
@@ -1681,7 +1705,7 @@ const D = {
                    0.5009,
                    0.515,
                    0.4849,
-                   0.4659
+                   0.4669
                ],
     "sat":  [
                 9.817,
@@ -1690,7 +1714,7 @@ const D = {
                 9.732,
                 9.743,
                 9.663,
-                9.829
+                9.83
             ],
     "tma":  [
                 "00:28:51",
@@ -1699,7 +1723,7 @@ const D = {
                 "00:36:11",
                 "00:43:05",
                 "00:25:53",
-                "00:25:40"
+                "00:25:45"
             ],
     "tme":  [
                 "00:05:30",
@@ -1717,7 +1741,7 @@ const D = {
                 0.9976,
                 0.9898,
                 0.9872,
-                0.9867
+                0.9868
             ],
     "daily":  {
                   "1":  {
@@ -2266,7 +2290,7 @@ const D = {
                                       "c":  9.667
                                   },
                             "9":  {
-                                      "v":  27,
+                                      "v":  29,
                                       "c":  10
                                   }
                         }
@@ -2318,7 +2342,7 @@ const D = {
                           93,
                           86,
                           164,
-                          108,
+                          110,
                           80
                       ]
             },
@@ -2366,7 +2390,7 @@ const D = {
                           ],
                     "7":  [
                               426,
-                              105
+                              107
                           ]
                 },
     "semDow":  {
@@ -2381,7 +2405,7 @@ const D = {
                                  0,
                                  0,
                                  78,
-                                 27,
+                                 29,
                                  0
                              ]
                },
@@ -2492,8 +2516,8 @@ const D = {
                                0
                            ],
                    "jul":  [
-                               151,
-                               123,
+                               152,
+                               124,
                                91,
                                65,
                                37,
@@ -2722,7 +2746,7 @@ const D = {
                                                  "00:22:38"
                                              ],
                                              [
-                                                 60,
+                                                 61,
                                                  27,
                                                  9.89,
                                                  "00:18:07"
@@ -2898,7 +2922,7 @@ const D = {
                                              "00:25:41"
                                          ],
                                          [
-                                             35,
+                                             36,
                                              16,
                                              10,
                                              "00:29:27"
@@ -3427,9 +3451,9 @@ const D = {
                                            ],
                                            [
                                                37,
-                                               20,
+                                               21,
                                                10,
-                                               "00:28:03"
+                                               "00:29:14"
                                            ]
                                        ]
                 },
@@ -3472,6 +3496,60 @@ const D = {
                       "Neppo Voz"
                   ],
     "rows":  [
+                 [
+                     7,
+                     9,
+                     "Isaac Coelho",
+                     "Reproducao",
+                     0,
+                     9,
+                     null,
+                     "WA00000127962",
+                     "2 Periodo",
+                     10,
+                     "09/07/2026 10:14",
+                     "",
+                     "Cliente #020 · 93 atendimentos",
+                     "",
+                     "WHATSAPP",
+                     "OPEN",
+                     127962,
+                     "MODELO",
+                     "Cliente #020",
+                     "Cliente #020 · 93 atendimentos",
+                     "CLIENTE:C020",
+                     "",
+                     "",
+                     "",
+                     93
+                 ],
+                 [
+                     7,
+                     9,
+                     "Evelyn Gonçalves",
+                     "Estoque Animais",
+                     0,
+                     9,
+                     null,
+                     "WA00000127960",
+                     "2 Periodo",
+                     10,
+                     "09/07/2026 10:09",
+                     "",
+                     "Cliente #038 · 36 atendimentos",
+                     "",
+                     "WHATSAPP",
+                     "OPEN",
+                     127960,
+                     "MODELO",
+                     "Cliente #038",
+                     "Cliente #038 · 36 atendimentos",
+                     "CLIENTE:C038",
+                     "",
+                     "",
+                     "",
+                     36
+                 ],
                  [
                      7,
                      9,
@@ -3593,19 +3671,19 @@ const D = {
                      9,
                      "09/07/2026 09:25",
                      "09/07/2026 09:33",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      127950,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      7,
@@ -3639,18 +3717,18 @@ const D = {
                      9,
                      "Wiviane Borges",
                      "Estoque Animais",
-                     0,
+                     4324,
                      1,
-                     null,
+                     10,
                      "WA00000127946",
                      "1 Periodo",
                      9,
                      "09/07/2026 09:08",
-                     "",
+                     "09/07/2026 10:20",
                      "Cliente #062 · 44 atendimentos",
                      "",
                      "WHATSAPP",
-                     "OPEN",
+                     "CLOSED",
                      127946,
                      "MODELO",
                      "Cliente #062",
@@ -3701,19 +3779,19 @@ const D = {
                      8,
                      "09/07/2026 08:59",
                      "09/07/2026 09:20",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      127942,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      7,
@@ -3809,19 +3887,19 @@ const D = {
                      8,
                      "09/07/2026 08:42",
                      "09/07/2026 08:59",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      127934,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      7,
@@ -3890,19 +3968,19 @@ const D = {
                      8,
                      "09/07/2026 08:38",
                      "09/07/2026 08:46",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      127928,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      7,
@@ -4052,19 +4130,19 @@ const D = {
                      8,
                      "09/07/2026 08:15",
                      "09/07/2026 08:48",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      127916,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      7,
@@ -4160,19 +4238,19 @@ const D = {
                      8,
                      "09/07/2026 08:04",
                      "09/07/2026 08:29",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      127908,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      7,
@@ -5996,19 +6074,19 @@ const D = {
                      8,
                      "08/07/2026 08:37",
                      "08/07/2026 08:52",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      127768,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      7,
@@ -19577,19 +19655,19 @@ const D = {
                      8,
                      "05/01/2026 08:01",
                      "05/01/2026 08:16",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      103867,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      1,
@@ -22385,19 +22463,19 @@ const D = {
                      9,
                      "06/01/2026 09:38",
                      "06/01/2026 10:41",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      104085,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      1,
@@ -23924,19 +24002,19 @@ const D = {
                      15,
                      "06/01/2026 15:53",
                      "06/01/2026 16:13",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      104207,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      1,
@@ -25355,19 +25433,19 @@ const D = {
                      10,
                      "07/01/2026 10:50",
                      "07/01/2026 11:16",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      104318,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      1,
@@ -27272,19 +27350,19 @@ const D = {
                      9,
                      "08/01/2026 09:08",
                      "08/01/2026 10:10",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      104466,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      1,
@@ -27893,19 +27971,19 @@ const D = {
                      10,
                      "08/01/2026 10:58",
                      "08/01/2026 11:22",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      104512,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      1,
@@ -31214,19 +31292,19 @@ const D = {
                      14,
                      "09/01/2026 14:34",
                      "09/01/2026 15:00",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      104768,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      1,
@@ -34670,19 +34748,19 @@ const D = {
                      8,
                      "13/01/2026 08:39",
                      "13/01/2026 09:13",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      105044,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      1,
@@ -34697,19 +34775,19 @@ const D = {
                      8,
                      "13/01/2026 08:42",
                      "13/01/2026 08:55",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      105046,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      1,
@@ -34967,19 +35045,19 @@ const D = {
                      9,
                      "13/01/2026 09:29",
                      "13/01/2026 09:59",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      105066,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      1,
@@ -35804,19 +35882,19 @@ const D = {
                      12,
                      "13/01/2026 12:46",
                      "13/01/2026 12:59",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      105130,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      1,
@@ -36128,19 +36206,19 @@ const D = {
                      14,
                      "13/01/2026 14:39",
                      "13/01/2026 15:18",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      105156,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      1,
@@ -36263,19 +36341,19 @@ const D = {
                      14,
                      "13/01/2026 14:47",
                      "13/01/2026 14:55",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      105166,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      1,
@@ -37640,19 +37718,19 @@ const D = {
                      9,
                      "14/01/2026 09:55",
                      "14/01/2026 10:25",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      105278,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      1,
@@ -38801,19 +38879,19 @@ const D = {
                      16,
                      "14/01/2026 16:18",
                      "14/01/2026 17:01",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      105368,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      1,
@@ -44417,19 +44495,19 @@ const D = {
                      8,
                      "19/01/2026 08:07",
                      "19/01/2026 08:15",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      105800,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      1,
@@ -44741,19 +44819,19 @@ const D = {
                      8,
                      "19/01/2026 08:29",
                      "19/01/2026 09:01",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      105824,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      1,
@@ -46901,19 +46979,19 @@ const D = {
                      16,
                      "19/01/2026 16:33",
                      "19/01/2026 16:54",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      106002,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      1,
@@ -49979,19 +50057,19 @@ const D = {
                      15,
                      "20/01/2026 15:45",
                      "20/01/2026 16:01",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      106240,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      1,
@@ -58025,19 +58103,19 @@ const D = {
                      8,
                      "26/01/2026 08:32",
                      "26/01/2026 08:41",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      106878,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      1,
@@ -58943,19 +59021,19 @@ const D = {
                      13,
                      "26/01/2026 13:09",
                      "26/01/2026 13:22",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      106952,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      1,
@@ -62669,19 +62747,19 @@ const D = {
                      16,
                      "27/01/2026 16:51",
                      "27/01/2026 17:33",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      107236,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      1,
@@ -64586,19 +64664,19 @@ const D = {
                      15,
                      "28/01/2026 15:12",
                      "28/01/2026 15:28",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      107392,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      1,
@@ -64613,19 +64691,19 @@ const D = {
                      15,
                      "28/01/2026 15:19",
                      "28/01/2026 15:26",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      107394,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      1,
@@ -64694,19 +64772,19 @@ const D = {
                      15,
                      "28/01/2026 15:55",
                      "28/01/2026 16:34",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      107406,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      1,
@@ -64964,19 +65042,19 @@ const D = {
                      16,
                      "28/01/2026 16:15",
                      "28/01/2026 17:16",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      107428,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      1,
@@ -67313,19 +67391,19 @@ const D = {
                      14,
                      "29/01/2026 14:22",
                      "29/01/2026 15:00",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      107630,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      1,
@@ -70094,19 +70172,19 @@ const D = {
                      15,
                      "30/01/2026 15:42",
                      "30/01/2026 16:06",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      107844,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      1,
@@ -75413,19 +75491,19 @@ const D = {
                      15,
                      "03/02/2026 15:32",
                      "03/02/2026 16:14",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      108274,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      2,
@@ -75683,19 +75761,19 @@ const D = {
                      16,
                      "03/02/2026 16:29",
                      "03/02/2026 16:42",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      108300,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      2,
@@ -75764,19 +75842,19 @@ const D = {
                      16,
                      "03/02/2026 16:42",
                      "03/02/2026 17:02",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      108306,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      2,
@@ -76466,19 +76544,19 @@ const D = {
                      9,
                      "04/02/2026 09:09",
                      "04/02/2026 09:18",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      108358,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      2,
@@ -77438,19 +77516,19 @@ const D = {
                      13,
                      "04/02/2026 13:08",
                      "04/02/2026 13:16",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      108434,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      2,
@@ -78329,19 +78407,19 @@ const D = {
                      15,
                      "04/02/2026 15:37",
                      "04/02/2026 16:12",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      108502,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      2,
@@ -78626,19 +78704,19 @@ const D = {
                      16,
                      "04/02/2026 16:27",
                      "04/02/2026 16:41",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      108524,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      2,
@@ -78815,19 +78893,19 @@ const D = {
                      16,
                      "04/02/2026 16:51",
                      "04/02/2026 17:25",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      108540,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      2,
@@ -82919,19 +82997,19 @@ const D = {
                      14,
                      "06/02/2026 14:49",
                      "06/02/2026 15:51",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      108860,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      2,
@@ -83810,19 +83888,19 @@ const D = {
                      8,
                      "09/02/2026 08:01",
                      "09/02/2026 08:25",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      108928,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      2,
@@ -83918,19 +83996,19 @@ const D = {
                      8,
                      "09/02/2026 08:17",
                      "09/02/2026 08:38",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      108936,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      2,
@@ -85241,19 +85319,19 @@ const D = {
                      12,
                      "09/02/2026 12:00",
                      "09/02/2026 12:26",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      109046,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      2,
@@ -85511,19 +85589,19 @@ const D = {
                      13,
                      "09/02/2026 13:46",
                      "09/02/2026 13:53",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      109066,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      2,
@@ -87077,19 +87155,19 @@ const D = {
                      10,
                      "10/02/2026 10:09",
                      "10/02/2026 10:18",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      109198,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      2,
@@ -87617,19 +87695,19 @@ const D = {
                      11,
                      "10/02/2026 11:47",
                      "10/02/2026 11:54",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      109238,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      2,
@@ -87941,19 +88019,19 @@ const D = {
                      13,
                      "10/02/2026 13:13",
                      "10/02/2026 14:12",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      109262,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      2,
@@ -93692,19 +93770,19 @@ const D = {
                      16,
                      "12/02/2026 16:30",
                      "12/02/2026 16:53",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      109726,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      2,
@@ -94232,19 +94310,19 @@ const D = {
                      8,
                      "13/02/2026 08:08",
                      "13/02/2026 08:28",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      109766,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      2,
@@ -94664,19 +94742,19 @@ const D = {
                      10,
                      "13/02/2026 10:10",
                      "13/02/2026 10:21",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      109800,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      2,
@@ -97850,19 +97928,19 @@ const D = {
                      14,
                      "16/02/2026 14:51",
                      "16/02/2026 15:31",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      110048,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      2,
@@ -104924,19 +105002,19 @@ const D = {
                      11,
                      "20/02/2026 11:50",
                      "20/02/2026 12:24",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      110612,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      2,
@@ -106031,19 +106109,19 @@ const D = {
                      8,
                      "23/02/2026 08:03",
                      "23/02/2026 08:40",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      110704,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      2,
@@ -106301,19 +106379,19 @@ const D = {
                      8,
                      "23/02/2026 08:40",
                      "23/02/2026 09:10",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      110726,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      2,
@@ -109406,19 +109484,19 @@ const D = {
                      15,
                      "24/02/2026 15:23",
                      "24/02/2026 15:30",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      110968,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      2,
@@ -111431,19 +111509,19 @@ const D = {
                      14,
                      "25/02/2026 14:34",
                      "25/02/2026 14:47",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      111128,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      2,
@@ -117209,19 +117287,19 @@ const D = {
                      9,
                      "02/03/2026 09:59",
                      "02/03/2026 10:08",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      111572,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      3,
@@ -118856,19 +118934,19 @@ const D = {
                      16,
                      "02/03/2026 16:08",
                      "02/03/2026 16:29",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      111700,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      3,
@@ -119342,19 +119420,19 @@ const D = {
                      8,
                      "03/03/2026 08:10",
                      "03/03/2026 08:29",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      111736,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      3,
@@ -121502,19 +121580,19 @@ const D = {
                      8,
                      "04/03/2026 08:52",
                      "04/03/2026 09:10",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      111904,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      3,
@@ -124850,19 +124928,19 @@ const D = {
                      15,
                      "05/03/2026 15:16",
                      "05/03/2026 16:08",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      112162,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      3,
@@ -126713,19 +126791,19 @@ const D = {
                      8,
                      "09/03/2026 08:10",
                      "09/03/2026 08:40",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      112308,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      3,
@@ -127361,19 +127439,19 @@ const D = {
                      9,
                      "09/03/2026 09:40",
                      "09/03/2026 10:21",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      112356,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      3,
@@ -129224,19 +129302,19 @@ const D = {
                      8,
                      "10/03/2026 08:46",
                      "10/03/2026 09:00",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      112508,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      3,
@@ -130817,19 +130895,19 @@ const D = {
                      14,
                      "10/03/2026 14:25",
                      "10/03/2026 15:48",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      112628,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      3,
@@ -133625,19 +133703,19 @@ const D = {
                      16,
                      "11/03/2026 16:12",
                      "11/03/2026 16:40",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      112842,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      3,
@@ -138674,19 +138752,19 @@ const D = {
                      9,
                      "16/03/2026 09:32",
                      "16/03/2026 09:53",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      113244,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      3,
@@ -139430,19 +139508,19 @@ const D = {
                      13,
                      "16/03/2026 13:04",
                      "16/03/2026 13:26",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      113300,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      3,
@@ -141860,19 +141938,19 @@ const D = {
                      10,
                      "17/03/2026 10:36",
                      "17/03/2026 11:06",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      113484,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      3,
@@ -145559,19 +145637,19 @@ const D = {
                      15,
                      "18/03/2026 15:51",
                      "18/03/2026 16:29",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      113768,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      3,
@@ -146585,19 +146663,19 @@ const D = {
                      10,
                      "19/03/2026 10:43",
                      "19/03/2026 10:48",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      113848,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      3,
@@ -147206,19 +147284,19 @@ const D = {
                      14,
                      "19/03/2026 14:17",
                      "19/03/2026 14:47",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      113898,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      3,
@@ -147773,19 +147851,19 @@ const D = {
                      15,
                      "19/03/2026 15:50",
                      "19/03/2026 15:59",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      113944,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      3,
@@ -163433,19 +163511,19 @@ const D = {
                      16,
                      "27/03/2026 16:01",
                      "27/03/2026 16:12",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      115160,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      3,
@@ -168509,19 +168587,19 @@ const D = {
                      15,
                      "31/03/2026 15:26",
                      "31/03/2026 15:51",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      115562,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      3,
@@ -178310,19 +178388,19 @@ const D = {
                      8,
                      "08/04/2026 08:04",
                      "08/04/2026 08:12",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      116316,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      4,
@@ -182090,19 +182168,19 @@ const D = {
                      8,
                      "10/04/2026 08:00",
                      "10/04/2026 08:19",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      116614,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      4,
@@ -183899,19 +183977,19 @@ const D = {
                      16,
                      "10/04/2026 16:21",
                      "10/04/2026 16:51",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      116750,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      4,
@@ -184115,19 +184193,19 @@ const D = {
                      16,
                      "10/04/2026 16:56",
                      "10/04/2026 17:09",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      116768,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      4,
@@ -184196,19 +184274,19 @@ const D = {
                      17,
                      "10/04/2026 17:28",
                      "10/04/2026 17:41",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      116774,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      4,
@@ -185762,19 +185840,19 @@ const D = {
                      12,
                      "13/04/2026 12:59",
                      "13/04/2026 13:27",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      116894,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      4,
@@ -187409,19 +187487,19 @@ const D = {
                      10,
                      "14/04/2026 10:30",
                      "14/04/2026 10:56",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      117020,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      4,
@@ -189650,19 +189728,19 @@ const D = {
                      9,
                      "15/04/2026 09:56",
                      "15/04/2026 10:41",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      117194,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      4,
@@ -190028,19 +190106,19 @@ const D = {
                      11,
                      "15/04/2026 11:06",
                      "15/04/2026 11:28",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      117224,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      4,
@@ -190514,19 +190592,19 @@ const D = {
                      13,
                      "15/04/2026 13:39",
                      "15/04/2026 14:00",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      117260,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      4,
@@ -190676,19 +190754,19 @@ const D = {
                      14,
                      "15/04/2026 14:38",
                      "15/04/2026 14:44",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      117272,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      4,
@@ -192593,19 +192671,19 @@ const D = {
                      10,
                      "16/04/2026 10:36",
                      "16/04/2026 10:55",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      117420,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      4,
@@ -192809,19 +192887,19 @@ const D = {
                      11,
                      "16/04/2026 11:04",
                      "16/04/2026 11:14",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      117436,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      4,
@@ -196643,19 +196721,19 @@ const D = {
                      16,
                      "17/04/2026 16:30",
                      "17/04/2026 16:49",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      117724,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      4,
@@ -197237,19 +197315,19 @@ const D = {
                      10,
                      "20/04/2026 10:33",
                      "20/04/2026 11:19",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      117772,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      4,
@@ -197507,19 +197585,19 @@ const D = {
                      11,
                      "20/04/2026 11:37",
                      "20/04/2026 11:49",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      117792,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      4,
@@ -212789,19 +212867,19 @@ const D = {
                      8,
                      "30/04/2026 08:05",
                      "30/04/2026 09:15",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      118970,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      4,
@@ -218378,19 +218456,19 @@ const D = {
                      14,
                      "05/05/2026 14:43",
                      "05/05/2026 15:17",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      119412,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      5,
@@ -227315,19 +227393,19 @@ const D = {
                      10,
                      "11/05/2026 10:25",
                      "11/05/2026 11:10",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      120120,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      5,
@@ -227720,19 +227798,19 @@ const D = {
                      11,
                      "11/05/2026 11:22",
                      "11/05/2026 11:44",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      120156,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      5,
@@ -228827,19 +228905,19 @@ const D = {
                      15,
                      "11/05/2026 15:53",
                      "11/05/2026 16:05",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      120242,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      5,
@@ -249347,19 +249425,19 @@ const D = {
                      15,
                      "21/05/2026 15:56",
                      "21/05/2026 16:25",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      121880,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      5,
@@ -250670,19 +250748,19 @@ const D = {
                      10,
                      "22/05/2026 10:09",
                      "22/05/2026 10:12",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      121978,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      5,
@@ -255449,19 +255527,19 @@ const D = {
                      9,
                      "26/05/2026 09:01",
                      "26/05/2026 09:17",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      122343,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      5,
@@ -255530,19 +255608,19 @@ const D = {
                      9,
                      "26/05/2026 09:19",
                      "26/05/2026 09:41",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      122349,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      5,
@@ -258824,19 +258902,19 @@ const D = {
                      9,
                      "27/05/2026 09:08",
                      "27/05/2026 09:34",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      122601,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      5,
@@ -260903,19 +260981,19 @@ const D = {
                      16,
                      "27/05/2026 16:33",
                      "27/05/2026 16:54",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      122769,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      5,
@@ -262658,19 +262736,19 @@ const D = {
                      13,
                      "28/05/2026 13:47",
                      "28/05/2026 14:19",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      122905,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      5,
@@ -262820,19 +262898,19 @@ const D = {
                      14,
                      "28/05/2026 14:28",
                      "28/05/2026 14:48",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      122919,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      5,
@@ -267086,19 +267164,19 @@ const D = {
                      14,
                      "01/06/2026 14:31",
                      "01/06/2026 14:44",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      123253,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      6,
@@ -268517,19 +268595,19 @@ const D = {
                      8,
                      "02/06/2026 08:02",
                      "02/06/2026 08:38",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      123361,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      6,
@@ -276833,19 +276911,19 @@ const D = {
                      16,
                      "08/06/2026 16:20",
                      "08/06/2026 16:32",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      123989,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      6,
@@ -279182,19 +279260,19 @@ const D = {
                      16,
                      "09/06/2026 16:14",
                      "09/06/2026 16:22",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      124165,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      6,
@@ -281261,19 +281339,19 @@ const D = {
                      14,
                      "10/06/2026 14:40",
                      "10/06/2026 15:05",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      124323,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      6,
@@ -281693,19 +281771,19 @@ const D = {
                      15,
                      "10/06/2026 15:45",
                      "10/06/2026 16:15",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      124357,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      6,
@@ -282341,19 +282419,19 @@ const D = {
                      8,
                      "11/06/2026 08:16",
                      "11/06/2026 08:32",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      124409,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      6,
@@ -282503,19 +282581,19 @@ const D = {
                      8,
                      "11/06/2026 08:51",
                      "11/06/2026 10:21",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      124423,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      6,
@@ -284582,19 +284660,19 @@ const D = {
                      16,
                      "11/06/2026 16:34",
                      "11/06/2026 16:59",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      124581,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      6,
@@ -284744,19 +284822,19 @@ const D = {
                      17,
                      "11/06/2026 17:06",
                      "11/06/2026 17:26",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      124593,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      6,
@@ -285122,19 +285200,19 @@ const D = {
                      9,
                      "12/06/2026 09:17",
                      "12/06/2026 10:08",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      124623,
                      "MODELO",
                      "Cliente #038",
-                     "Cliente #038 · 35 atendimentos",
+                     "Cliente #038 · 36 atendimentos",
                      "CLIENTE:C038",
                      "",
                      "",
                      "",
-                     35
+                     36
                  ],
                  [
                      6,
@@ -286175,19 +286253,19 @@ const D = {
                      14,
                      "12/06/2026 14:16",
                      "12/06/2026 14:53",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      124701,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      6,
@@ -287903,19 +287981,19 @@ const D = {
                      10,
                      "15/06/2026 10:14",
                      "15/06/2026 11:05",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      124837,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      6,
@@ -293924,19 +294002,19 @@ const D = {
                      9,
                      "18/06/2026 09:30",
                      "18/06/2026 10:26",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      125307,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      6,
@@ -299189,19 +299267,19 @@ const D = {
                      15,
                      "22/06/2026 15:43",
                      "22/06/2026 16:12",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      125728,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      6,
@@ -305183,19 +305261,19 @@ const D = {
                      10,
                      "25/06/2026 10:19",
                      "25/06/2026 10:39",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      126188,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      6,
@@ -305588,19 +305666,19 @@ const D = {
                      12,
                      "25/06/2026 12:56",
                      "25/06/2026 13:14",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      126222,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      6,
@@ -305696,19 +305774,19 @@ const D = {
                      13,
                      "25/06/2026 13:20",
                      "25/06/2026 13:27",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      126230,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      6,
@@ -305723,19 +305801,19 @@ const D = {
                      13,
                      "25/06/2026 13:39",
                      "25/06/2026 14:09",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "",
                      "WHATSAPP",
                      "CLOSED",
                      126232,
                      "MODELO",
                      "Cliente #020",
-                     "Cliente #020 · 92 atendimentos",
+                     "Cliente #020 · 93 atendimentos",
                      "CLIENTE:C020",
                      "",
                      "",
                      "",
-                     92
+                     93
                  ],
                  [
                      6,
@@ -313594,10 +313672,10 @@ const D = {
                                        48
                                    ],
                   "Evelyn Gonçalves":  [
-                                           18.1,
+                                           17.8,
                                            16.7,
                                            72.7,
-                                           60
+                                           61
                                        ],
                   "Gabriel Freire":  [
                                          13.7,
@@ -313612,10 +313690,10 @@ const D = {
                                           2
                                       ],
                   "Isaac Coelho":  [
-                                       29.4,
-                                       22.6,
+                                       28.6,
+                                       22.4,
                                        79.3,
-                                       35
+                                       36
                                    ],
                   "Julia Almeida":  [
                                         32.4,
@@ -313654,19 +313732,19 @@ const D = {
                                          27
                                      ],
                   "Wiviane Borges":  [
-                                         27.3,
-                                         25.7,
+                                         29.2,
+                                         26.1,
                                          76.5,
                                          37
                                      ]
               },
     "tmaDist":  [
-                    91,
+                    92,
                     160,
                     130,
                     80,
                     32,
-                    38
+                    39
                 ],
     "avDist":  {
                    "1":  1,
@@ -313674,7 +313752,7 @@ const D = {
                    "7":  2,
                    "8":  4,
                    "9":  14,
-                   "10":  224
+                   "10":  225
                },
     "avBaixa":  {
                     "Beatriz Araujo":  2,
@@ -313715,7 +313793,7 @@ const D = {
                         12,
                         12,
                         21,
-                        9,
+                        11,
                         12
                     ],
                     [
@@ -313771,7 +313849,7 @@ const D = {
     "tmeHora":  [
                     4.3,
                     7.5,
-                    15.2,
+                    15,
                     11,
                     11.8,
                     7.2,
@@ -313784,7 +313862,7 @@ const D = {
                     "Estoque Animais":  [
                                             21,
                                             25,
-                                            19,
+                                            20,
                                             16,
                                             9,
                                             8,
@@ -313796,7 +313874,7 @@ const D = {
                     "Reproducao":  [
                                        22,
                                        18,
-                                       18,
+                                       19,
                                        7,
                                        5,
                                        10,
@@ -313852,7 +313930,7 @@ const D = {
                                      },
                   "Evelyn Gonçalves":  {
                                            "Reproducao":  39,
-                                           "Estoque Animais":  18,
+                                           "Estoque Animais":  19,
                                            "Retorno envio ativo":  2,
                                            "PMG e Comunicacao para Associacao":  1
                                        },
@@ -313891,7 +313969,7 @@ const D = {
                                          "Retorno envio ativo":  2
                                      },
                   "Isaac Coelho":  {
-                                       "Reproducao":  22,
+                                       "Reproducao":  23,
                                        "Estoque Animais":  12,
                                        "Retorno envio ativo":  1
                                    },
@@ -315576,7 +315654,7 @@ const D = {
                                                      "6":  11,
                                                      "7":  10,
                                                      "8":  7,
-                                                     "9":  3
+                                                     "9":  4
                                                  },
                             "Gabriel Freire":  {
                                                    "1":  4,
@@ -315594,7 +315672,7 @@ const D = {
                                                  "6":  7,
                                                  "7":  10,
                                                  "8":  6,
-                                                 "9":  1
+                                                 "9":  2
                                              },
                             "Julia Almeida":  {
                                                   "1":  8,
@@ -316156,7 +316234,7 @@ const D = {
                                 ],
                      "data":  [
                                   9.85,
-                                  9.739
+                                  9.745
                               ]
                  },
     "byMonth":  {
@@ -319462,10 +319540,10 @@ const D = {
                                                                    48
                                                                ],
                                               "Evelyn Gonçalves":  [
-                                                                       18.1,
+                                                                       17.8,
                                                                        16.7,
                                                                        72.7,
-                                                                       60
+                                                                       61
                                                                    ],
                                               "Gabriel Freire":  [
                                                                      13.7,
@@ -319480,10 +319558,10 @@ const D = {
                                                                       2
                                                                   ],
                                               "Isaac Coelho":  [
-                                                                   29.4,
-                                                                   22.6,
+                                                                   28.6,
+                                                                   22.4,
                                                                    79.3,
-                                                                   35
+                                                                   36
                                                                ],
                                               "Julia Almeida":  [
                                                                     32.4,
@@ -319522,19 +319600,19 @@ const D = {
                                                                      27
                                                                  ],
                                               "Wiviane Borges":  [
-                                                                     27.3,
-                                                                     25.7,
+                                                                     29.2,
+                                                                     26.1,
                                                                      76.5,
                                                                      37
                                                                  ]
                                           },
                                 "tmaDist":  [
-                                                91,
+                                                92,
                                                 160,
                                                 130,
                                                 80,
                                                 32,
-                                                38
+                                                39
                                             ],
                                 "avDist":  {
                                                "1":  1,
@@ -319542,7 +319620,7 @@ const D = {
                                                "7":  2,
                                                "8":  4,
                                                "9":  14,
-                                               "10":  224
+                                               "10":  225
                                            },
                                 "avBaixa":  {
                                                 "Beatriz Araujo":  2,
@@ -319571,7 +319649,7 @@ const D = {
                                                     12,
                                                     12,
                                                     21,
-                                                    9,
+                                                    11,
                                                     12
                                                 ],
                                                 [
@@ -319627,7 +319705,7 @@ const D = {
                                 "tmeHora":  [
                                                 4.3,
                                                 7.5,
-                                                15.2,
+                                                15,
                                                 11,
                                                 11.8,
                                                 7.2,
@@ -319640,7 +319718,7 @@ const D = {
                                                 "Estoque Animais":  [
                                                                         21,
                                                                         25,
-                                                                        19,
+                                                                        20,
                                                                         16,
                                                                         9,
                                                                         8,
@@ -319652,7 +319730,7 @@ const D = {
                                                 "Reproducao":  [
                                                                    22,
                                                                    18,
-                                                                   18,
+                                                                   19,
                                                                    7,
                                                                    5,
                                                                    10,
@@ -319708,7 +319786,7 @@ const D = {
                                                                  },
                                               "Evelyn Gonçalves":  {
                                                                        "Reproducao":  39,
-                                                                       "Estoque Animais":  18,
+                                                                       "Estoque Animais":  19,
                                                                        "Retorno envio ativo":  2,
                                                                        "PMG e Comunicacao para Associacao":  1
                                                                    },
@@ -319747,7 +319825,7 @@ const D = {
                                                                      "Retorno envio ativo":  2
                                                                  },
                                               "Isaac Coelho":  {
-                                                                   "Reproducao":  22,
+                                                                   "Reproducao":  23,
                                                                    "Estoque Animais":  12,
                                                                    "Retorno envio ativo":  1
                                                                },
@@ -319908,7 +319986,7 @@ const D = {
                                                             ],
                                                  "data":  [
                                                               9.85,
-                                                              9.739
+                                                              9.745
                                                           ]
                                              },
                                 "semDow":  {
@@ -319923,7 +320001,7 @@ const D = {
                                                              0,
                                                              0,
                                                              78,
-                                                             27,
+                                                             29,
                                                              0
                                                          ]
                                            }
@@ -320381,8 +320459,20 @@ function whatsappGroupLocalDate(value){
   if(Number.isNaN(d.getTime()))return String(value||'');
   return d.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
 }
+function whatsappGroupConfigMap(){
+  return new Map((WHATSAPP_GROUP_CONFIG?.groups||[]).map(g=>[`${String(g.instance||'')}|${String(g.grupoId||'')}`,g]));
+}
+function whatsappGroupConfigFor(instance,grupoId){
+  const map=whatsappGroupConfigMap();
+  return map.get(`${String(instance||'')}|${String(grupoId||'')}`)||map.get(`|${String(grupoId||'')}`)||null;
+}
 function whatsappGroupLabel(r){
-  return String(r.grupoNome||r.grupoId||'Grupo não identificado');
+  const cfg=whatsappGroupConfigFor(r.instance,r.grupoId);
+  return String(r.grupoNome||cfg?.grupoNome||r.grupoId||'Grupo não identificado');
+}
+function whatsappGroupClientLabel(r){
+  const cfg=whatsappGroupConfigFor(r.instance,r.grupoId);
+  return String(r.clienteNome||cfg?.clienteNome||'Cliente não associado');
 }
 function whatsappSessionStatusLabel(value){
   const status=String(value||'').toUpperCase();
@@ -320400,7 +320490,7 @@ function whatsappSessionStatusClass(value){
 function whatsappGroupFillGroups(){
   const select=$('wg-group-filter');if(!select)return;
   const current=select.value;
-  const groups=[...new Map((WHATSAPP_GROUP_RECORDS||[]).map(r=>[String(r.grupoId||''),whatsappGroupLabel(r)]).filter(([id])=>id)).entries()]
+  const groups=[...new Map([...(WHATSAPP_GROUP_RECORDS||[]),...(WHATSAPP_GROUP_SESSIONS||[])].map(r=>[String(r.grupoId||''),whatsappGroupLabel(r)]).filter(([id])=>id)).entries()]
     .sort((a,b)=>a[1].localeCompare(b[1],'pt-BR',{numeric:true,sensitivity:'base'}));
   select.innerHTML='<option value="">Todos</option>'+groups.map(([id,label])=>`<option value="${esc(id)}">${esc(label)}</option>`).join('');
   if([...select.options].some(o=>o.value===current))select.value=current;
@@ -320449,6 +320539,22 @@ function whatsappGroupFiltered(){
     return true;
   });
 }
+function whatsappSessionFiltered(){
+  const start=$('wg-start')?.value||'', end=$('wg-end')?.value||'', group=$('wg-group-filter')?.value||'';
+  const q=String($('wg-search')?.value||'').trim().toLowerCase();
+  return (WHATSAPP_GROUP_SESSIONS||[]).filter(s=>{
+    const day=String(s.startedAt||s.createdAt||'').slice(0,10);
+    if(start&&day<start)return false;
+    if(end&&day>end)return false;
+    if(group&&String(s.grupoId||'')!==group)return false;
+    if(q&&!['protocol','grupoId','grupoNome','clienteNome','remetenteId','remetenteNome','agenteNome'].some(k=>String(s[k]||'').toLowerCase().includes(q)))return false;
+    return true;
+  });
+}
+function whatsappIsHiddenCommand(r){
+  const text=String(r.conteudo||'').trim().toLowerCase();
+  return r.tipoMensagem==='text'&&/^(#|\/)?(fim|finalizar|encerrar|assumir|assumi|atender|peguei)(\s+atendimento)?(\s|$)/.test(text);
+}
 function renderWhatsappGroupConfig(){
   const mode=WHATSAPP_GROUP_CONFIG?.settings?.mode||'ALL_GROUPS';
   if($('wg-monitor-mode'))$('wg-monitor-mode').value=mode;
@@ -320458,27 +320564,47 @@ function renderWhatsappGroupConfig(){
   host.innerHTML=groups.slice(0,12).map(g=>{
     const label=g.grupoNome||g.grupoId;
     const encodedInstance=encodeURIComponent(String(g.instance||'')), encodedId=encodeURIComponent(String(g.grupoId||''));
-    return `<div class="bi"><span class="bl" title="${esc(g.grupoId||'')}">${esc(label.length>24?label.slice(0,24)+'...':label)}</span><div class="bt"><div class="bfill" style="width:${g.monitorado?100:20}%;background:${g.monitorado?'var(--moss)':'var(--rust)'}"></div></div><span class="bv">${g.monitorado?'ativo':'off'}</span><button class="rel-action admin-only" type="button" onclick="deleteWhatsappGroupConfig('${encodedInstance}','${encodedId}')">Remover</button></div>`;
+    const client=g.clienteNome?` · ${g.clienteNome}`:'';
+    const agents=(g.agentes||[]).length?` · Agentes: ${(g.agentes||[]).join(', ')}`:'';
+    return `<div class="bi"><span class="bl" title="${esc((g.grupoId||'')+client+agents)}">${esc(label.length>24?label.slice(0,24)+'...':label)}</span><div class="bt"><div class="bfill" style="width:${g.monitorado?100:20}%;background:${g.monitorado?'var(--moss)':'var(--rust)'}"></div></div><span class="bv">${g.monitorado?'ativo':'off'}</span><button class="rel-action admin-only" type="button" onclick="fillWhatsappGroupConfig('${encodedInstance}','${encodedId}')">Editar</button><button class="rel-action admin-only" type="button" onclick="deleteWhatsappGroupConfig('${encodedInstance}','${encodedId}')">Remover</button></div>`;
   }).join('')||'<div class="op-empty">Nenhum grupo cadastrado ainda.</div>';
+}
+function renderWhatsappSessionRows(sessions){
+  const tbody=$('wg-session-tbody'), empty=$('wg-session-empty');if(!tbody)return;
+  empty.style.display=sessions.length?'none':'block';
+  tbody.innerHTML=sessions.slice(0,500).map(s=>`
+    <tr>
+      <td class="op-mono"><b>${esc(s.protocol||'')}</b></td>
+      <td><span class="op-badge ${whatsappSessionStatusClass(s.status)}">${esc(whatsappSessionStatusLabel(s.status))}</span></td>
+      <td>${esc(whatsappGroupLabel(s))}<br><span class="op-mono">${esc(s.grupoId||'')}</span><br><span class="manual-note">${esc(whatsappGroupClientLabel(s))}</span></td>
+      <td>${esc(s.agenteNome||'Sem agente')}<br><span class="op-mono">${esc(s.agenteId||'')}</span></td>
+      <td>${esc(s.remetenteNome||'Participante')}<br><span class="op-mono">${esc(s.remetenteId||'')}</span></td>
+      <td class="op-mono">${esc(whatsappGroupLocalDate(s.startedAt||s.firstMessageAt))}</td>
+      <td class="op-mono">${esc(whatsappGroupLocalDate(s.closedAt))}</td>
+      <td class="op-mono">${fN(Number(s.messageCount||0))}</td>
+    </tr>`).join('');
 }
 function renderWhatsappGroupRecords(){
   if(!whatsappGroupLoaded){loadWhatsappGroupData();return;}
   whatsappGroupFillGroups();
   const rows=whatsappGroupFiltered().sort((a,b)=>String(b.messageDatetime||b.createdAt||'').localeCompare(String(a.messageDatetime||a.createdAt||'')));
+  const visibleRows=rows.filter(r=>!whatsappIsHiddenCommand(r));
+  const filteredSessions=whatsappSessionFiltered().sort((a,b)=>String(b.startedAt||b.createdAt||'').localeCompare(String(a.startedAt||a.createdAt||'')));
   const openGroups=new Set(rows.map(r=>r.grupoId).filter(Boolean));
-  const sessions=WHATSAPP_GROUP_SESSIONS||[];
+  const sessions=filteredSessions;
   const open=sessions.filter(s=>String(s.status||'').toUpperCase()==='OPEN').length;
   const answered=sessions.filter(s=>String(s.status||'').toUpperCase()==='ANSWERED').length;
   const closed=sessions.filter(s=>String(s.status||'').toUpperCase()==='CLOSED').length;
+  if($('wg-k-sessions'))$('wg-k-sessions').textContent=fN(sessions.length);
   if($('wg-k-total'))$('wg-k-total').textContent=fN(rows.length);
-  if($('wg-k-open'))$('wg-k-open').textContent=fN(open);
-  if($('wg-k-answered'))$('wg-k-answered').textContent=fN(answered);
+  if($('wg-k-open'))$('wg-k-open').textContent=fN(open+answered);
   if($('wg-k-closed'))$('wg-k-closed').textContent=fN(closed);
-  if($('wg-summary'))$('wg-summary').textContent=`${fN(rows.length)} mensagem(ns) WHATSAPP_GRUPO no filtro · ${fN(openGroups.size)} grupo(s) · ${fN(open+answered)} atendimento(s) aberto(s/respondido(s))`;
+  if($('wg-summary'))$('wg-summary').textContent=`${fN(sessions.length)} atendimento(s) · ${fN(rows.length)} mensagem(ns) · ${fN(openGroups.size)} grupo(s)`;
   renderManualRecordList('wg-group-list',Object.entries(rows.reduce((acc,r)=>{const g=whatsappGroupLabel(r);acc[g]=(acc[g]||0)+1;return acc;},{})).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'pt-BR')),'Sem mensagens');
+  renderWhatsappSessionRows(filteredSessions);
   const tbody=$('wg-tbody'), empty=$('wg-empty');if(!tbody)return;
-  empty.style.display=rows.length?'none':'block';
-  tbody.innerHTML=rows.slice(0,500).map(r=>`
+  empty.style.display=visibleRows.length?'none':'block';
+  tbody.innerHTML=visibleRows.slice(0,500).map(r=>`
     <tr>
       <td class="op-mono">${esc(whatsappGroupLocalDate(r.messageDatetime||r.createdAt))}</td>
       <td>${esc(whatsappGroupLabel(r))}<br><span class="op-mono">${esc(r.grupoId||'')}</span></td>
@@ -320502,9 +320628,11 @@ async function saveWhatsappGroupMode(){
 }
 async function saveWhatsappGroupConfig(){
   const item={
-    instance:String($('wg-config-instance')?.value||'').trim(),
+    instance:String($('wg-config-instance')?.value||'').trim()||'principal',
     grupoId:String($('wg-config-group-id')?.value||'').trim(),
     grupoNome:String($('wg-config-group-name')?.value||'').trim(),
+    clienteNome:String($('wg-config-client-name')?.value||'').trim(),
+    agentes:String($('wg-config-agents')?.value||'').trim().split(/[,;\n]/).map(v=>v.trim()).filter(Boolean),
     monitorado:true
   };
   if(!item.grupoId.endsWith('@g.us')){toast('Informe um grupo no formato grupoid@g.us.',true);return;}
@@ -320513,9 +320641,24 @@ async function saveWhatsappGroupConfig(){
     if(!res.ok)throw new Error('falha');
     if($('wg-config-group-id'))$('wg-config-group-id').value='';
     if($('wg-config-group-name'))$('wg-config-group-name').value='';
+    if($('wg-config-client-name'))$('wg-config-client-name').value='';
+    if($('wg-config-agents'))$('wg-config-agents').value='';
     await loadWhatsappGroupConfig();
+    whatsappGroupFillGroups();
+    renderWhatsappGroupRecords();
     toast('Grupo monitorado salvo.');
   }catch{toast('Não consegui salvar o grupo monitorado.',true);}
+}
+function fillWhatsappGroupConfig(instance,grupoId){
+  const groupId=decodeURIComponent(grupoId||''), inst=decodeURIComponent(instance||'');
+  const g=(WHATSAPP_GROUP_CONFIG?.groups||[]).find(x=>String(x.instance||'')===inst&&String(x.grupoId||'')===groupId);
+  if(!g)return;
+  if($('wg-config-instance'))$('wg-config-instance').value=g.instance||'principal';
+  if($('wg-config-group-id'))$('wg-config-group-id').value=g.grupoId||'';
+  if($('wg-config-group-name'))$('wg-config-group-name').value=g.grupoNome||'';
+  if($('wg-config-client-name'))$('wg-config-client-name').value=g.clienteNome||'';
+  if($('wg-config-agents'))$('wg-config-agents').value=(g.agentes||[]).join(', ');
+  toast('Grupo carregado para edição.');
 }
 async function deleteWhatsappGroupConfig(instance,grupoId){
   const groupId=decodeURIComponent(grupoId||''), inst=decodeURIComponent(instance||'');
@@ -323660,6 +323803,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

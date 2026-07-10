@@ -423,6 +423,7 @@ canvas{cursor:pointer;}
 .wg-ticket-title{font-family:'Fraunces',serif;font-size:.9rem;font-weight:800;color:var(--ink);line-height:1.25;}
 .wg-ticket-meta{font-family:'Geist Mono',monospace;font-size:.59rem;color:var(--ghost);line-height:1.45;overflow-wrap:anywhere;}
 .wg-ticket-actions{display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;}
+.wg-protocol-filter{margin:.45rem 0 .65rem;width:min(380px,100%);}
 .wg-calendar-card{margin-bottom:1rem;}
 .wg-calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
 .wg-calendar-grid .cday{min-height:96px;aspect-ratio:auto;}
@@ -1198,7 +1199,6 @@ canvas{cursor:pointer;}
     <span class="fl">Instância:</span>
     <select class="fs" id="wg-instance-filter" onchange="renderWhatsappGroupRecords()"></select>
     <input class="fs search" id="wg-search" oninput="renderWhatsappGroupRecords()" placeholder="Pesquisar grupo, remetente ou mensagem...">
-    <button class="rel-action" type="button" id="wg-clear-unanswered" style="display:none" onclick="clearWhatsappUnansweredFilter()">Limpar sem resposta</button>
   </div>
 
   <div class="op-tools">
@@ -1275,8 +1275,8 @@ canvas{cursor:pointer;}
         <div class="wg-lane-body" id="wg-lane-progress"></div>
       </section>
       <section class="wg-lane">
-        <div class="wg-lane-head"><div class="wg-lane-title">Respondidos</div><span class="wg-lane-count" id="wg-lane-answered-count">0</span></div>
-        <div class="wg-lane-body" id="wg-lane-answered"></div>
+        <div class="wg-lane-head"><div class="wg-lane-title">Encerrados recentes</div><span class="wg-lane-count" id="wg-lane-closed-count">0</span></div>
+        <div class="wg-lane-body" id="wg-lane-closed"></div>
       </section>
     </div>
   </div>
@@ -1825,7 +1825,7 @@ const D = {
                  847,
                  961,
                  870,
-                 267
+                 271
              ],
     "closed":  [
                    1952,
@@ -1834,7 +1834,7 @@ const D = {
                    1691,
                    1866,
                    1794,
-                   572
+                   577
                ],
     "open":  [
                  0,
@@ -1843,7 +1843,7 @@ const D = {
                  0,
                  0,
                  0,
-                 5
+                 0
              ],
     "cobert":  [
                    0.4908,
@@ -1852,7 +1852,7 @@ const D = {
                    0.5009,
                    0.515,
                    0.4849,
-                   0.4668
+                   0.4697
                ],
     "sat":  [
                 9.817,
@@ -1861,7 +1861,7 @@ const D = {
                 9.732,
                 9.743,
                 9.663,
-                9.839
+                9.841
             ],
     "tma":  [
                 "00:28:51",
@@ -1870,7 +1870,7 @@ const D = {
                 "00:36:11",
                 "00:43:05",
                 "00:25:53",
-                "00:25:58"
+                "00:26:02"
             ],
     "tme":  [
                 "00:05:30",
@@ -1888,7 +1888,7 @@ const D = {
                 0.9976,
                 0.9898,
                 0.9872,
-                0.9878
+                0.9879
             ],
     "daily":  {
                   "1":  {
@@ -2438,7 +2438,7 @@ const D = {
                                   },
                             "9":  {
                                       "v":  73,
-                                      "c":  9.968
+                                      "c":  9.971
                                   }
                         }
               },
@@ -2896,7 +2896,7 @@ const D = {
                                                  65,
                                                  30,
                                                  9.9,
-                                                 "00:18:04"
+                                                 "00:18:15"
                                              ]
                                          ],
                     "Gabriel Almeida":  [
@@ -3334,9 +3334,9 @@ const D = {
                                          ],
                                          [
                                              33,
-                                             17,
-                                             9.94,
-                                             "00:28:45"
+                                             19,
+                                             9.95,
+                                             "00:28:43"
                                          ]
                                      ],
                     "Multisoft_Pesquisa":  [
@@ -3422,9 +3422,9 @@ const D = {
                                            ],
                                            [
                                                8,
-                                               2,
+                                               3,
                                                10,
-                                               "00:27:10"
+                                               "00:30:38"
                                            ]
                                        ],
                     "Raissa Ribeiro":  [
@@ -3598,9 +3598,9 @@ const D = {
                                            ],
                                            [
                                                41,
-                                               23,
+                                               24,
                                                9.96,
-                                               "00:30:55"
+                                               "00:30:52"
                                            ]
                                        ]
                 },
@@ -3648,18 +3648,18 @@ const D = {
                      9,
                      "Marcus Silva",
                      "Retorno envio ativo",
+                     1660,
                      0,
-                     0,
-                     null,
+                     10,
                      "WA00000128054",
                      "5 Periodo",
                      17,
                      "09/07/2026 17:42",
-                     "",
+                     "09/07/2026 18:10",
                      "Cliente #062 · 46 atendimentos",
                      "",
                      "WHATSAPP",
-                     "OPEN",
+                     "CLOSED",
                      128054,
                      "MODELO",
                      "Cliente #062",
@@ -3675,18 +3675,18 @@ const D = {
                      9,
                      "Marcus Silva",
                      "Confinamento",
-                     0,
+                     1719,
                      7,
-                     null,
+                     10,
                      "WA00000128052",
                      "5 Periodo",
                      17,
                      "09/07/2026 17:36",
-                     "",
+                     "09/07/2026 18:05",
                      "Cliente #142 · 27 atendimentos",
                      "",
                      "WHATSAPP",
-                     "OPEN",
+                     "CLOSED",
                      128052,
                      "MODELO",
                      "Cliente #142",
@@ -3702,18 +3702,18 @@ const D = {
                      9,
                      "Evelyn Gonçalves",
                      "Reproducao",
-                     0,
+                     1851,
                      9,
                      null,
                      "WA00000128050",
                      "5 Periodo",
                      17,
                      "09/07/2026 17:31",
-                     "",
+                     "09/07/2026 18:02",
                      "Cliente #194 · 17 atendimentos",
                      "",
                      "WHATSAPP",
-                     "OPEN",
+                     "CLOSED",
                      128050,
                      "MODELO",
                      "Cliente #194",
@@ -3729,18 +3729,18 @@ const D = {
                      9,
                      "Wiviane Borges",
                      "SISBOV",
-                     0,
+                     1708,
                      2,
-                     null,
+                     10,
                      "WA00000128048",
                      "5 Periodo",
                      17,
                      "09/07/2026 17:24",
-                     "",
+                     "09/07/2026 17:53",
                      "Cliente #929 · 1 atendimentos",
                      "",
                      "WHATSAPP",
-                     "OPEN",
+                     "CLOSED",
                      128048,
                      "MODELO",
                      "Cliente #929",
@@ -3756,18 +3756,18 @@ const D = {
                      9,
                      "Natalia Vieira",
                      "Estoque Animais",
-                     0,
+                     3300,
                      3,
-                     null,
+                     10,
                      "WA00000128046",
                      "5 Periodo",
                      17,
                      "09/07/2026 17:02",
-                     "",
+                     "09/07/2026 17:57",
                      "Cliente #300 · 9 atendimentos",
                      "",
                      "WHATSAPP",
-                     "OPEN",
+                     "CLOSED",
                      128046,
                      "MODELO",
                      "Cliente #300",
@@ -315007,8 +315007,8 @@ const D = {
                                        53
                                    ],
                   "Evelyn Gonçalves":  [
-                                           17.8,
-                                           16.7,
+                                           18.3,
+                                           16.8,
                                            72.7,
                                            65
                                        ],
@@ -315049,15 +315049,15 @@ const D = {
                                          27
                                      ],
                   "Marcus Silva":  [
-                                       27,
-                                       25.6,
+                                       28.7,
+                                       27.5,
                                        94.3,
                                        33
                                    ],
                   "Natalia Vieira":  [
-                                         23.8,
-                                         25.1,
-                                         42,
+                                         30.6,
+                                         30.1,
+                                         55,
                                          8
                                      ],
                   "Raissa Ribeiro":  [
@@ -315067,18 +315067,18 @@ const D = {
                                          27
                                      ],
                   "Wiviane Borges":  [
-                                         30.2,
-                                         26.4,
+                                         30.9,
+                                         27.3,
                                          76.5,
                                          41
                                      ]
               },
     "tmaDist":  [
-                    98,
+                    93,
                     170,
-                    142,
-                    89,
-                    37,
+                    145,
+                    90,
+                    38,
                     41
                 ],
     "avDist":  {
@@ -315087,7 +315087,7 @@ const D = {
                    "7":  2,
                    "8":  4,
                    "9":  15,
-                   "10":  244
+                   "10":  248
                },
     "avBaixa":  {
                     "Beatriz Araujo":  2,
@@ -317560,7 +317560,7 @@ const D = {
                     9.923,
                     9.75,
                     9.68,
-                    9.971,
+                    9.973,
                     9.868
                 ],
     "csatWeek":  {
@@ -317570,7 +317570,7 @@ const D = {
                                 ],
                      "data":  [
                                   9.85,
-                                  9.806
+                                  9.817
                               ]
                  },
     "byMonth":  {
@@ -320876,8 +320876,8 @@ const D = {
                                                                    53
                                                                ],
                                               "Evelyn Gonçalves":  [
-                                                                       17.8,
-                                                                       16.7,
+                                                                       18.3,
+                                                                       16.8,
                                                                        72.7,
                                                                        65
                                                                    ],
@@ -320918,15 +320918,15 @@ const D = {
                                                                      27
                                                                  ],
                                               "Marcus Silva":  [
-                                                                   27,
-                                                                   25.6,
+                                                                   28.7,
+                                                                   27.5,
                                                                    94.3,
                                                                    33
                                                                ],
                                               "Natalia Vieira":  [
-                                                                     23.8,
-                                                                     25.1,
-                                                                     42,
+                                                                     30.6,
+                                                                     30.1,
+                                                                     55,
                                                                      8
                                                                  ],
                                               "Raissa Ribeiro":  [
@@ -320936,18 +320936,18 @@ const D = {
                                                                      27
                                                                  ],
                                               "Wiviane Borges":  [
-                                                                     30.2,
-                                                                     26.4,
+                                                                     30.9,
+                                                                     27.3,
                                                                      76.5,
                                                                      41
                                                                  ]
                                           },
                                 "tmaDist":  [
-                                                98,
+                                                93,
                                                 170,
-                                                142,
-                                                89,
-                                                37,
+                                                145,
+                                                90,
+                                                38,
                                                 41
                                             ],
                                 "avDist":  {
@@ -320956,7 +320956,7 @@ const D = {
                                                "7":  2,
                                                "8":  4,
                                                "9":  15,
-                                               "10":  244
+                                               "10":  248
                                            },
                                 "avBaixa":  {
                                                 "Beatriz Araujo":  2,
@@ -321313,7 +321313,7 @@ const D = {
                                                 9.923,
                                                 9.75,
                                                 9.68,
-                                                9.971,
+                                                9.973,
                                                 9.868
                                             ],
                                 "csatWeek":  {
@@ -321323,7 +321323,7 @@ const D = {
                                                             ],
                                                  "data":  [
                                                               9.85,
-                                                              9.806
+                                                              9.817
                                                           ]
                                              },
                                 "semDow":  {
@@ -321793,6 +321793,7 @@ let WHATSAPP_GROUP_INSTANCES=[];
 let WHATSAPP_GROUP_ONLY_UNANSWERED=false;
 let WHATSAPP_GROUP_SOUND=true;
 let WHATSAPP_GROUP_LAST_UNANSWERED_KEY='';
+let WHATSAPP_GROUP_DISMISSED_ALERT_KEY='';
 let whatsappGroupAutoTimer=null;
 let whatsappGroupLoaded=false;
 function whatsappGroupLocalDate(value){
@@ -321963,47 +321964,53 @@ function renderWhatsappGroupConfig(){
     const label=g.grupoNome||g.grupoId;
     const encodedInstance=encodeURIComponent(String(g.instance||'')), encodedId=encodeURIComponent(String(g.grupoId||''));
     const agents=(g.agentes||[]).length?(g.agentes||[]).join(', '):'Sem agentes definidos';
-    return `<div class="wg-config-row"><div><div class="wg-config-name">${esc(label||'Grupo sem nome')}</div><div class="wg-config-meta">ID: ${esc(g.grupoId||'')} · Instância: ${esc(g.instance||'principal')}</div><div class="wg-config-tags"><span class="wg-tag">${g.monitorado?'ativo':'off'}</span><span class="wg-tag">Cliente: ${esc(g.clienteNome||'não associado')}</span><span class="wg-tag">Agentes: ${esc(agents)}</span></div></div><div class="wg-config-actions"><button class="rel-action admin-only" type="button" onclick="fillWhatsappGroupConfig('${encodedInstance}','${encodedId}')">Editar</button><button class="rel-action admin-only" type="button" onclick="deleteWhatsappGroupConfig('${encodedInstance}','${encodedId}')">Remover</button></div></div>`;
+    return `<div class="wg-config-row"><div><div class="wg-config-name">${esc(label||'Grupo sem nome')}</div><div class="wg-config-meta">ID: ${esc(g.grupoId||'')} · Instância: ${esc(g.instance||'principal')}</div><div class="wg-config-tags"><span class="wg-tag">${g.monitorado?'ativo':'off'}</span><span class="wg-tag">Cliente: ${esc(g.clienteNome||'não associado')}</span><span class="wg-tag">Agentes: ${esc(agents)}</span></div></div><div class="wg-config-actions"><button class="rel-action" type="button" onclick="openWhatsappGroupHistory('${encodedInstance}','${encodedId}')">Histórico</button><button class="rel-action admin-only" type="button" onclick="fillWhatsappGroupConfig('${encodedInstance}','${encodedId}')">Editar</button><button class="rel-action admin-only" type="button" onclick="deleteWhatsappGroupConfig('${encodedInstance}','${encodedId}')">Remover</button></div></div>`;
   }).join('')||'<div class="op-empty">Nenhum grupo cadastrado ainda.</div>';
 }
 function renderWhatsappSessionRows(sessions){
   const lanes={
     unanswered:$('wg-lane-unanswered'),
     progress:$('wg-lane-progress'),
-    answered:$('wg-lane-answered')
+    closed:$('wg-lane-closed')
   };
-  if(!lanes.unanswered||!lanes.progress||!lanes.answered)return;
-  const buckets={unanswered:[],progress:[],answered:[]};
+  if(!lanes.unanswered||!lanes.progress||!lanes.closed)return;
+  const buckets={unanswered:[],progress:[],closed:[]};
   (sessions||[]).forEach(s=>{
     const status=String(s.status||'').toUpperCase();
-    if(status==='CLOSED')return;
+    if(status==='CLOSED'){buckets.closed.push(s);return;}
     if(status==='OPEN'||status==='SEM_RESPOSTA')buckets.unanswered.push(s);
-    else if(status==='EM_ATENDIMENTO')buckets.progress.push(s);
-    else buckets.answered.push(s);
+    else buckets.progress.push(s);
   });
   const card=s=>{
     const status=String(s.status||'').toUpperCase();
     const cls=status==='OPEN'||status==='SEM_RESPOSTA'?'unanswered':status==='EM_ATENDIMENTO'?'progress':'';
     const assignButton=['OPEN','SEM_RESPOSTA'].includes(status)?`<button class="rel-action" type="button" onclick="event.stopPropagation();assignWhatsappGroupSession('${esc(s.id||'')}')">Assumir</button>`:'';
     const closeButton=['OPEN','SEM_RESPOSTA','EM_ATENDIMENTO','ANSWERED','RESPONDIDO'].includes(status)?`<button class="rel-action" type="button" onclick="event.stopPropagation();closeWhatsappGroupSessionFromPanel('${esc(s.id||'')}','${esc(s.protocol||'')}')">Encerrar</button>`:'';
-    return `<button class="wg-ticket ${cls}" type="button" onclick="openWhatsappSessionDetail('${esc(s.id||'')}')">
+    const first=whatsappSessionFirstResponseSeconds(s);
+    return `<div class="wg-ticket ${cls}" role="button" tabindex="0" onclick="openWhatsappSessionDetail('${esc(s.id||'')}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openWhatsappSessionDetail('${esc(s.id||'')}')}">
       <div class="wg-ticket-title">${esc(s.protocol||'Sem protocolo')}</div>
-      <div class="wg-ticket-meta">${esc(whatsappGroupLabel(s))}<br>${esc(s.remetenteNome||'Participante')} · ${esc(whatsappGroupLocalDate(s.startedAt||s.firstMessageAt))}<br>Agente: ${esc(s.agenteNome||'Sem agente')} · 1ª resposta: ${esc(whatsappDuration(s.firstResponseSeconds))} · ${fN(Number(s.messageCount||0))} msg</div>
+      <div class="wg-ticket-meta">${esc(whatsappGroupLabel(s))}<br>${esc(s.remetenteNome||'Participante')} · ${esc(whatsappGroupLocalDate(s.startedAt||s.firstMessageAt))}<br>Agente: ${esc(s.agenteNome||'Sem agente')} · 1ª resposta: ${esc(first==null?'--':whatsappDuration(first))} · ${fN(Number(s.messageCount||0))} msg</div>
       <div class="wg-ticket-actions"><span class="op-badge ${whatsappSessionStatusClass(s.status)}">${esc(whatsappSessionStatusLabel(s.status))}</span>${assignButton}${closeButton}</div>
-    </button>`;
+    </div>`;
   };
   Object.entries(buckets).forEach(([key,list])=>{
-    lanes[key].innerHTML=list.slice(0,80).map(card).join('')||'<div class="op-empty">Sem atendimentos nesta fila.</div>';
+    const ordered=key==='closed'?list.slice().sort((a,b)=>String(b.closedAt||b.updatedAt||'').localeCompare(String(a.closedAt||a.updatedAt||''))).slice(0,12):list.slice(0,80);
+    lanes[key].innerHTML=ordered.map(card).join('')||'<div class="op-empty">Sem atendimentos nesta fila.</div>';
     const count=$(`wg-lane-${key}-count`);if(count)count.textContent=fN(list.length);
   });
 }
 function whatsappMediaType(r){
   const media=r?.media||{};
-  const raw=[media.type,r?.tipoMensagem,media.mimetype,media.fileName,r?.conteudo].map(v=>String(v||'').toLowerCase()).join(' ');
-  if(/audio|ogg|opus|mpeg|mp3|m4a|wav/.test(raw))return 'audio';
-  if(/video|mp4|webm|mov/.test(raw))return 'video';
-  if(/image|jpeg|jpg|png|gif|webp/.test(raw))return 'image';
+  const mime=String(media.mimetype||'').toLowerCase();
+  const name=String(media.fileName||'').toLowerCase();
+  const declared=String(media.type||r?.tipoMensagem||'').toLowerCase();
+  const raw=[mime,name,declared].join(' ');
+  if(/^image\//.test(mime)||/\.(jpe?g|png|gif|webp)$/i.test(name))return 'image';
+  if(/^audio\//.test(mime)||/\.(ogg|opus|mp3|m4a|wav|aac)$/i.test(name))return 'audio';
+  if(/^video\//.test(mime)||/\.(mp4|webm|mov)$/i.test(name))return 'video';
   if(/pdf|document|doc|xls|ppt|zip/.test(raw))return 'document';
+  if(/image|jpeg|jpg|png|gif|webp/.test(raw))return 'image';
+  if(/audio|ogg|opus|mpeg|mp3|m4a|wav/.test(raw))return 'audio';
   return media.type||r?.tipoMensagem||'media';
 }
 function whatsappMediaAction(r){
@@ -322012,26 +322019,55 @@ function whatsappMediaAction(r){
   const label=type==='audio'?'Ouvir áudio':type==='image'?'Ver imagem':type==='video'?'Ver vídeo':'Abrir mídia';
   return `<br><button class="rel-action" type="button" onclick="openWhatsappMediaPreview('${esc(r.id||'')}')">${label}</button>`;
 }
-function openWhatsappMediaPreview(id){
+async function openWhatsappMediaPreview(id){
   const r=(WHATSAPP_GROUP_RECORDS||[]).find(x=>String(x.id||'')===String(id||''));
   if(!r?.media?.url){toast('Mídia não encontrada.',true);return;}
   const type=whatsappMediaType(r), url=r.media.url;
   $('rel-title').textContent=type==='audio'?'Áudio do atendimento':type==='image'?'Imagem do atendimento':type==='video'?'Vídeo do atendimento':'Mídia do atendimento';
   $('rel-sub').textContent=`${whatsappGroupLabel(r)} · ${whatsappGroupLocalDate(r.messageDatetime||r.createdAt)} · ${r.media.mimetype||type}`;
-  const media=type==='image'
-    ? `<img src="${esc(url)}" alt="Imagem do atendimento">`
-    : type==='audio'
-      ? `<audio controls preload="metadata" src="${esc(url)}"></audio>`
-      : type==='video'
-        ? `<video controls preload="metadata" src="${esc(url)}"></video>`
-        : `<a class="rel-action" href="${esc(url)}" target="_blank" rel="noopener">Abrir arquivo</a>`;
-  $('rel-body').innerHTML=`<div class="wg-media-preview">${media}<div class="wg-message-meta">${esc(r.remetenteNome||'Participante')} · ${esc(r.media.fileName||r.messageId||'')}<br>${esc(r.conteudo||r.media.caption||'')}</div></div>`;
+  $('rel-body').innerHTML='<div class="op-empty">Carregando mídia...</div>';
   $('rel-modal').classList.add('open');
+  try{
+    const res=await fetch(url,{credentials:'same-origin',cache:'no-store'});
+    if(!res.ok){
+      const data=await res.json().catch(()=>({}));
+      throw new Error(data.error||'Não consegui carregar a mídia.');
+    }
+    const blob=await res.blob();
+    const objectUrl=URL.createObjectURL(blob);
+    const fail=`this.replaceWith(Object.assign(document.createElement('div'),{className:'op-empty',textContent:'A mídia chegou, mas o navegador não conseguiu abrir este arquivo.'}))`;
+    const media=type==='image'
+      ? `<img src="${esc(objectUrl)}" alt="Imagem do atendimento" onerror="${fail}">`
+      : type==='audio'
+        ? `<audio controls preload="metadata" src="${esc(objectUrl)}" onerror="${fail}"></audio>`
+        : type==='video'
+          ? `<video controls preload="metadata" src="${esc(objectUrl)}" onerror="${fail}"></video>`
+          : `<a class="rel-action" href="${esc(objectUrl)}" target="_blank" rel="noopener">Abrir arquivo</a>`;
+    $('rel-body').innerHTML=`<div class="wg-media-preview">${media}<div class="wg-message-meta">${esc(r.remetenteNome||'Participante')} · ${esc(r.media.fileName||r.messageId||'')}<br>${esc(r.conteudo||r.media.caption||'')}</div></div>`;
+  }catch(err){
+    $('rel-body').innerHTML=`<div class="op-empty">${esc(err?.message||'Não consegui abrir a mídia.')}</div>`;
+  }
 }
 function whatsappSessionMessages(session){
   return uniqueWhatsappRows((WHATSAPP_GROUP_RECORDS||[])
     .filter(r=>String(r.sessionId||'')===String(session.id||'')||String(r.sessionProtocol||'')===String(session.protocol||''))
     .sort((a,b)=>String(a.messageDatetime||a.createdAt||'').localeCompare(String(b.messageDatetime||b.createdAt||''))));
+}
+function whatsappSessionFirstResponseSeconds(session){
+  const stored=Number(session?.firstResponseSeconds||0);
+  if(Number.isFinite(stored)&&stored>0)return stored;
+  const rows=whatsappSessionMessages(session);
+  const firstClient=rows.find(r=>!r.fromMe);
+  if(!firstClient)return stored===0?0:null;
+  const firstAgent=rows.find(r=>{
+    if(String(r.messageDatetime||r.createdAt||'')<String(firstClient.messageDatetime||firstClient.createdAt||''))return false;
+    return r.fromMe||String(r.agentName||r.agenteNome||'').trim()||String(r.remetenteNome||'').trim()===String(session?.agenteNome||'').trim();
+  });
+  if(!firstAgent)return null;
+  const a=new Date(firstClient.messageDatetime||firstClient.createdAt||'').getTime();
+  const b=new Date(firstAgent.messageDatetime||firstAgent.createdAt||'').getTime();
+  if(!Number.isFinite(a)||!Number.isFinite(b)||b<a)return stored||null;
+  return Math.round((b-a)/1000);
 }
 function renderWhatsappGroupSummary(rows){
   const host=$('wg-group-list');if(!host)return;
@@ -322056,6 +322092,12 @@ function renderWhatsappGroupSummary(rows){
       </div>
       <div class="wg-group-count">${fN(g.total)}</div>
     </button>`).join('')||'<div class="op-empty">Sem mensagens</div>';
+}
+function filterWhatsappProtocolList(value){
+  const q=String(value||'').trim().toLowerCase();
+  document.querySelectorAll('[data-wg-protocol-item]').forEach(item=>{
+    item.style.display=!q||String(item.dataset.search||'').toLowerCase().includes(q)?'grid':'none';
+  });
 }
 function whatsappSessionDate(session,field='closedAt'){
   const raw=session?.[field]||session?.closedAt||session?.startedAt||session?.createdAt||'';
@@ -322128,8 +322170,9 @@ function openWhatsappGroupHistory(encodedInstance,encodedGroupId){
     <div class="wg-modal-section">
       <div class="ct" style="margin-bottom:.2rem">Protocolos do grupo</div>
       <div class="cs" style="margin-bottom:.55rem">Clique no protocolo para ver somente as mensagens daquele atendimento.</div>
+      <input class="fs wg-protocol-filter" placeholder="Buscar protocolo, agente, remetente..." oninput="filterWhatsappProtocolList(this.value)">
       <div class="rel-list">
-        ${sessions.map(s=>`<button class="wg-protocol-row" type="button" onclick="openWhatsappSessionDetail('${esc(s.id||'')}')"><div><div class="wg-protocol-title">${esc(s.protocol||'Sem protocolo')}</div><div class="wg-protocol-meta">${esc(whatsappSessionStatusLabel(s.status))} · ${esc(s.tituloAtendimento||'Sem título')} · Agente: ${esc(s.agenteNome||'Sem agente')} · Início: ${esc(whatsappGroupLocalDate(s.startedAt||s.firstMessageAt))}</div></div><span class="wg-group-count">${fN(Number(s.messageCount||0))}</span></button>`).join('')||'<div class="op-empty">Sem protocolos vinculados.</div>'}
+        ${sessions.map(s=>`<button class="wg-protocol-row" type="button" data-wg-protocol-item="1" data-search="${esc([s.protocol,s.status,s.tituloAtendimento,s.agenteNome,s.remetenteNome].join(' '))}" onclick="openWhatsappSessionDetail('${esc(s.id||'')}')"><div><div class="wg-protocol-title">${esc(s.protocol||'Sem protocolo')}</div><div class="wg-protocol-meta">${esc(whatsappSessionStatusLabel(s.status))} · ${esc(s.tituloAtendimento||'Sem título')} · Agente: ${esc(s.agenteNome||'Sem agente')} · Início: ${esc(whatsappGroupLocalDate(s.startedAt||s.firstMessageAt))}</div></div><span class="wg-group-count">${fN(Number(s.messageCount||0))}</span></button>`).join('')||'<div class="op-empty">Sem protocolos vinculados.</div>'}
       </div>
     </div>
     <div class="wg-modal-section">
@@ -322205,14 +322248,12 @@ async function closeWhatsappGroupSessionFromPanel(id,protocol){
 }
 function filterWhatsappUnanswered(){
   hideWhatsappGroupAlert();
-  WHATSAPP_GROUP_ONLY_UNANSWERED=true;
-  if($('wg-clear-unanswered'))$('wg-clear-unanswered').style.display='inline-flex';
+  WHATSAPP_GROUP_ONLY_UNANSWERED=!WHATSAPP_GROUP_ONLY_UNANSWERED;
   renderWhatsappGroupRecords();
-  $('wg-session-tbody')?.scrollIntoView({behavior:'smooth',block:'start'});
+  $('wg-lane-unanswered')?.scrollIntoView({behavior:'smooth',block:'center'});
 }
 function clearWhatsappUnansweredFilter(){
   WHATSAPP_GROUP_ONLY_UNANSWERED=false;
-  if($('wg-clear-unanswered'))$('wg-clear-unanswered').style.display='none';
   renderWhatsappGroupRecords();
 }
 function toggleWhatsappGroupSound(){
@@ -322222,6 +322263,7 @@ function toggleWhatsappGroupSound(){
   toast(WHATSAPP_GROUP_SOUND?'Pop-up ativado para novas pendências.':'Pop-up desativado.');
 }
 function hideWhatsappGroupAlert(){
+  if($('wg-alert-popup')?.dataset?.alertKey)WHATSAPP_GROUP_DISMISSED_ALERT_KEY=$('wg-alert-popup').dataset.alertKey;
   $('wg-alert-popup')?.classList.remove('open');
 }
 function openWhatsappPendingFromAlert(){
@@ -322233,7 +322275,10 @@ function openWhatsappPendingFromAlert(){
 function showWhatsappGroupAlert(session,count){
   if(!WHATSAPP_GROUP_SOUND)return;
   const box=$('wg-alert-popup');if(!box)return;
+  const key=(WHATSAPP_GROUP_SESSIONS||[]).filter(s=>['OPEN','SEM_RESPOSTA'].includes(String(s.status||'').toUpperCase())).map(s=>s.id||s.protocol||'').sort().join('|');
+  if(key&&WHATSAPP_GROUP_DISMISSED_ALERT_KEY===key)return;
   box.dataset.sessionId=session?.id||'';
+  box.dataset.alertKey=key;
   if($('wg-alert-title'))$('wg-alert-title').textContent=count>1?`${fN(count)} atendimentos sem resposta`:'Novo atendimento sem resposta';
   if($('wg-alert-body'))$('wg-alert-body').innerHTML=`${esc(whatsappGroupLabel(session||{}))}<br>${esc(session?.remetenteNome||'Participante')} · ${esc(session?.protocol||'Sem protocolo')}<br><span style="color:var(--ghost)">Aguardando resposta do time.</span>`;
   box.classList.add('open');
@@ -322246,6 +322291,8 @@ function notifyWhatsappUnanswered(sessions){
     const latest=pending[0]||{};
     toast(`Novo atendimento sem resposta: ${whatsappGroupLabel(latest)}`);
     showWhatsappGroupAlert(latest,pending.length);
+  }else if(key&&!$('wg-alert-popup')?.classList.contains('open')){
+    showWhatsappGroupAlert(pending[0]||{},pending.length);
   }
   if(!pending.length)hideWhatsappGroupAlert();
   WHATSAPP_GROUP_LAST_UNANSWERED_KEY=key;
@@ -322277,7 +322324,7 @@ function renderWhatsappGroupRecords(){
   const progress=sessions.filter(s=>String(s.status||'').toUpperCase()==='EM_ATENDIMENTO').length;
   const answered=sessions.filter(s=>['ANSWERED','RESPONDIDO'].includes(String(s.status||'').toUpperCase())).length;
   const closed=sessions.filter(s=>String(s.status||'').toUpperCase()==='CLOSED').length;
-  const responseTimes=sessions.map(s=>Number(s.firstResponseSeconds||0)).filter(v=>Number.isFinite(v)&&v>0);
+  const responseTimes=sessions.map(s=>whatsappSessionFirstResponseSeconds(s)).filter(v=>Number.isFinite(v)&&v>=0);
   const avgResponse=responseTimes.length?responseTimes.reduce((sum,value)=>sum+value,0)/responseTimes.length:0;
   if($('wg-k-sessions'))$('wg-k-sessions').textContent=fN(sessions.length);
   if($('wg-k-total'))$('wg-k-total').textContent=fN(rows.length);
@@ -322286,8 +322333,7 @@ function renderWhatsappGroupRecords(){
   if($('wg-k-first-response'))$('wg-k-first-response').textContent=whatsappDuration(avgResponse);
   if($('wg-k-closed'))$('wg-k-closed').textContent=fN(closed);
   if($('wg-summary'))$('wg-summary').textContent=`${fN(sessions.length)} atendimento(s) · ${fN(rows.length)} mensagem(ns) · ${fN(open)} sem resposta · ${fN(progress+answered)} em tratativa/respondido(s) · ${fN(closed)} encerrado(s) · ${fN(openGroups.size)} grupo(s)`;
-  if($('wg-clear-unanswered'))$('wg-clear-unanswered').style.display=WHATSAPP_GROUP_ONLY_UNANSWERED?'inline-flex':'none';
-  notifyWhatsappUnanswered(sessions);
+  notifyWhatsappUnanswered(WHATSAPP_GROUP_SESSIONS);
   renderWhatsappGroupSummary(rows);
   renderWhatsappSessionRows(filteredSessions);
   renderWhatsappClosedCalendar(WHATSAPP_GROUP_SESSIONS);
@@ -325528,6 +325574,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

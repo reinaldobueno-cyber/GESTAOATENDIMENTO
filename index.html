@@ -1252,7 +1252,7 @@ canvas{cursor:pointer;}
           <div class="wg-config-list" id="wg-instance-list"></div>
         </details>
         <div class="wg-config-block">
-          <div class="wg-config-head"><div class="wg-config-title">Grupos cadastrados</div></div>
+          <div class="wg-config-head"><div><div class="wg-config-title">Grupos cadastrados</div><div class="cs">Busque pelo nome, cliente, agente ou ID do grupo.</div></div><input class="fs" id="wg-config-group-search" placeholder="Buscar grupo cadastrado..." oninput="renderWhatsappGroupConfig()"></div>
           <div class="wg-config-list" id="wg-config-groups"></div>
         </div>
       </div>
@@ -1264,7 +1264,7 @@ canvas{cursor:pointer;}
   </div>
 
   <div class="card" style="margin-bottom:1rem">
-    <div class="ch"><div><div class="ct">Painel de atendimento</div><div class="cs">Filas operacionais por protocolo: sem resposta, em tratativa e respondidos</div></div></div>
+    <div class="ch"><div><div class="ct">Painel de atendimento</div><div class="cs">Filas operacionais por protocolo: sem resposta, em tratativa e encerrados recentes</div></div></div>
     <div class="wg-board">
       <section class="wg-lane">
         <div class="wg-lane-head"><div class="wg-lane-title">Sem resposta</div><span class="wg-lane-count" id="wg-lane-unanswered-count">0</span></div>
@@ -321821,24 +321821,39 @@ function whatsappGroupClientLabel(r){
 function whatsappIsGroupRegistered(instance,grupoId){
   return !!whatsappGroupConfigFor(instance,grupoId);
 }
+function whatsappStatusKey(value){
+  return String(value||'').trim().toUpperCase();
+}
+function whatsappIsUnansweredStatus(value){
+  const status=whatsappStatusKey(value);
+  return ['OPEN','SEM_RESPOSTA','UNANSWERED','PENDING'].includes(status);
+}
+function whatsappIsClosedStatus(value){
+  return whatsappStatusKey(value)==='CLOSED';
+}
+function whatsappIsProgressStatus(value){
+  const status=whatsappStatusKey(value);
+  return ['EM_ATENDIMENTO','ANSWERED','RESPONDIDO','IN_PROGRESS','PROGRESS'].includes(status);
+}
 function whatsappSessionStatusLabel(value){
-  const status=String(value||'').toUpperCase();
-  if(status==='CLOSED')return 'Encerrado';
+  const status=whatsappStatusKey(value);
+  if(whatsappIsClosedStatus(status))return 'Encerrado';
   if(status==='RESPONDIDO'||status==='ANSWERED')return 'Respondido';
-  if(status==='EM_ATENDIMENTO')return 'Em atendimento';
-  if(status==='SEM_RESPOSTA'||status==='OPEN')return 'Sem resposta';
+  if(whatsappIsProgressStatus(status))return 'Em atendimento';
+  if(whatsappIsUnansweredStatus(status))return 'Sem resposta';
   return status||'Sem sessão';
 }
 function whatsappSessionStatusClass(value){
-  const status=String(value||'').toUpperCase();
-  if(status==='CLOSED')return 'manual-status-closed';
-  if(status==='RESPONDIDO'||status==='ANSWERED'||status==='EM_ATENDIMENTO')return '';
+  const status=whatsappStatusKey(value);
+  if(whatsappIsClosedStatus(status))return 'manual-status-closed';
+  if(whatsappIsProgressStatus(status))return '';
   return 'manual-status-open';
 }
 function whatsappDuration(seconds){
   const value=Number(seconds||0);
-  if(!Number.isFinite(value)||value<=0)return '--';
+  if(!Number.isFinite(value)||value<0)return '--';
   const total=Math.round(value);
+  if(total<=0)return '0s';
   const h=Math.floor(total/3600), m=Math.floor((total%3600)/60), s=total%60;
   if(h)return `${h}h ${String(m).padStart(2,'0')}min`;
   if(m)return `${m}min ${String(s).padStart(2,'0')}s`;
@@ -321934,7 +321949,7 @@ function whatsappSessionFiltered(){
     if(end&&day>end)return false;
     if(group&&String(s.grupoId||'')!==group)return false;
     if(instance&&String(s.instance||'')!==instance)return false;
-    if(WHATSAPP_GROUP_ONLY_UNANSWERED&&!['OPEN','SEM_RESPOSTA'].includes(String(s.status||'').toUpperCase()))return false;
+    if(WHATSAPP_GROUP_ONLY_UNANSWERED&&!whatsappIsUnansweredStatus(s.status))return false;
     if(q&&!['protocol','grupoId','grupoNome','clienteNome','remetenteId','remetenteNome','agenteNome'].some(k=>String(s[k]||'').toLowerCase().includes(q)))return false;
     return true;
   });
@@ -321959,13 +321974,15 @@ function renderWhatsappGroupConfig(){
     }).join('')||'<div class="op-empty">Nenhuma instância cadastrada ainda.</div>';
   }
   const host=$('wg-config-groups');if(!host)return;
-  const groups=Array.isArray(WHATSAPP_GROUP_CONFIG?.groups)?WHATSAPP_GROUP_CONFIG.groups:[];
-  host.innerHTML=groups.slice(0,12).map(g=>{
+  const groupSearch=String($('wg-config-group-search')?.value||'').trim().toLowerCase();
+  const groups=(Array.isArray(WHATSAPP_GROUP_CONFIG?.groups)?WHATSAPP_GROUP_CONFIG.groups:[])
+    .filter(g=>!groupSearch||[g.grupoNome,g.grupoId,g.instance,g.clienteNome,...(g.agentes||[])].some(v=>String(v||'').toLowerCase().includes(groupSearch)));
+  host.innerHTML=groups.slice(0,40).map(g=>{
     const label=g.grupoNome||g.grupoId;
     const encodedInstance=encodeURIComponent(String(g.instance||'')), encodedId=encodeURIComponent(String(g.grupoId||''));
     const agents=(g.agentes||[]).length?(g.agentes||[]).join(', '):'Sem agentes definidos';
     return `<div class="wg-config-row"><div><div class="wg-config-name">${esc(label||'Grupo sem nome')}</div><div class="wg-config-meta">ID: ${esc(g.grupoId||'')} · Instância: ${esc(g.instance||'principal')}</div><div class="wg-config-tags"><span class="wg-tag">${g.monitorado?'ativo':'off'}</span><span class="wg-tag">Cliente: ${esc(g.clienteNome||'não associado')}</span><span class="wg-tag">Agentes: ${esc(agents)}</span></div></div><div class="wg-config-actions"><button class="rel-action" type="button" onclick="openWhatsappGroupHistory('${encodedInstance}','${encodedId}')">Histórico</button><button class="rel-action admin-only" type="button" onclick="fillWhatsappGroupConfig('${encodedInstance}','${encodedId}')">Editar</button><button class="rel-action admin-only" type="button" onclick="deleteWhatsappGroupConfig('${encodedInstance}','${encodedId}')">Remover</button></div></div>`;
-  }).join('')||'<div class="op-empty">Nenhum grupo cadastrado ainda.</div>';
+  }).join('')||'<div class="op-empty">Nenhum grupo encontrado.</div>';
 }
 function renderWhatsappSessionRows(sessions){
   const lanes={
@@ -321976,16 +321993,14 @@ function renderWhatsappSessionRows(sessions){
   if(!lanes.unanswered||!lanes.progress||!lanes.closed)return;
   const buckets={unanswered:[],progress:[],closed:[]};
   (sessions||[]).forEach(s=>{
-    const status=String(s.status||'').toUpperCase();
-    if(status==='CLOSED'){buckets.closed.push(s);return;}
-    if(status==='OPEN'||status==='SEM_RESPOSTA')buckets.unanswered.push(s);
+    if(whatsappIsClosedStatus(s.status)){buckets.closed.push(s);return;}
+    if(whatsappIsUnansweredStatus(s.status))buckets.unanswered.push(s);
     else buckets.progress.push(s);
   });
   const card=s=>{
-    const status=String(s.status||'').toUpperCase();
-    const cls=status==='OPEN'||status==='SEM_RESPOSTA'?'unanswered':status==='EM_ATENDIMENTO'?'progress':'';
-    const assignButton=['OPEN','SEM_RESPOSTA'].includes(status)?`<button class="rel-action" type="button" onclick="event.stopPropagation();assignWhatsappGroupSession('${esc(s.id||'')}')">Assumir</button>`:'';
-    const closeButton=['OPEN','SEM_RESPOSTA','EM_ATENDIMENTO','ANSWERED','RESPONDIDO'].includes(status)?`<button class="rel-action" type="button" onclick="event.stopPropagation();closeWhatsappGroupSessionFromPanel('${esc(s.id||'')}','${esc(s.protocol||'')}')">Encerrar</button>`:'';
+    const cls=whatsappIsUnansweredStatus(s.status)?'unanswered':whatsappIsProgressStatus(s.status)?'progress':'';
+    const assignButton=whatsappIsUnansweredStatus(s.status)?`<button class="rel-action" type="button" onclick="event.stopPropagation();assignWhatsappGroupSession('${esc(s.id||'')}')">Assumir</button>`:'';
+    const closeButton=!whatsappIsClosedStatus(s.status)?`<button class="rel-action" type="button" onclick="event.stopPropagation();closeWhatsappGroupSessionFromPanel('${esc(s.id||'')}','${esc(s.protocol||'')}')">Encerrar</button>`:'';
     const first=whatsappSessionFirstResponseSeconds(s);
     return `<div class="wg-ticket ${cls}" role="button" tabindex="0" onclick="openWhatsappSessionDetail('${esc(s.id||'')}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openWhatsappSessionDetail('${esc(s.id||'')}')}">
       <div class="wg-ticket-title">${esc(s.protocol||'Sem protocolo')}</div>
@@ -322029,10 +322044,21 @@ async function openWhatsappMediaPreview(id){
   $('rel-modal').classList.add('open');
   try{
     const res=await fetch(url,{credentials:'same-origin',cache:'no-store'});
+    const contentType=String(res.headers.get('Content-Type')||'').toLowerCase();
     if(!res.ok){
       const data=await res.json().catch(()=>({}));
       throw new Error(data.error||'Não consegui carregar a mídia.');
     }
+    if(contentType.includes('application/json')){
+      const data=await res.json().catch(()=>({}));
+      throw new Error(data.error||'A mídia ainda não está disponível para preview.');
+    }
+    if(contentType.includes('text/html')){
+      throw new Error('A sessão expirou ou o backend devolveu a tela do sistema no lugar da mídia. Entre novamente e tente abrir de novo.');
+    }
+    if(type==='image'&&!contentType.startsWith('image/'))throw new Error(`Esta mídia não veio como imagem (${contentType||'sem tipo'}).`);
+    if(type==='audio'&&!contentType.startsWith('audio/'))throw new Error(`Esta mídia não veio como áudio (${contentType||'sem tipo'}).`);
+    if(type==='video'&&!contentType.startsWith('video/'))throw new Error(`Esta mídia não veio como vídeo (${contentType||'sem tipo'}).`);
     const blob=await res.blob();
     const objectUrl=URL.createObjectURL(blob);
     const fail=`this.replaceWith(Object.assign(document.createElement('div'),{className:'op-empty',textContent:'A mídia chegou, mas o navegador não conseguiu abrir este arquivo.'}))`;
@@ -322198,8 +322224,8 @@ function openWhatsappSessionDetail(id){
     <label class="fl" style="display:block;margin-top:.7rem">Observações internas<br><textarea class="fs" id="wg-detail-notes" rows="3" placeholder="Notas internas da equipe">${esc(session.observacoesInternas||'')}</textarea></label>
     <div class="ctx-actions" style="justify-content:flex-start;margin:1rem 0">
       <button class="rel-action" type="button" onclick="saveWhatsappSessionDetails('${esc(session.id||'')}')">Salvar detalhes</button>
-      ${['OPEN','SEM_RESPOSTA'].includes(String(session.status||'').toUpperCase())?`<button class="rel-action" type="button" onclick="assignWhatsappGroupSession('${esc(session.id||'')}')">Assumir atendimento</button>`:''}
-      ${String(session.status||'').toUpperCase()!=='CLOSED'?`<button class="rel-action" type="button" onclick="closeWhatsappGroupSessionFromPanel('${esc(session.id||'')}','${esc(session.protocol||'')}')">Encerrar</button>`:''}
+      ${whatsappIsUnansweredStatus(session.status)?`<button class="rel-action" type="button" onclick="assignWhatsappGroupSession('${esc(session.id||'')}')">Assumir atendimento</button>`:''}
+      ${!whatsappIsClosedStatus(session.status)?`<button class="rel-action" type="button" onclick="closeWhatsappGroupSessionFromPanel('${esc(session.id||'')}','${esc(session.protocol||'')}')">Encerrar</button>`:''}
     </div>
     <div class="ct" style="margin:.7rem 0">Histórico do protocolo</div>
     <div class="wg-message-list">
@@ -322248,7 +322274,7 @@ async function closeWhatsappGroupSessionFromPanel(id,protocol){
 }
 function filterWhatsappUnanswered(){
   hideWhatsappGroupAlert();
-  WHATSAPP_GROUP_ONLY_UNANSWERED=!WHATSAPP_GROUP_ONLY_UNANSWERED;
+  WHATSAPP_GROUP_ONLY_UNANSWERED=true;
   renderWhatsappGroupRecords();
   $('wg-lane-unanswered')?.scrollIntoView({behavior:'smooth',block:'center'});
 }
@@ -322275,7 +322301,7 @@ function openWhatsappPendingFromAlert(){
 function showWhatsappGroupAlert(session,count){
   if(!WHATSAPP_GROUP_SOUND)return;
   const box=$('wg-alert-popup');if(!box)return;
-  const key=(WHATSAPP_GROUP_SESSIONS||[]).filter(s=>['OPEN','SEM_RESPOSTA'].includes(String(s.status||'').toUpperCase())).map(s=>s.id||s.protocol||'').sort().join('|');
+  const key=(WHATSAPP_GROUP_SESSIONS||[]).filter(s=>whatsappIsUnansweredStatus(s.status)).map(s=>s.id||s.protocol||'').sort().join('|');
   if(key&&WHATSAPP_GROUP_DISMISSED_ALERT_KEY===key)return;
   box.dataset.sessionId=session?.id||'';
   box.dataset.alertKey=key;
@@ -322284,7 +322310,7 @@ function showWhatsappGroupAlert(session,count){
   box.classList.add('open');
 }
 function notifyWhatsappUnanswered(sessions){
-  const pending=(sessions||[]).filter(s=>['OPEN','SEM_RESPOSTA'].includes(String(s.status||'').toUpperCase()));
+  const pending=(sessions||[]).filter(s=>whatsappIsUnansweredStatus(s.status));
   const key=pending.map(s=>s.id||s.protocol||'').sort().join('|');
   if($('wg-live-badge'))$('wg-live-badge').textContent=pending.length?`${fN(pending.length)} sem resposta`:'Atualização automática ativa';
   if(key&&key!==WHATSAPP_GROUP_LAST_UNANSWERED_KEY){
@@ -322320,19 +322346,18 @@ function renderWhatsappGroupRecords(){
   const filteredSessions=whatsappSessionFiltered().sort((a,b)=>String(b.startedAt||b.createdAt||'').localeCompare(String(a.startedAt||a.createdAt||'')));
   const openGroups=new Set(rows.map(r=>r.grupoId).filter(Boolean));
   const sessions=filteredSessions;
-  const open=sessions.filter(s=>['OPEN','SEM_RESPOSTA'].includes(String(s.status||'').toUpperCase())).length;
-  const progress=sessions.filter(s=>String(s.status||'').toUpperCase()==='EM_ATENDIMENTO').length;
-  const answered=sessions.filter(s=>['ANSWERED','RESPONDIDO'].includes(String(s.status||'').toUpperCase())).length;
-  const closed=sessions.filter(s=>String(s.status||'').toUpperCase()==='CLOSED').length;
+  const open=sessions.filter(s=>whatsappIsUnansweredStatus(s.status)).length;
+  const progress=sessions.filter(s=>whatsappIsProgressStatus(s.status)).length;
+  const closed=sessions.filter(s=>whatsappIsClosedStatus(s.status)).length;
   const responseTimes=sessions.map(s=>whatsappSessionFirstResponseSeconds(s)).filter(v=>Number.isFinite(v)&&v>=0);
-  const avgResponse=responseTimes.length?responseTimes.reduce((sum,value)=>sum+value,0)/responseTimes.length:0;
+  const avgResponse=responseTimes.length?responseTimes.reduce((sum,value)=>sum+value,0)/responseTimes.length:null;
   if($('wg-k-sessions'))$('wg-k-sessions').textContent=fN(sessions.length);
   if($('wg-k-total'))$('wg-k-total').textContent=fN(rows.length);
   if($('wg-k-open'))$('wg-k-open').textContent=fN(open);
-  if($('wg-k-progress'))$('wg-k-progress').textContent=fN(progress+answered);
-  if($('wg-k-first-response'))$('wg-k-first-response').textContent=whatsappDuration(avgResponse);
+  if($('wg-k-progress'))$('wg-k-progress').textContent=fN(progress);
+  if($('wg-k-first-response'))$('wg-k-first-response').textContent=avgResponse==null?'--':whatsappDuration(avgResponse);
   if($('wg-k-closed'))$('wg-k-closed').textContent=fN(closed);
-  if($('wg-summary'))$('wg-summary').textContent=`${fN(sessions.length)} atendimento(s) · ${fN(rows.length)} mensagem(ns) · ${fN(open)} sem resposta · ${fN(progress+answered)} em tratativa/respondido(s) · ${fN(closed)} encerrado(s) · ${fN(openGroups.size)} grupo(s)`;
+  if($('wg-summary'))$('wg-summary').textContent=`${fN(sessions.length)} atendimento(s) · ${fN(rows.length)} mensagem(ns) · ${fN(open)} sem resposta · ${fN(progress)} em tratativa/respondido(s) · ${fN(closed)} encerrado(s) · ${fN(openGroups.size)} grupo(s)`;
   notifyWhatsappUnanswered(WHATSAPP_GROUP_SESSIONS);
   renderWhatsappGroupSummary(rows);
   renderWhatsappSessionRows(filteredSessions);
@@ -325574,6 +325599,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

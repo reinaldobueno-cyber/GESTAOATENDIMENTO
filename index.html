@@ -430,6 +430,17 @@ canvas{cursor:pointer;}
 .wg-stat{background:var(--foam);border:1px solid var(--mist);border-radius:8px;padding:.65rem .8rem;text-align:center;}
 .wg-stat b{display:block;font-family:'Fraunces',serif;font-size:1.1rem;color:var(--moss);}
 .wg-stat span{display:block;font-family:'Geist Mono',monospace;font-size:.56rem;color:var(--ghost);letter-spacing:.06em;text-transform:uppercase;margin-top:2px;}
+.wg-agent-month-wrap{overflow:auto;border:1px solid var(--border);border-radius:8px;background:var(--w);}
+.wg-agent-month{width:max-content;min-width:100%;border-collapse:collapse;font-size:.66rem;}
+.wg-agent-month th,.wg-agent-month td{border-bottom:1px solid rgba(214,223,208,.65);border-right:1px solid rgba(214,223,208,.45);padding:7px 8px;text-align:center;white-space:nowrap;}
+.wg-agent-month th{position:sticky;top:0;z-index:2;background:var(--s1);font-family:'Geist Mono',monospace;font-size:.54rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ghost);}
+.wg-agent-month th:first-child,.wg-agent-month td:first-child{position:sticky;left:0;z-index:3;background:var(--w);text-align:left;min-width:190px;max-width:260px;white-space:normal;}
+.wg-agent-month th:first-child{z-index:4;background:var(--s1);}
+.wg-agent-month tfoot td{background:var(--foam);font-weight:800;color:var(--moss);}
+.wg-agent-day-btn{min-width:28px;border:1px solid rgba(61,107,71,.18);border-radius:7px;background:var(--foam);color:var(--moss);font-weight:800;cursor:pointer;padding:4px 6px;}
+.wg-agent-day-btn:hover{border-color:var(--moss);background:#e1ecdf;}
+.wg-agent-zero{color:#b9c5b2;}
+.wg-agent-total{font-family:'Fraunces',serif;font-size:.9rem;color:var(--moss);}
 .wg-audit-details{margin-top:1rem;}
 .wg-audit-details>summary{cursor:pointer;list-style:none;}
 .wg-audit-details>summary::-webkit-details-marker{display:none;}
@@ -1157,8 +1168,8 @@ canvas{cursor:pointer;}
       <button class="wg-alert-close" type="button" onclick="hideWhatsappGroupAlert()" title="Dispensar alerta">×</button>
     </div>
     <div class="wg-alert-actions">
-      <button class="rel-action" type="button" onclick="filterWhatsappUnanswered(true)">Ver pendências</button>
-      <button class="rel-action" type="button" onclick="openWhatsappPendingFromAlert()">Abrir protocolo</button>
+      <button class="rel-action" type="button" id="wg-alert-primary" onclick="openWhatsappAlertPrimary()">Ver pendências</button>
+      <button class="rel-action" type="button" id="wg-alert-secondary" onclick="openWhatsappAlertSecondary()">Abrir protocolo</button>
     </div>
   </div>
 
@@ -1284,6 +1295,20 @@ canvas{cursor:pointer;}
     <div class="cal-grid" id="wg-cal-lbl" style="margin-bottom:5px;"></div>
     <div class="wg-calendar-grid" id="wg-cal-grid"></div>
     <div class="wg-cal-stats" id="wg-cal-stats"></div>
+  </div>
+
+  <div class="card" style="margin-bottom:1rem">
+    <div class="ch">
+      <div>
+        <div class="ct">Atendimentos por agente x dia</div>
+        <div class="cs" id="wg-agent-month-sub">Quantidade de protocolos iniciados por agente no mês selecionado</div>
+      </div>
+      <div class="ctx-actions">
+        <input class="fs" id="wg-agent-month" type="month" onchange="renderWhatsappAgentDayMatrix()">
+      </div>
+    </div>
+    <div class="wg-cal-stats" id="wg-agent-day-stats"></div>
+    <div class="wg-agent-month-wrap" id="wg-agent-day-wrap"></div>
   </div>
 
   <details class="card wg-audit-details">
@@ -1680,7 +1705,7 @@ const D = {
                  847,
                  961,
                  870,
-                 284
+                 285
              ],
     "closed":  [
                    1952,
@@ -1689,7 +1714,7 @@ const D = {
                    1691,
                    1866,
                    1794,
-                   602
+                   604
                ],
     "open":  [
                  0,
@@ -1698,7 +1723,7 @@ const D = {
                  0,
                  0,
                  0,
-                 4
+                 2
              ],
     "cobert":  [
                    0.4908,
@@ -1707,7 +1732,7 @@ const D = {
                    0.5009,
                    0.515,
                    0.4849,
-                   0.4718
+                   0.4719
                ],
     "sat":  [
                 9.817,
@@ -1725,7 +1750,7 @@ const D = {
                 "00:36:11",
                 "00:43:05",
                 "00:25:53",
-                "00:25:43"
+                "00:25:42"
             ],
     "tme":  [
                 "00:05:30",
@@ -2929,9 +2954,9 @@ const D = {
                                          ],
                                          [
                                              42,
-                                             19,
+                                             20,
                                              10,
-                                             "00:28:42"
+                                             "00:28:23"
                                          ]
                                      ],
                     "Julia Almeida":  [
@@ -2975,7 +3000,7 @@ const D = {
                                               50,
                                               19,
                                               9.95,
-                                              "00:31:52"
+                                              "00:31:44"
                                           ]
                                       ],
                     "Lais Medeiros":  [
@@ -3561,18 +3586,18 @@ const D = {
                      10,
                      "Isaac Coelho",
                      "Reproducao",
-                     0,
+                     906,
                      2,
-                     null,
+                     10,
                      "WA00000128114",
                      "2 Periodo",
                      10,
                      "10/07/2026 10:23",
-                     "",
+                     "10/07/2026 10:38",
                      "Cliente #010 · 155 atendimentos",
                      "",
                      "WHATSAPP",
-                     "OPEN",
+                     "CLOSED",
                      128114,
                      "MODELO",
                      "Cliente #010",
@@ -3615,18 +3640,18 @@ const D = {
                      10,
                      "Julia Almeida",
                      "Estoque Animais",
-                     0,
+                     1526,
                      9,
                      null,
                      "WA00000128110",
                      "2 Periodo",
                      10,
                      "10/07/2026 10:07",
-                     "",
+                     "10/07/2026 10:33",
                      "Cliente #032 · 58 atendimentos",
                      "",
                      "WHATSAPP",
-                     "OPEN",
+                     "CLOSED",
                      128110,
                      "MODELO",
                      "Cliente #032",
@@ -315667,14 +315692,14 @@ const D = {
                                           2
                                       ],
                   "Isaac Coelho":  [
-                                       28,
+                                       28.4,
                                        22,
                                        79.3,
                                        42
                                    ],
                   "Julia Almeida":  [
-                                        31.2,
-                                        24.2,
+                                        31.7,
+                                        25.1,
                                         83.5,
                                         50
                                     ],
@@ -315716,9 +315741,9 @@ const D = {
                                      ]
               },
     "tmaDist":  [
-                    100,
-                    185,
-                    149,
+                    98,
+                    186,
+                    150,
                     92,
                     38,
                     42
@@ -315729,7 +315754,7 @@ const D = {
                    "7":  2,
                    "8":  4,
                    "9":  15,
-                   "10":  261
+                   "10":  262
                },
     "avBaixa":  {
                     "Beatriz Araujo":  2,
@@ -318214,7 +318239,7 @@ const D = {
                     9.75,
                     9.68,
                     9.973,
-                    9.902
+                    9.904
                 ],
     "csatWeek":  {
                      "labels":  [
@@ -318223,7 +318248,7 @@ const D = {
                                 ],
                      "data":  [
                                   9.85,
-                                  9.845
+                                  9.847
                               ]
                  },
     "byMonth":  {
@@ -321547,14 +321572,14 @@ const D = {
                                                                       2
                                                                   ],
                                               "Isaac Coelho":  [
-                                                                   28,
+                                                                   28.4,
                                                                    22,
                                                                    79.3,
                                                                    42
                                                                ],
                                               "Julia Almeida":  [
-                                                                    31.2,
-                                                                    24.2,
+                                                                    31.7,
+                                                                    25.1,
                                                                     83.5,
                                                                     50
                                                                 ],
@@ -321596,9 +321621,9 @@ const D = {
                                                                  ]
                                           },
                                 "tmaDist":  [
-                                                100,
-                                                185,
-                                                149,
+                                                98,
+                                                186,
+                                                150,
                                                 92,
                                                 38,
                                                 42
@@ -321609,7 +321634,7 @@ const D = {
                                                "7":  2,
                                                "8":  4,
                                                "9":  15,
-                                               "10":  261
+                                               "10":  262
                                            },
                                 "avBaixa":  {
                                                 "Beatriz Araujo":  2,
@@ -321967,7 +321992,7 @@ const D = {
                                                 9.75,
                                                 9.68,
                                                 9.973,
-                                                9.902
+                                                9.904
                                             ],
                                 "csatWeek":  {
                                                  "labels":  [
@@ -321976,7 +322001,7 @@ const D = {
                                                             ],
                                                  "data":  [
                                                               9.85,
-                                                              9.845
+                                                              9.847
                                                           ]
                                              },
                                 "semDow":  {
@@ -322446,6 +322471,7 @@ let WHATSAPP_GROUP_INSTANCES=[];
 let WHATSAPP_GROUP_ONLY_UNANSWERED=false;
 let WHATSAPP_GROUP_SOUND=true;
 let WHATSAPP_GROUP_LAST_UNANSWERED_KEY='';
+let WHATSAPP_GROUP_LAST_UNREGISTERED_KEY='';
 let WHATSAPP_GROUP_LAST_NOTIFICATION_KEY='';
 let WHATSAPP_GROUP_DISMISSED_ALERT_KEY='';
 let WHATSAPP_GROUP_DETAIL_BACK_CONTEXT=null;
@@ -322744,6 +322770,79 @@ function openWhatsappAllProtocols(){
     </div>`;
   $('rel-modal').classList.add('open');
 }
+function whatsappCurrentMonthValue(){
+  const now=new Date();
+  return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+}
+function whatsappSelectedAgentMonth(){
+  const raw=String($('wg-agent-month')?.value||'').trim()||whatsappCurrentMonthValue();
+  const parts=raw.split('-').map(Number);
+  const year=Number(parts[0])||new Date().getFullYear();
+  const monthIndex=Math.max(0,Math.min(11,(Number(parts[1])||1)-1));
+  return {value:`${year}-${String(monthIndex+1).padStart(2,'0')}`,year,monthIndex,days:new Date(year,monthIndex+1,0).getDate()};
+}
+function whatsappSessionStartDate(session){
+  const d=new Date(session?.startedAt||session?.firstMessageAt||session?.createdAt||session?.updatedAt||'');
+  return Number.isFinite(d.getTime())?d:null;
+}
+function whatsappSessionAgentName(session){
+  return String(session?.agenteNome||session?.agentName||'').trim()||'Sem agente';
+}
+function whatsappSessionsForAgentDay(monthValue,agent,day){
+  const [year,month]=String(monthValue||'').split('-').map(Number);
+  return (WHATSAPP_GROUP_SESSIONS||[]).filter(s=>{
+    const d=whatsappSessionStartDate(s);
+    if(!d||d.getFullYear()!==year||d.getMonth()!==month-1||d.getDate()!==Number(day))return false;
+    return agent==='Todos'||whatsappSessionAgentName(s)===agent;
+  }).sort((a,b)=>String(a.startedAt||a.firstMessageAt||a.createdAt||'').localeCompare(String(b.startedAt||b.firstMessageAt||b.createdAt||'')));
+}
+function openWhatsappAgentDayProtocols(monthValue,encodedAgent,day){
+  const agent=decodeURIComponent(encodedAgent||'');
+  const sessions=whatsappSessionsForAgentDay(monthValue,agent,day);
+  const [year,month]=String(monthValue||'').split('-').map(Number);
+  $('rel-title').textContent=`${agent} · ${String(day).padStart(2,'0')}/${String(month||1).padStart(2,'0')}/${year||''}`;
+  $('rel-sub').textContent=`${fN(sessions.length)} atendimento(s) neste dia`;
+  $('rel-body').innerHTML=`<div class="rel-list">${sessions.map(s=>`<button class="wg-protocol-row" type="button" onclick="openWhatsappSessionDetail('${esc(s.id||'')}')"><div><div class="wg-protocol-title">${esc(s.protocol||'Sem protocolo')}</div><div class="wg-protocol-meta">${esc(whatsappGroupLabel(s))} · ${esc(whatsappSessionStatusLabel(s.status))} · ${esc(s.remetenteNome||'Participante')}<br>Início: ${esc(whatsappGroupLocalDate(s.startedAt||s.firstMessageAt||s.createdAt))}${s.closedAt?` · Encerrado: ${esc(whatsappGroupLocalDate(s.closedAt))}`:''}</div></div><span class="wg-group-count">${fN(Number(s.messageCount||0))}</span></button>`).join('')||'<div class="op-empty">Nenhum protocolo encontrado.</div>'}</div>`;
+  $('rel-modal').classList.add('open');
+}
+function renderWhatsappAgentDayMatrix(){
+  const monthInput=$('wg-agent-month');
+  if(monthInput&&!monthInput.value)monthInput.value=whatsappCurrentMonthValue();
+  const sel=whatsappSelectedAgentMonth();
+  if(monthInput&&monthInput.value!==sel.value)monthInput.value=sel.value;
+  const sessions=(WHATSAPP_GROUP_SESSIONS||[]).filter(s=>{
+    const d=whatsappSessionStartDate(s);
+    return d&&d.getFullYear()===sel.year&&d.getMonth()===sel.monthIndex;
+  });
+  const agents=new Map();
+  const dayTotals=Array.from({length:sel.days},()=>0);
+  sessions.forEach(s=>{
+    const d=whatsappSessionStartDate(s);if(!d)return;
+    const agent=whatsappSessionAgentName(s), day=d.getDate();
+    const row=agents.get(agent)||{agent,total:0,days:Array.from({length:sel.days},()=>0)};
+    row.total+=1;
+    row.days[day-1]+=1;
+    dayTotals[day-1]+=1;
+    agents.set(agent,row);
+  });
+  const rows=[...agents.values()].sort((a,b)=>b.total-a.total||a.agent.localeCompare(b.agent,'pt-BR'));
+  const total=sessions.length, activeDays=dayTotals.filter(Boolean).length, avg=activeDays?Math.round(total/activeDays):0;
+  if($('wg-agent-month-sub'))$('wg-agent-month-sub').textContent=`${D.mesNomes?.[sel.monthIndex]||sel.value} ${sel.year} · contagem pela data de início do protocolo`;
+  if($('wg-agent-day-stats'))$('wg-agent-day-stats').innerHTML=`<div class="wg-stat"><b>${fN(total)}</b><span>Total no mês</span></div><div class="wg-stat"><b>${fN(rows.length)}</b><span>Agentes com atendimento</span></div><div class="wg-stat"><b>${fN(avg)}</b><span>Média/dia ativo</span></div>`;
+  const host=$('wg-agent-day-wrap');if(!host)return;
+  if(!rows.length){
+    host.innerHTML='<div class="op-empty">Nenhum atendimento encontrado para este mês.</div>';
+    return;
+  }
+  const header=Array.from({length:sel.days},(_,i)=>`<th>D${String(i+1).padStart(2,'0')}</th>`).join('');
+  const body=rows.map(row=>{
+    const encodedAgent=encodeURIComponent(row.agent);
+    const cells=row.days.map((value,i)=>value?`<td><button class="wg-agent-day-btn" type="button" onclick="openWhatsappAgentDayProtocols('${sel.value}','${encodedAgent}',${i+1})">${fN(value)}</button></td>`:'<td><span class="wg-agent-zero">-</span></td>').join('');
+    return `<tr><td><b>${esc(row.agent)}</b></td>${cells}<td class="wg-agent-total">${fN(row.total)}</td></tr>`;
+  }).join('');
+  const totals=dayTotals.map((value,i)=>value?`<td><button class="wg-agent-day-btn" type="button" onclick="openWhatsappAgentDayProtocols('${sel.value}','${encodeURIComponent('Todos')}',${i+1})">${fN(value)}</button></td>`:'<td><span class="wg-agent-zero">-</span></td>').join('');
+  host.innerHTML=`<table class="wg-agent-month"><thead><tr><th>Agente</th>${header}<th>Total</th></tr></thead><tbody>${body}</tbody><tfoot><tr><td>Total do dia</td>${totals}<td>${fN(total)}</td></tr></tfoot></table>`;
+}
 function whatsappMediaType(r){
   const media=r?.media||{};
   const mime=String(media.mimetype||'').toLowerCase();
@@ -323038,11 +323137,36 @@ function hideWhatsappGroupAlert(){
   if($('wg-alert-popup')?.dataset?.alertKey)WHATSAPP_GROUP_DISMISSED_ALERT_KEY=$('wg-alert-popup').dataset.alertKey;
   $('wg-alert-popup')?.classList.remove('open');
 }
+function whatsappAlertContext(){
+  return $('wg-alert-popup')?.dataset||{};
+}
+function openWhatsappAlertPrimary(){
+  const ctx=whatsappAlertContext();
+  if(ctx.alertType==='unregistered'){
+    hideWhatsappGroupAlert();
+    quickRegisterWhatsappGroup(encodeURIComponent(ctx.instance||''),encodeURIComponent(ctx.grupoId||''),encodeURIComponent(ctx.grupoNome||''));
+    return;
+  }
+  filterWhatsappUnanswered(true);
+}
+function openWhatsappAlertSecondary(){
+  const ctx=whatsappAlertContext();
+  if(ctx.alertType==='unregistered'){
+    hideWhatsappGroupAlert();
+    openWhatsappGroupHistory(encodeURIComponent(ctx.instance||''),encodeURIComponent(ctx.grupoId||''));
+    return;
+  }
+  openWhatsappPendingFromAlert();
+}
 function openWhatsappPendingFromAlert(){
   const id=$('wg-alert-popup')?.dataset?.sessionId||'';
   hideWhatsappGroupAlert();
   if(id){openWhatsappSessionDetail(id);return;}
   filterWhatsappUnanswered(true);
+}
+function setWhatsappAlertButtons(primary,secondary){
+  if($('wg-alert-primary'))$('wg-alert-primary').textContent=primary||'Ver pendências';
+  if($('wg-alert-secondary'))$('wg-alert-secondary').textContent=secondary||'Abrir protocolo';
 }
 function showWhatsappGroupAlert(session,count){
   if(!WHATSAPP_GROUP_SOUND)return;
@@ -323050,10 +323174,46 @@ function showWhatsappGroupAlert(session,count){
   const pending=(WHATSAPP_GROUP_SESSIONS||[]).filter(s=>whatsappIsUnansweredStatus(s.status));
   const key=pending.map(s=>`${s.id||s.protocol||''}:${s.messageCount||0}:${s.lastMessageAt||s.updatedAt||''}`).sort().join('|');
   if(key&&WHATSAPP_GROUP_DISMISSED_ALERT_KEY===key)return;
+  box.dataset.alertType='unanswered';
   box.dataset.sessionId=session?.id||'';
   box.dataset.alertKey=key;
+  box.dataset.instance=session?.instance||'';
+  box.dataset.grupoId=session?.grupoId||'';
+  box.dataset.grupoNome=session?.grupoNome||'';
+  setWhatsappAlertButtons('Ver pendências','Abrir protocolo');
   if($('wg-alert-title'))$('wg-alert-title').textContent=count>1?`${fN(count)} atendimentos sem resposta`:'Novo atendimento sem resposta';
   if($('wg-alert-body'))$('wg-alert-body').innerHTML=`${esc(whatsappGroupLabel(session||{}))}<br>${esc(session?.remetenteNome||'Participante')} · ${esc(session?.protocol||'Sem protocolo')}<br><span style="color:var(--ghost)">Aguardando resposta do time.</span>`;
+  box.classList.add('open');
+}
+function whatsappUnregisteredGroups(rows,sessions){
+  const groups=new Map();
+  const add=item=>{
+    if(!item?.grupoId||whatsappIsGroupRegistered(item.instance,item.grupoId)||whatsappIsInternalTestGroup(item))return;
+    const key=`${String(item.instance||'')}|${String(item.grupoId||'')}`;
+    const current=groups.get(key)||{instance:item.instance||'',grupoId:item.grupoId||'',grupoNome:item.grupoNome||'',clienteNome:item.clienteNome||'',total:0,last:''};
+    current.grupoNome=current.grupoNome||item.grupoNome||'';
+    current.total+=1;
+    const last=String(item.lastMessageAt||item.messageDatetime||item.updatedAt||item.startedAt||item.createdAt||'');
+    current.last=last>String(current.last||'')?last:current.last;
+    groups.set(key,current);
+  };
+  (rows||[]).forEach(add);
+  (sessions||[]).forEach(add);
+  return [...groups.values()].sort((a,b)=>String(b.last||'').localeCompare(String(a.last||'')));
+}
+function showWhatsappUnregisteredGroupAlert(group,count,key){
+  if(!WHATSAPP_GROUP_SOUND||!group)return;
+  const box=$('wg-alert-popup');if(!box||!key)return;
+  if(WHATSAPP_GROUP_DISMISSED_ALERT_KEY===key)return;
+  box.dataset.alertType='unregistered';
+  box.dataset.alertKey=key;
+  box.dataset.sessionId='';
+  box.dataset.instance=group.instance||'';
+  box.dataset.grupoId=group.grupoId||'';
+  box.dataset.grupoNome=group.grupoNome||'';
+  setWhatsappAlertButtons('Cadastrar grupo','Abrir histórico');
+  if($('wg-alert-title'))$('wg-alert-title').textContent=count>1?`${fN(count)} grupos não cadastrados`:'Grupo ainda não cadastrado';
+  if($('wg-alert-body'))$('wg-alert-body').innerHTML=`${esc(group.grupoNome||group.grupoId||'Grupo sem nome')}<br><span class="op-mono">${esc(group.grupoId||'')}</span><br><span style="color:var(--ghost)">Cadastre o grupo para associar cliente, agentes e deixar o relatório correto.</span>`;
   box.classList.add('open');
 }
 function notifyBrowserWhatsappPending(session,count,key){
@@ -323085,6 +323245,21 @@ function notifyWhatsappUnanswered(sessions){
   }
   if(!pending.length)hideWhatsappGroupAlert();
   WHATSAPP_GROUP_LAST_UNANSWERED_KEY=key;
+}
+function notifyWhatsappUnregisteredGroups(rows,sessions){
+  if(!whatsappGroupConfigLoaded)return;
+  const groups=whatsappUnregisteredGroups(rows,sessions);
+  const key=groups.map(g=>`${g.instance||''}|${g.grupoId||''}:${g.total}:${g.last||''}`).sort().join('|');
+  if($('wg-live-badge')&&!WHATSAPP_GROUP_SESSIONS.some(s=>whatsappIsUnansweredStatus(s.status))){
+    $('wg-live-badge').textContent=groups.length?`${fN(groups.length)} grupo novo`:'Atualização automática ativa';
+  }
+  if(key&&key!==WHATSAPP_GROUP_LAST_UNREGISTERED_KEY){
+    toast(`Grupo não cadastrado recebido: ${groups[0].grupoNome||groups[0].grupoId}`);
+    showWhatsappUnregisteredGroupAlert(groups[0],groups.length,key);
+  }else if(key&&!$('wg-alert-popup')?.classList.contains('open')){
+    showWhatsappUnregisteredGroupAlert(groups[0],groups.length,key);
+  }
+  WHATSAPP_GROUP_LAST_UNREGISTERED_KEY=key;
 }
 function startWhatsappGroupAutoRefresh(){
   if(whatsappGroupAutoTimer)return;
@@ -323124,6 +323299,7 @@ function renderWhatsappGroupRecords(){
   safeWhatsappRender('painel de atendimento',()=>renderWhatsappSessionRows(filteredSessions));
   safeWhatsappRender('resumo por grupo',()=>renderWhatsappGroupSummary(rows));
   safeWhatsappRender('calendário',()=>renderWhatsappClosedCalendar(WHATSAPP_GROUP_SESSIONS));
+  safeWhatsappRender('indicador agente x dia',()=>renderWhatsappAgentDayMatrix());
   const tbody=$('wg-tbody'), empty=$('wg-empty');if(!tbody)return;
   if(empty)empty.style.display=visibleRows.length?'none':'block';
   tbody.innerHTML=visibleRows.slice(0,500).map(r=>`
@@ -323139,6 +323315,7 @@ function renderWhatsappGroupRecords(){
       <td class="op-mono">${esc(r.messageId||r.id||'')}</td>
     </tr>`).join('');
   safeWhatsappRender('alerta de pendências',()=>notifyWhatsappUnanswered(WHATSAPP_GROUP_SESSIONS));
+  safeWhatsappRender('alerta de grupos novos',()=>notifyWhatsappUnregisteredGroups(WHATSAPP_GROUP_RECORDS,WHATSAPP_GROUP_SESSIONS));
 }
 async function saveWhatsappGroupMode(){
   const mode=$('wg-monitor-mode')?.value||'ALL_GROUPS';
@@ -325881,6 +326058,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

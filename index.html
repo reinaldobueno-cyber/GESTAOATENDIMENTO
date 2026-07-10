@@ -1159,13 +1159,13 @@ canvas{cursor:pointer;}
       <button class="wg-alert-close" type="button" onclick="hideWhatsappGroupAlert()" title="Dispensar alerta">×</button>
     </div>
     <div class="wg-alert-actions">
-      <button class="rel-action" type="button" onclick="filterWhatsappUnanswered()">Ver pendências</button>
+      <button class="rel-action" type="button" onclick="filterWhatsappUnanswered(true)">Ver pendências</button>
       <button class="rel-action" type="button" onclick="openWhatsappPendingFromAlert()">Abrir protocolo</button>
     </div>
   </div>
 
   <div class="kstrip" style="margin-bottom:1rem">
-    <div class="kpi" style="--kc:var(--moss)"><div class="kl">Atendimentos</div><div class="kv" id="wg-k-sessions">0</div><div class="ks">Unidade principal</div></div>
+    <div class="kpi clickable" style="--kc:var(--moss)" onclick="clearWhatsappUnansweredFilter()" title="Ver todos os atendimentos"><div class="kl">Atendimentos</div><div class="kv" id="wg-k-sessions">0</div><div class="ks">Unidade principal</div></div>
     <div class="kpi manual-alert-card clickable" style="--kc:var(--amber)" onclick="filterWhatsappUnanswered()" title="Ver somente atendimentos sem resposta"><div class="kl">Sem resposta</div><div class="kv" id="wg-k-open">0</div><div class="ks">Aguardando agente</div></div>
     <div class="kpi" style="--kc:#356999"><div class="kl">Em tratativa</div><div class="kv" id="wg-k-progress">0</div><div class="ks">Assumidos/respondidos</div></div>
     <div class="kpi" style="--kc:var(--moss2)"><div class="kl">Encerrados mês</div><div class="kv" id="wg-k-month-closed">0</div><div class="ks">Calendário WhatsApp</div></div>
@@ -322272,9 +322272,9 @@ async function closeWhatsappGroupSessionFromPanel(id,protocol){
     toast(err?.message||'Não consegui encerrar o atendimento.',true);
   }
 }
-function filterWhatsappUnanswered(){
+function filterWhatsappUnanswered(force){
   hideWhatsappGroupAlert();
-  WHATSAPP_GROUP_ONLY_UNANSWERED=true;
+  WHATSAPP_GROUP_ONLY_UNANSWERED=force===true?true:!WHATSAPP_GROUP_ONLY_UNANSWERED;
   renderWhatsappGroupRecords();
   $('wg-lane-unanswered')?.scrollIntoView({behavior:'smooth',block:'center'});
 }
@@ -322296,7 +322296,7 @@ function openWhatsappPendingFromAlert(){
   const id=$('wg-alert-popup')?.dataset?.sessionId||'';
   hideWhatsappGroupAlert();
   if(id){openWhatsappSessionDetail(id);return;}
-  filterWhatsappUnanswered();
+  filterWhatsappUnanswered(true);
 }
 function showWhatsappGroupAlert(session,count){
   if(!WHATSAPP_GROUP_SOUND)return;
@@ -325599,6 +325599,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

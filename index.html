@@ -321904,14 +321904,21 @@ async function loadWhatsappGroupData(manual=false,silent=false){
     WHATSAPP_GROUP_RECORDS=Array.isArray(data.attendances)?data.attendances:[];
     WHATSAPP_GROUP_SESSIONS=Array.isArray(data.sessions)?data.sessions:[];
     whatsappGroupLoaded=true;
-    await loadWhatsappGroupConfig();
-    whatsappGroupFillGroups();
-    whatsappGroupFillInstances();
+    try{await loadWhatsappGroupConfig();}catch(err){console.error('WhatsApp Grupo config falhou',err);}
     renderWhatsappGroupRecords();
     return true;
-  }catch{
+  }catch(err){
+    console.error('WhatsApp Grupo load falhou',err);
     if($('wg-summary')&&!silent)$('wg-summary').textContent='WhatsApp Grupo indisponível no momento.';
     return false;
+  }
+}
+function safeWhatsappRender(label,fn){
+  try{return fn();}
+  catch(err){
+    console.error(`WhatsApp Grupo render falhou: ${label}`,err);
+    if($('wg-summary'))$('wg-summary').textContent=`Erro ao renderizar ${label}. Os dados foram carregados, mas uma área da tela falhou.`;
+    return null;
   }
 }
 function whatsappGroupFiltered(){
@@ -322098,8 +322105,9 @@ function whatsappSessionFirstResponseSeconds(session){
 function renderWhatsappGroupSummary(rows){
   const host=$('wg-group-list');if(!host)return;
   const q=String($('wg-summary-search')?.value||'').trim().toLowerCase();
+  const sourceRows=(rows&&rows.length)?rows:(WHATSAPP_GROUP_RECORDS||[]);
   const groups=new Map();
-  (rows||[]).forEach(r=>{
+  sourceRows.forEach(r=>{
     const key=`${r.instance||''}|${r.grupoId||''}`;
     const current=groups.get(key)||{instance:r.instance||'',grupoId:r.grupoId||'',label:whatsappGroupLabel(r),total:0,last:''};
     current.total+=1;
@@ -322117,7 +322125,7 @@ function renderWhatsappGroupSummary(rows){
         <div class="wg-group-meta">ID: ${esc(g.grupoId||'')} · Instância: ${esc(g.instance||'principal')}${g.last?` · Última: ${esc(whatsappGroupLocalDate(g.last))}`:''}</div>
       </div>
       <div class="wg-group-count">${fN(g.total)}</div>
-    </button>`).join('')||'<div class="op-empty">Sem mensagens</div>';
+    </button>`).join('')||'<div class="op-empty">Sem grupos no filtro atual.</div>';
 }
 function filterWhatsappProtocolList(value){
   const q=String(value||'').trim().toLowerCase();
@@ -322274,7 +322282,7 @@ async function closeWhatsappGroupSessionFromPanel(id,protocol){
 }
 function filterWhatsappUnanswered(force){
   hideWhatsappGroupAlert();
-  WHATSAPP_GROUP_ONLY_UNANSWERED=force===true?true:!WHATSAPP_GROUP_ONLY_UNANSWERED;
+  WHATSAPP_GROUP_ONLY_UNANSWERED=false;
   renderWhatsappGroupRecords();
   $('wg-lane-unanswered')?.scrollIntoView({behavior:'smooth',block:'center'});
 }
@@ -322301,7 +322309,8 @@ function openWhatsappPendingFromAlert(){
 function showWhatsappGroupAlert(session,count){
   if(!WHATSAPP_GROUP_SOUND)return;
   const box=$('wg-alert-popup');if(!box)return;
-  const key=(WHATSAPP_GROUP_SESSIONS||[]).filter(s=>whatsappIsUnansweredStatus(s.status)).map(s=>s.id||s.protocol||'').sort().join('|');
+  const pending=(WHATSAPP_GROUP_SESSIONS||[]).filter(s=>whatsappIsUnansweredStatus(s.status));
+  const key=pending.map(s=>`${s.id||s.protocol||''}:${s.messageCount||0}:${s.lastMessageAt||s.updatedAt||''}`).sort().join('|');
   if(key&&WHATSAPP_GROUP_DISMISSED_ALERT_KEY===key)return;
   box.dataset.sessionId=session?.id||'';
   box.dataset.alertKey=key;
@@ -322311,7 +322320,7 @@ function showWhatsappGroupAlert(session,count){
 }
 function notifyWhatsappUnanswered(sessions){
   const pending=(sessions||[]).filter(s=>whatsappIsUnansweredStatus(s.status));
-  const key=pending.map(s=>s.id||s.protocol||'').sort().join('|');
+  const key=pending.map(s=>`${s.id||s.protocol||''}:${s.messageCount||0}:${s.lastMessageAt||s.updatedAt||''}`).sort().join('|');
   if($('wg-live-badge'))$('wg-live-badge').textContent=pending.length?`${fN(pending.length)} sem resposta`:'Atualização automática ativa';
   if(key&&key!==WHATSAPP_GROUP_LAST_UNANSWERED_KEY){
     const latest=pending[0]||{};
@@ -322340,10 +322349,12 @@ function quickRegisterWhatsappGroup(instance,grupoId,grupoNome){
 }
 function renderWhatsappGroupRecords(){
   if(!whatsappGroupLoaded){loadWhatsappGroupData();return;}
-  whatsappGroupFillGroups();
+  safeWhatsappRender('filtros de grupos',()=>whatsappGroupFillGroups());
+  safeWhatsappRender('filtros de instâncias',()=>whatsappGroupFillInstances());
+  safeWhatsappRender('configuração de grupos',()=>renderWhatsappGroupConfig());
   const rows=uniqueWhatsappRows(whatsappGroupFiltered().sort((a,b)=>String(b.messageDatetime||b.createdAt||'').localeCompare(String(a.messageDatetime||a.createdAt||''))));
   const visibleRows=rows.filter(r=>!whatsappIsHiddenCommand(r));
-  const filteredSessions=whatsappSessionFiltered().sort((a,b)=>String(b.startedAt||b.createdAt||'').localeCompare(String(a.startedAt||a.createdAt||'')));
+  const filteredSessions=whatsappSessionFiltered().sort((a,b)=>String(b.lastMessageAt||b.updatedAt||b.startedAt||b.createdAt||'').localeCompare(String(a.lastMessageAt||a.updatedAt||a.startedAt||a.createdAt||'')));
   const openGroups=new Set(rows.map(r=>r.grupoId).filter(Boolean));
   const sessions=filteredSessions;
   const open=sessions.filter(s=>whatsappIsUnansweredStatus(s.status)).length;
@@ -322358,12 +322369,11 @@ function renderWhatsappGroupRecords(){
   if($('wg-k-first-response'))$('wg-k-first-response').textContent=avgResponse==null?'--':whatsappDuration(avgResponse);
   if($('wg-k-closed'))$('wg-k-closed').textContent=fN(closed);
   if($('wg-summary'))$('wg-summary').textContent=`${fN(sessions.length)} atendimento(s) · ${fN(rows.length)} mensagem(ns) · ${fN(open)} sem resposta · ${fN(progress)} em tratativa/respondido(s) · ${fN(closed)} encerrado(s) · ${fN(openGroups.size)} grupo(s)`;
-  notifyWhatsappUnanswered(WHATSAPP_GROUP_SESSIONS);
-  renderWhatsappGroupSummary(rows);
-  renderWhatsappSessionRows(filteredSessions);
-  renderWhatsappClosedCalendar(WHATSAPP_GROUP_SESSIONS);
+  safeWhatsappRender('painel de atendimento',()=>renderWhatsappSessionRows(filteredSessions));
+  safeWhatsappRender('resumo por grupo',()=>renderWhatsappGroupSummary(rows));
+  safeWhatsappRender('calendário',()=>renderWhatsappClosedCalendar(WHATSAPP_GROUP_SESSIONS));
   const tbody=$('wg-tbody'), empty=$('wg-empty');if(!tbody)return;
-  empty.style.display=visibleRows.length?'none':'block';
+  if(empty)empty.style.display=visibleRows.length?'none':'block';
   tbody.innerHTML=visibleRows.slice(0,500).map(r=>`
     <tr>
       <td class="op-mono">${esc(whatsappGroupLocalDate(r.messageDatetime||r.createdAt))}</td>
@@ -322376,6 +322386,7 @@ function renderWhatsappGroupRecords(){
       <td class="op-mono">${esc(r.instance||'')}</td>
       <td class="op-mono">${esc(r.messageId||r.id||'')}</td>
     </tr>`).join('');
+  safeWhatsappRender('alerta de pendências',()=>notifyWhatsappUnanswered(WHATSAPP_GROUP_SESSIONS));
 }
 async function saveWhatsappGroupMode(){
   const mode=$('wg-monitor-mode')?.value||'ALL_GROUPS';
@@ -325599,6 +325610,7 @@ $('top-date').textContent='Atualizado '+dt;$('footer-date').textContent='Exporta
 </script>
 </body>
 </html>
+
 
 
 

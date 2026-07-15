@@ -2,8 +2,9 @@ name: Atualizar dashboard NEPPO
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '*/5 * * * *'
+  # O agendamento do GitHub Actions foi pausado porque os runners do GitHub
+  # estao falhando ao conectar no NEPPO. A atualizacao operacional fica na
+  # rotina local/VPS ate migrarmos a captura para uma hospedagem estavel.
 
 permissions:
   contents: write

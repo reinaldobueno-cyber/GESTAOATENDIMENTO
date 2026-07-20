@@ -338248,6 +338248,9 @@ function atendimentoUser(r){
 }
 const atendimentoHistoryEnrichmentCache=new Map();
 const atendimentoHistoryEnrichmentInFlight=new Set();
+let atendimentoHistoryEnrichmentTimer=null;
+let atendimentoHistoryEnrichmentRunning=false;
+let atendimentoHistoryEnrichmentQueuedRows=[];
 function atendimentoStripText(value){
   const div=document.createElement('div');
   div.innerHTML=String(value||'');
@@ -338311,8 +338314,8 @@ async function fetchAtendimentoHistoryInfo(protocol){
   atendimentoHistoryEnrichmentCache.set(key,value);
   return value;
 }
-async function enrichAtendimentoVisibleRows(rows){
-  const candidates=(rows||[]).filter(r=>Array.isArray(r)&&r[7]&&(!atendimentoUser(r)||!atendimentoPhone(r))).slice(0,30);
+async function enrichAtendimentoRowsBatch(rows){
+  const candidates=(rows||[]).filter(r=>Array.isArray(r)&&r[7]&&(!atendimentoUser(r)||!atendimentoPhone(r))).slice(0,500);
   if(!candidates.length)return;
   let changed=false;
   const runOne=async(row)=>{
@@ -338334,14 +338337,33 @@ async function enrichAtendimentoVisibleRows(rows){
       atendimentoHistoryEnrichmentInFlight.delete(protocol);
     }
   };
-  for(let i=0;i<candidates.length;i+=3){
-    await Promise.all(candidates.slice(i,i+3).map(runOne));
+  for(let i=0;i<candidates.length;i+=5){
+    await Promise.all(candidates.slice(i,i+5).map(runOne));
+    if(changed&&activeDashboardPaneId()==='atendimentos'){
+      renderAtendimentos();
+      changed=false;
+    }
   }
   if(changed&&activeDashboardPaneId()==='atendimentos')renderAtendimentos();
 }
+async function drainAtendimentoVisibleEnrichment(){
+  if(atendimentoHistoryEnrichmentRunning)return;
+  atendimentoHistoryEnrichmentRunning=true;
+  try{
+    while(atendimentoHistoryEnrichmentQueuedRows.length){
+      const rows=atendimentoHistoryEnrichmentQueuedRows;
+      atendimentoHistoryEnrichmentQueuedRows=[];
+      await enrichAtendimentoRowsBatch(rows);
+    }
+  }finally{
+    atendimentoHistoryEnrichmentRunning=false;
+  }
+}
 function scheduleAtendimentoVisibleEnrichment(rows){
   if(!rows?.length)return;
-  setTimeout(()=>enrichAtendimentoVisibleRows(rows).catch(()=>{}),50);
+  atendimentoHistoryEnrichmentQueuedRows=rows;
+  if(atendimentoHistoryEnrichmentTimer)clearTimeout(atendimentoHistoryEnrichmentTimer);
+  atendimentoHistoryEnrichmentTimer=setTimeout(()=>drainAtendimentoVisibleEnrichment().catch(()=>{}),80);
 }
 function setAtendimentoSort(key){
   opSort={key,dir:(opSort.key===key&&opSort.dir==='asc')?'desc':'asc'};

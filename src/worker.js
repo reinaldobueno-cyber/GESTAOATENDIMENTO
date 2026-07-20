@@ -4747,6 +4747,15 @@ export default {
       return handleWhatsappGroupReconcileCron(request, env, ctx);
     }
 
+    if (url.pathname === '/api/release-info') {
+      return jsonResponse({
+        ok: true,
+        release: DASHBOARD_RELEASE_MARKER,
+        worker: 'gestaoatendimento',
+        now: new Date().toISOString(),
+      });
+    }
+
     if (!parseAppUsers(env).length && !(await loadManagedUsers(env)).length) {
       return setupRequired();
     }

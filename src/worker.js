@@ -793,19 +793,51 @@ async function getNeppoRowsUntil(token, endpoint, start, end, dateField, sortCol
 function normalizeNeppoAgent(value) {
   const raw = String(value || '').trim();
   if (!raw) return '';
+  const repaired = repairPortugueseMojibake(raw);
+  const canonicalKey = repaired
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\uFFFD+/g, '')
+    .toLocaleLowerCase('pt-BR')
+    .replace(/\s+/g, ' ')
+    .trim();
   const map = {
     'Evelyn GonÃ§alves': 'Evelyn Gonçalves',
     'Evelyn Gon��alves': 'Evelyn Gonçalves',
     'JÃºlia Almeida': 'Julia Almeida',
     'J��lia Almeida': 'Julia Almeida',
     'Júlia Almeida': 'Julia Almeida',
-    GABRIEL: 'GABRIEL FREIRE',
-    MARCUS: 'MARCUS SILVA',
+    GABRIEL: 'Gabriel Freire',
+    MARCUS: 'Marcus Silva',
   };
   if (map[raw]) return map[raw];
-  return raw
+  if (map[repaired]) return map[repaired];
+  if (/^evelyn gon.*alves$/.test(canonicalKey)) return 'Evelyn Gonçalves';
+  if (canonicalKey === 'julia almeida') return 'Julia Almeida';
+  if (canonicalKey === 'gabriel') return 'Gabriel Freire';
+  if (canonicalKey === 'marcus') return 'Marcus Silva';
+  return repaired
     .toLocaleLowerCase('pt-BR')
     .replace(/\b\p{L}/gu, (letter) => letter.toLocaleUpperCase('pt-BR'));
+}
+
+function repairPortugueseMojibake(value) {
+  return String(value || '')
+    .replace(/Ã¡/g, 'á')
+    .replace(/Ã /g, 'à')
+    .replace(/Ã¢/g, 'â')
+    .replace(/Ã£/g, 'ã')
+    .replace(/Ã©/g, 'é')
+    .replace(/Ãª/g, 'ê')
+    .replace(/Ã­/g, 'í')
+    .replace(/Ã³/g, 'ó')
+    .replace(/Ã´/g, 'ô')
+    .replace(/Ãµ/g, 'õ')
+    .replace(/Ãº/g, 'ú')
+    .replace(/Ã§/g, 'ç')
+    .replace(/Ã/g, 'Á')
+    .replace(/Ã‰/g, 'É')
+    .replace(/Ã‡/g, 'Ç');
 }
 
 function normalizeNeppoGroup(value) {
@@ -974,10 +1006,15 @@ function dashboardDataScriptLiteral(data) {
     .replace(/\u2029/g, '\\u2029');
 }
 
+function cloneDashboardDataForWorker(data) {
+  return JSON.parse(JSON.stringify(data));
+}
+
 function replaceDashboardDataInHtml(html, data) {
   const range = dashboardDataRangeFromHtmlForWorker(html);
   if (!range || !data || !Array.isArray(data.rows)) return null;
-  return `${html.slice(0, range.statementStart)}const D = ${dashboardDataScriptLiteral(data)};${html.slice(range.statementEnd)}`;
+  const normalizedData = recalculateDashboardMetricsFromRows(cloneDashboardDataForWorker(data));
+  return `${html.slice(0, range.statementStart)}const D = ${dashboardDataScriptLiteral(normalizedData)};${html.slice(range.statementEnd)}`;
 }
 
 async function readPublishedDashboardData(request, env) {
@@ -1023,6 +1060,13 @@ function workerRowCsat(row) {
 function recalculateDashboardMetricsFromRows(data) {
   if (!data || !Array.isArray(data.rows)) return data;
   const rows = data.rows.filter(Array.isArray);
+  for (const row of rows) {
+    row[2] = normalizeNeppoAgent(row[2]) || 'Sem agente';
+    row[3] = normalizeNeppoGroup(row[3]);
+  }
+  data.rows = rows;
+  data.agentList = [...new Set(rows.map((row) => row[2] || 'Sem agente'))]
+    .sort((a, b) => String(a).localeCompare(String(b), 'pt-BR'));
   const months = Array.isArray(data.meses) && data.meses.length ? data.meses.length : 12;
   const avg = (arr) => (arr.length ? arr.reduce((sum, value) => sum + value, 0) / arr.length : null);
   const med = (arr) => {

@@ -335867,9 +335867,33 @@ function rowCsat(row){
 function isRatedRow(row){
   return rowCsat(row)!==null;
 }
+function repairPortugueseMojibake(value){
+  return String(value||'')
+    .replace(/Ã¡/g,'á').replace(/Ã /g,'à').replace(/Ã¢/g,'â').replace(/Ã£/g,'ã')
+    .replace(/Ã©/g,'é').replace(/Ãª/g,'ê').replace(/Ã­/g,'í')
+    .replace(/Ã³/g,'ó').replace(/Ã´/g,'ô').replace(/Ãµ/g,'õ').replace(/Ãº/g,'ú')
+    .replace(/Ã§/g,'ç').replace(/Ã/g,'Á').replace(/Ã‰/g,'É').replace(/Ã‡/g,'Ç');
+}
+function canonicalDashboardAgentName(value){
+  const raw=String(value||'').trim();
+  if(!raw)return '';
+  const repaired=repairPortugueseMojibake(raw);
+  const key=repaired.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\uFFFD+/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+  if(/^evelyn gon.*alves$/.test(key))return 'Evelyn Gonçalves';
+  if(key==='julia almeida')return 'Julia Almeida';
+  if(key==='gabriel')return 'Gabriel Freire';
+  if(key==='marcus')return 'Marcus Silva';
+  return repaired.toLocaleLowerCase('pt-BR').replace(/\b\p{L}/gu,l=>l.toLocaleUpperCase('pt-BR'));
+}
+function normalizeDashboardAttendanceRow(row){
+  if(!Array.isArray(row))return row;
+  const copy=row.slice();
+  copy[2]=canonicalDashboardAgentName(copy[2])||'Sem agente';
+  return copy;
+}
 function applyManualAdjustments(){
   const adjustments=mergedManualAdjustments();
-  if(!D.rawRows)D.rawRows=(D.rows||[]).map(r=>Array.isArray(r)?r.slice():r);
+  D.rawRows=(D.rawRows||D.rows||[]).map(normalizeDashboardAttendanceRow);
   const byProtocol=new Map(adjustments.filter(a=>a&&a.protocolo).map(a=>[String(a.protocolo).trim().toUpperCase(),a]));
   const matched=[];
   D.rows=D.rawRows.map(r=>{
@@ -335894,7 +335918,7 @@ function applyManualAdjustments(){
     if(adj.tmaSec!==undefined&&adj.tmaSec!==''&&adj.tmaSec!==null)copy[4]=Number(adj.tmaSec);
     if(adj.desconsiderarTme===true)copy[5]=0;
     if(adj.tmeSec!==undefined&&adj.tmeSec!==''&&adj.tmeSec!==null)copy[5]=Number(adj.tmeSec);
-    if(adj.agente)copy[2]=adj.agente;
+    if(adj.agente)copy[2]=canonicalDashboardAgentName(adj.agente);
     if(adj.grupo)copy[3]=adj.grupo;
     if(adj.periodo)copy[8]=adj.periodo;
     matched.push({...adj,protocolo:String(copy[7]||'')});
@@ -335945,7 +335969,8 @@ function normalizeDashboardMonths(){
   if(focusMonth>=1&&focusMonth<=maxMonth)D.focusIndex=focusMonth-1;
 }
 function recalcDashboardFromRows(){
-  const rows=(D.rows||[]).filter(Array.isArray), months=D.meses.length;
+  const rows=(D.rows||[]).filter(Array.isArray).map(normalizeDashboardAttendanceRow), months=D.meses.length;
+  D.rows=rows;
   const avg=arr=>arr.length?arr.reduce((s,v)=>s+v,0)/arr.length:null;
   const fmt=sec=>{const s=Math.round(sec||0),h=Math.floor(s/3600),m=Math.floor((s%3600)/60),r=s%60;return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(r).padStart(2,'0')}`;};
   const med=arr=>{const a=arr.slice().sort((x,y)=>x-y);if(!a.length)return 0;const mid=Math.floor(a.length/2);return a.length%2?a[mid]:(a[mid-1]+a[mid])/2;};
@@ -335977,6 +336002,7 @@ function recalcDashboardFromRows(){
     D.byMonth[mk]={tmaAg,avDist,tmaDist,agGrp,csatWeek,periodos};
     if(mi===D.focusIndex){D.tmaAg=tmaAg;D.avDist=avDist;D.csatWeek=csatWeek;}
   }
+  D.agentList=Object.keys(D.agentes).sort((a,b)=>a.localeCompare(b,'pt-BR'));
 }
 normalizeDashboardMonths();
 applyManualAdjustments();

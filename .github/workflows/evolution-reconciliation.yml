@@ -1,9 +1,9 @@
 name: Reconciliar Evolution Worker
 
 on:
-  schedule:
-    - cron: '*/5 * * * *'
   workflow_dispatch:
+  # Rotina oficial: Cloudflare Worker Cron em wrangler.jsonc.
+  # Este workflow fica apenas para acionamento manual emergencial.
 
 permissions:
   contents: read

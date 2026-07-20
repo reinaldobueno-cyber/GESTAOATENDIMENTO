@@ -2257,9 +2257,12 @@ const WHATSAPP_GROUP_ORIGIN = 'WHATSAPP_GRUPO';
 const WHATSAPP_GROUP_SETTINGS_KEY = 'monitor_mode';
 const WHATSAPP_GROUP_DEFAULT_MODE = 'ALL_GROUPS';
 const WHATSAPP_GROUP_REGISTERED_MODE = 'REGISTERED_ONLY';
-const WHATSAPP_WEBHOOK_MAX_BYTES = 8 * 1024 * 1024;
+const WHATSAPP_WEBHOOK_MAX_BYTES = 32 * 1024 * 1024;
 const WHATSAPP_WEBHOOK_RAW_MAX_BYTES = 512 * 1024;
 const WHATSAPP_MEDIA_BASE64_MAX_BYTES = 24 * 1024 * 1024;
+const WHATSAPP_MEDIA_D1_INLINE_MAX_BYTES = 512 * 1024;
+const WHATSAPP_MEDIA_KV_EXPIRATION_TTL = 30 * 24 * 60 * 60;
+const WHATSAPP_MEDIA_KV_PREFIX = 'whatsapp-group-media-v1';
 const WHATSAPP_SESSION_OPEN = 'OPEN';
 const WHATSAPP_SESSION_UNANSWERED = 'SEM_RESPOSTA';
 const WHATSAPP_SESSION_IN_PROGRESS = 'EM_ATENDIMENTO';
@@ -2827,6 +2830,10 @@ function cleanWebhookText(value, limit = 2000) {
   return String(value ?? '').trim().slice(0, limit);
 }
 
+function cleanWebhookBase64(value, limit = WHATSAPP_MEDIA_BASE64_MAX_BYTES) {
+  return String(value ?? '').trim().slice(0, limit);
+}
+
 function unixTimestampToIso(value) {
   const n = Number(value || 0);
   if (!Number.isFinite(n) || n <= 0) return new Date().toISOString();
@@ -2851,8 +2858,29 @@ async function tryAddD1Column(env, table, columnSql) {
   }
 }
 
+function unwrapEvolutionMessage(message = {}) {
+  let current = message && typeof message === 'object' ? message : {};
+  const seen = new Set();
+  for (let i = 0; i < 8; i += 1) {
+    if (!current || typeof current !== 'object' || seen.has(current)) break;
+    seen.add(current);
+    const next =
+      current.ephemeralMessage?.message ||
+      current.viewOnceMessage?.message ||
+      current.viewOnceMessageV2?.message ||
+      current.viewOnceMessageV2Extension?.message ||
+      current.documentWithCaptionMessage?.message ||
+      current.editedMessage?.message ||
+      current.protocolMessage?.editedMessage ||
+      current.message;
+    if (!next || typeof next !== 'object') break;
+    current = next;
+  }
+  return current && typeof current === 'object' ? current : {};
+}
+
 function extractEvolutionMessage(message = {}) {
-  const msg = message && typeof message === 'object' ? message : {};
+  const msg = unwrapEvolutionMessage(message);
   const media = extractEvolutionMediaInfo(msg);
   if (media?.type) {
     const labels = {
@@ -2927,8 +2955,61 @@ function normalizeEvolutionMediaContentType(media = {}) {
   return media.mimetype || (media.type === 'audio' ? 'audio/ogg' : media.type === 'image' ? 'image/jpeg' : media.type === 'video' ? 'video/mp4' : 'application/octet-stream');
 }
 
+function whatsappMediaKvKey(id, suffix) {
+  return `${WHATSAPP_MEDIA_KV_PREFIX}:${id}:${suffix}`;
+}
+
+function decodeBase64Bytes(base64 = '') {
+  const raw = String(base64 || '');
+  const clean = raw.includes(',') ? raw.slice(raw.indexOf(',') + 1) : raw;
+  const binary = atob(clean);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+async function readWhatsappMediaKv(env, id) {
+  if (!env.ADJUSTMENTS || !id) return null;
+  const [meta, base64] = await Promise.all([
+    env.ADJUSTMENTS.get(whatsappMediaKvKey(id, 'meta'), 'json').catch(() => null),
+    env.ADJUSTMENTS.get(whatsappMediaKvKey(id, 'base64'), 'text').catch(() => ''),
+  ]);
+  return base64 ? { ...(meta || {}), base64 } : null;
+}
+
+async function writeWhatsappMediaCache(env, id, media = {}, base64Value = '') {
+  if (!env.REVIEWS_DB || !id || !media?.type) return false;
+  const base64 = cleanWebhookBase64(base64Value || media.base64 || '');
+  if (!base64) return false;
+  const mimetype = normalizeEvolutionMediaContentType(media);
+  const fileName = cleanWebhookText(media.fileName || `whatsapp-${media.type}`, 240);
+  const now = new Date().toISOString();
+  let inlineBase64 = base64;
+  if (env.ADJUSTMENTS && base64.length > WHATSAPP_MEDIA_D1_INLINE_MAX_BYTES) {
+    await Promise.all([
+      env.ADJUSTMENTS.put(whatsappMediaKvKey(id, 'base64'), base64, { expirationTtl: WHATSAPP_MEDIA_KV_EXPIRATION_TTL }),
+      env.ADJUSTMENTS.put(
+        whatsappMediaKvKey(id, 'meta'),
+        JSON.stringify({ mimetype, fileName, type: media.type, updatedAt: now }),
+        { expirationTtl: WHATSAPP_MEDIA_KV_EXPIRATION_TTL },
+      ),
+    ]);
+    inlineBase64 = '';
+  }
+  await env.REVIEWS_DB.prepare(`
+    INSERT INTO whatsapp_group_media_cache (attendance_id, mimetype, file_name, base64, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(attendance_id) DO UPDATE SET
+      mimetype = excluded.mimetype,
+      file_name = excluded.file_name,
+      base64 = CASE WHEN excluded.base64 <> '' THEN excluded.base64 ELSE whatsapp_group_media_cache.base64 END,
+      updated_at = excluded.updated_at
+  `).bind(id, mimetype, fileName, inlineBase64, now, now).run();
+  return true;
+}
+
 function extractEvolutionMediaInfo(message = {}) {
-  const msg = message && typeof message === 'object' ? message : {};
+  const msg = unwrapEvolutionMessage(message);
   const candidates = [
     ['image', msg.imageMessage],
     ['audio', msg.audioMessage],
@@ -2960,14 +3041,15 @@ function extractEvolutionMediaInfoFromRaw(rawPayloadJson = '') {
   try {
     const payload = JSON.parse(String(rawPayloadJson || '{}'));
     const data = payload?.data && typeof payload.data === 'object' ? payload.data : {};
-    const media = extractEvolutionMediaInfo(data.message) || null;
+    const message = unwrapEvolutionMessage(data.message);
+    const media = extractEvolutionMediaInfo(message) || null;
     const base64 = pickEvolutionBase64(payload) || pickEvolutionBase64(data);
     if (media) {
       if (!media.base64 && base64) media.base64 = base64;
       return media;
     }
     if (!base64) return null;
-    const msg = data.message && typeof data.message === 'object' ? data.message : {};
+    const msg = message && typeof message === 'object' ? message : {};
     const candidates = [
       ['audio', msg.audioMessage],
       ['image', msg.imageMessage],
@@ -3018,7 +3100,26 @@ function pickEvolutionBase64(data) {
     data.message?.base64,
     data.result?.base64,
   ];
-  return cleanWebhookText(candidates.find(Boolean) || '', WHATSAPP_MEDIA_BASE64_MAX_BYTES);
+  const direct = candidates.find(Boolean);
+  if (direct) return cleanWebhookBase64(direct);
+  const seen = new Set();
+  const walk = (value, key = '', depth = 0) => {
+    if (!value || depth > 8) return '';
+    if (typeof value === 'string') {
+      const text = value.trim();
+      const looksLikeMedia = /base64|media|file|data/i.test(key) || /^data:(image|audio|video|application)\//i.test(text);
+      const looksLikeBase64 = text.length > 120 && /^[A-Za-z0-9+/=\r\n]+$/.test(text.slice(0, Math.min(text.length, 500)));
+      return looksLikeMedia && looksLikeBase64 ? cleanWebhookBase64(text) : '';
+    }
+    if (typeof value !== 'object' || seen.has(value)) return '';
+    seen.add(value);
+    for (const [childKey, childValue] of Object.entries(value)) {
+      const found = walk(childValue, childKey, depth + 1);
+      if (found) return found;
+    }
+    return '';
+  };
+  return walk(data);
 }
 
 async function fetchEvolutionMediaBase64(env, rawPayloadJson = '') {
@@ -3079,7 +3180,7 @@ function extractEvolutionGroupName(payload) {
 
 function isWhatsappGroupSystemEventPayload(payload = {}) {
   const data = payload?.data && typeof payload.data === 'object' ? payload.data : {};
-  const message = data.message && typeof data.message === 'object' ? data.message : {};
+  const message = unwrapEvolutionMessage(data.message);
   const messageType = String(data.messageType || payload?.messageType || '').toLowerCase();
   const hasUserContent = !!(
     message.conversation ||
@@ -4307,6 +4408,15 @@ async function processWhatsappGroupItemPayload(env, itemPayload, ctx = null) {
   record.sessionStatus = session.sessionStatus || '';
 
   const inserted = await insertWhatsappGroupAttendance(env, record);
+  if (inserted) {
+    const media = extractEvolutionMediaInfoFromRaw(record.rawPayloadJson) || extractEvolutionMediaInfo(unwrapEvolutionMessage(itemPayload?.data?.message));
+    const base64 = media?.base64 || pickEvolutionBase64(itemPayload);
+    if (media?.type && base64) {
+      const cachePromise = writeWhatsappMediaCache(env, record.id, media, base64).catch(() => false);
+      if (ctx) ctx.waitUntil(cachePromise);
+      else await cachePromise;
+    }
+  }
   const recalculated = record.sessionId ? await recalculateWhatsappSessionTiming(env, record.sessionId).catch(() => null) : null;
   const merged = record.sessionId ? await mergeWhatsappGroupSessionDuplicates(env, record, record.sessionId).catch(() => null) : null;
   await upsertWhatsappInstanceFromRecord(env, record);
@@ -4766,6 +4876,8 @@ async function handleWhatsappGroupReconcileTargets(request, env) {
 
 function whatsappAttendanceToPublic(row) {
   const mediaInfo = extractEvolutionMediaInfoFromRaw(row.raw_payload_json || '');
+  const rowMediaType = inferEvolutionMediaType(row.tipo_mensagem || '', {}, '', '');
+  const hasMediaType = /^(image|audio|video|document|sticker)$/.test(rowMediaType);
   const mediaLabels = {
     image: 'Imagem recebida',
     audio: 'Audio recebido',
@@ -4774,8 +4886,9 @@ function whatsappAttendanceToPublic(row) {
     sticker: 'Sticker recebido',
   };
   let content = row.conteudo || '';
-  if (mediaInfo?.type && (/^(audio|imagem|image|video|documento|sticker) recebido$/i.test(content) || /^image\/|^audio\/|^video\//i.test(content))) {
-    content = mediaInfo.caption || mediaInfo.fileName || mediaLabels[mediaInfo.type] || content;
+  const publicMediaType = mediaInfo?.type || (hasMediaType ? rowMediaType : '');
+  if (publicMediaType && (/^(audio|imagem|image|video|documento|sticker) recebido$/i.test(content) || /^image\/|^audio\/|^video\//i.test(content))) {
+    content = mediaInfo?.caption || mediaInfo?.fileName || mediaLabels[publicMediaType] || content;
   }
   return {
     id: row.id,
@@ -4791,7 +4904,7 @@ function whatsappAttendanceToPublic(row) {
     fromMe: Number(row.from_me || 0) === 1,
     timestamp: Number(row.message_timestamp || 0),
     messageDatetime: row.message_datetime || '',
-    tipoMensagem: mediaInfo?.type || row.tipo_mensagem || '',
+    tipoMensagem: publicMediaType || row.tipo_mensagem || '',
     conteudo: content,
     messageId: row.message_id || '',
     sessionId: row.session_id || '',
@@ -4799,11 +4912,11 @@ function whatsappAttendanceToPublic(row) {
     sessionStatus: row.session_status || '',
     agentId: row.agent_id || '',
     agentName: row.agent_name || '',
-    media: mediaInfo ? {
-      type: mediaInfo.type || row.tipo_mensagem || '',
-      mimetype: normalizeEvolutionMediaContentType(mediaInfo),
-      fileName: mediaInfo.fileName || '',
-      caption: mediaInfo.caption || '',
+    media: publicMediaType ? {
+      type: publicMediaType,
+      mimetype: normalizeEvolutionMediaContentType(mediaInfo || { type: publicMediaType }),
+      fileName: mediaInfo?.fileName || '',
+      caption: mediaInfo?.caption || '',
       available: true,
       url: `/api/whatsapp-grupo/media/${encodeURIComponent(row.id || '')}`,
     } : null,
@@ -4920,43 +5033,37 @@ async function handleWhatsappGroupMedia(request, env, id) {
   const cached = await env.REVIEWS_DB.prepare('SELECT mimetype, file_name, base64 FROM whatsapp_group_media_cache WHERE attendance_id = ? LIMIT 1')
     .bind(mediaId)
     .first();
-  const row = await env.REVIEWS_DB.prepare('SELECT raw_payload_json FROM whatsapp_group_attendances WHERE id = ? LIMIT 1')
+  const kvCached = await readWhatsappMediaKv(env, mediaId);
+  const row = await env.REVIEWS_DB.prepare('SELECT raw_payload_json, tipo_mensagem, conteudo FROM whatsapp_group_attendances WHERE id = ? LIMIT 1')
     .bind(mediaId)
     .first();
   const rawPayloadJson = row?.raw_payload_json || '';
-  const media = extractEvolutionMediaInfoFromRaw(rawPayloadJson);
-  if (!media) return jsonResponse({ error: 'Midia nao encontrada no payload.' }, 404);
-  const contentType = cleanWebhookText(cached?.mimetype, 120) || normalizeEvolutionMediaContentType(media);
+  const rawMedia = extractEvolutionMediaInfoFromRaw(rawPayloadJson);
+  const fallbackType = inferEvolutionMediaType(row?.tipo_mensagem || '', {}, '', '');
+  const media = rawMedia || (/^(image|audio|video|document|sticker)$/.test(fallbackType) ? { type: fallbackType, mimetype: cached?.mimetype || kvCached?.mimetype || '', fileName: cached?.file_name || kvCached?.fileName || '', base64: '' } : null);
+  if (!media && !cached?.base64 && !kvCached?.base64) return jsonResponse({ error: 'Midia nao encontrada no payload/cache.' }, 404);
+  const contentType = cleanWebhookText(cached?.mimetype || kvCached?.mimetype, 120) || normalizeEvolutionMediaContentType(media || { type: fallbackType || 'media' });
   const headers = {
     'Content-Type': contentType,
     'Cache-Control': 'private, max-age=300',
     'X-Robots-Tag': 'noindex, nofollow',
-    'Content-Disposition': `inline; filename="${(cached?.file_name || media.fileName || `whatsapp-${media.type || 'media'}`).replace(/"/g, '')}"`,
+    'Content-Disposition': `inline; filename="${(cached?.file_name || kvCached?.fileName || media?.fileName || `whatsapp-${media?.type || 'media'}`).replace(/"/g, '')}"`,
   };
   if (cached?.base64) {
-    const clean = String(cached.base64).includes(',') ? String(cached.base64).slice(String(cached.base64).indexOf(',') + 1) : String(cached.base64);
-    const binary = atob(clean);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-    return new Response(bytes, { headers });
+    return new Response(decodeBase64Bytes(cached.base64), { headers });
+  }
+  if (kvCached?.base64) {
+    return new Response(decodeBase64Bytes(kvCached.base64), { headers });
   }
   if (media.base64) {
-    const raw = String(media.base64);
-    const clean = raw.includes(',') ? raw.slice(raw.indexOf(',') + 1) : raw;
-    const binary = atob(clean);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-    return new Response(bytes, { headers });
+    return new Response(decodeBase64Bytes(media.base64), { headers });
   }
   const evolutionBase64 = await fetchEvolutionMediaBase64(env, rawPayloadJson);
   if (evolutionBase64) {
-    const clean = evolutionBase64.includes(',') ? evolutionBase64.slice(evolutionBase64.indexOf(',') + 1) : evolutionBase64;
-    const binary = atob(clean);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-    return new Response(bytes, { headers });
+    await writeWhatsappMediaCache(env, mediaId, media, evolutionBase64).catch(() => false);
+    return new Response(decodeBase64Bytes(evolutionBase64), { headers });
   }
-  if (media.url && /^https:\/\//i.test(media.url)) {
+  if (media?.url && /^https:\/\//i.test(media.url)) {
     return jsonResponse({ error: 'A Evolution enviou apenas a URL criptografada do WhatsApp. Para mensagens novas, mantenha webhookBase64 ativo; para mensagens antigas, e necessario configurar uma EVOLUTION_API_URL publica.' }, 502);
   }
   return jsonResponse({ error: 'Midia sem URL acessivel. Consulte o payload bruto.' }, 404);
@@ -5003,23 +5110,12 @@ async function handleWhatsappGroupMediaCache(request, env) {
     .bind(id)
     .first();
   if (!exists) return jsonResponse({ error: 'Atendimento nao encontrado.' }, 404);
-  const now = new Date().toISOString();
-  await env.REVIEWS_DB.prepare(`
-    INSERT INTO whatsapp_group_media_cache (attendance_id, mimetype, file_name, base64, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?)
-    ON CONFLICT(attendance_id) DO UPDATE SET
-      mimetype = excluded.mimetype,
-      file_name = excluded.file_name,
-      base64 = excluded.base64,
-      updated_at = excluded.updated_at
-  `).bind(
-    id,
-    cleanWebhookText(body.mimetype || body.contentType, 120),
-    cleanWebhookText(body.fileName || body.filename, 240),
+  await writeWhatsappMediaCache(env, id, {
+    type: inferEvolutionMediaType('', { mimetype: body.mimetype || body.contentType, fileName: body.fileName || body.filename }, '', base64),
+    mimetype: cleanWebhookText(body.mimetype || body.contentType, 120),
+    fileName: cleanWebhookText(body.fileName || body.filename, 240),
     base64,
-    now,
-    now,
-  ).run();
+  }, base64);
   return jsonResponse({ ok: true, id });
 }
 

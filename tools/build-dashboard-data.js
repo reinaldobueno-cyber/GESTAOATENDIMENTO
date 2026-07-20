@@ -310,8 +310,16 @@ function neppoBusinessOpen(){
       '<div class="logo-gem" aria-label="Multsoft">M</div>',
     )
     .replace(
+      /\.wg-group-summary\{[^}]*\}/,
+      '.wg-group-summary{display:grid;gap:.45rem;max-height:none;overflow:visible;padding-right:0;}',
+    )
+    .replace(
       /\.wg-group-row\{([^}]*)grid-template-columns:minmax\(0,1fr\) auto;([^}]*)\}/,
       '.wg-group-row{$1grid-template-columns:minmax(0,1fr);$2}',
+    )
+    .replace(
+      /\.wg-group-row\{[^}]*\}/,
+      '.wg-group-row{width:100%;border:1px solid var(--border);border-radius:7px;background:#fff;padding:.5rem .62rem;display:grid;grid-template-columns:minmax(0,1fr);gap:.45rem;text-align:left;cursor:pointer;transition:border-color .12s,background .12s,box-shadow .12s;}',
     )
     .replace(
       /\.wg-group-metrics\{[^}]*\}/,

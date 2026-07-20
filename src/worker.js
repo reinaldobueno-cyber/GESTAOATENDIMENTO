@@ -701,25 +701,34 @@ async function getNeppoApiToken(env) {
     username: cfg.username,
     password: cfg.password,
   });
-  const response = await fetch(`${NEPPO_AUTH_BASE}/oauth2/token`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Basic ${basic}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-      Accept: 'application/json',
-    },
-    body,
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok || !data.access_token) {
-    return {
-      ok: false,
-      status: response.status || 502,
-      message: `NEPPO recusou autenticação API (${response.status || 'sem status'}).`,
-      detail: JSON.stringify(data).slice(0, 500),
-    };
+  let last = { status: 0, data: {}, message: '' };
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      const response = await fetch(`${NEPPO_AUTH_BASE}/oauth2/token`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${basic}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Accept: 'application/json',
+        },
+        body,
+      });
+      const data = await response.json().catch(() => ({}));
+      if (response.ok && data.access_token) return { ok: true, token: String(data.access_token) };
+      last = { status: response.status || 502, data, message: '' };
+      if (response.status < 500 || attempt === 3) break;
+    } catch (error) {
+      last = { status: 0, data: {}, message: error.message || String(error) };
+      if (attempt === 3) break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, attempt * 1200));
   }
-  return { ok: true, token: String(data.access_token) };
+  return {
+    ok: false,
+    status: last.status || 502,
+    message: `NEPPO recusou autenticação API (${last.status || 'sem status'}).`,
+    detail: last.message || JSON.stringify(last.data || {}).slice(0, 500),
+  };
 }
 
 async function invokeNeppoApiList(token, endpoint, page, size, conditions = [], sortColumn = 'createdAt') {
@@ -749,10 +758,14 @@ async function invokeNeppoApiList(token, endpoint, page, size, conditions = [], 
   return Array.isArray(data.results) ? data.results : [];
 }
 
-async function getNeppoRowsUntil(token, endpoint, start, end, dateField, sortColumn = 'createdAt') {
+async function getNeppoRowsUntil(token, endpoint, start, end, dateField, sortColumn = 'createdAt', options = {}) {
   const rows = [];
-  for (let page = 0; page < 80; page += 1) {
-    const batch = await invokeNeppoApiList(token, endpoint, page, 200, [], sortColumn);
+  const maxPages = Math.max(1, Math.min(20, Number(options.maxPages || 8)));
+  const pageSize = Math.max(20, Math.min(200, Number(options.pageSize || 100)));
+  let pages = 0;
+  for (let page = 0; page < maxPages; page += 1) {
+    pages += 1;
+    const batch = await invokeNeppoApiList(token, endpoint, page, pageSize, [], sortColumn);
     if (!batch.length) break;
     let stop = false;
     for (const item of batch) {
@@ -769,6 +782,7 @@ async function getNeppoRowsUntil(token, endpoint, start, end, dateField, sortCol
     }
     if (stop) break;
   }
+  rows.pages = pages;
   return rows;
 }
 
@@ -900,6 +914,183 @@ function dashboardLiveSignature(data, meta = {}) {
     rowCount: rows.length,
     statusRows,
   });
+}
+
+function workerCsatValue(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const n = Number(String(value).replace(',', '.'));
+  return Number.isFinite(n) && n > 0 && n <= 10 ? n : null;
+}
+
+function workerRowCsat(row) {
+  return Array.isArray(row) ? workerCsatValue(row[6]) : null;
+}
+
+function recalculateDashboardMetricsFromRows(data) {
+  if (!data || !Array.isArray(data.rows)) return data;
+  const rows = data.rows.filter(Array.isArray);
+  const months = Array.isArray(data.meses) && data.meses.length ? data.meses.length : 12;
+  const avg = (arr) => (arr.length ? arr.reduce((sum, value) => sum + value, 0) / arr.length : null);
+  const med = (arr) => {
+    const a = arr.slice().sort((x, y) => x - y);
+    if (!a.length) return 0;
+    const mid = Math.floor(a.length / 2);
+    return a.length % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2;
+  };
+  const weekOf = (day) => Math.max(1, Math.ceil(Number(day || 1) / 7));
+  const fmt = (sec) => {
+    const s = Math.round(sec || 0);
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const r = s % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
+  };
+  const short = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  const periodDefs = [
+    ['1º Período da manhã', '07-09h', 7, 9],
+    ['2º Período da manhã', '09-10h', 9, 10],
+    ['3º Período da manhã', '10-11h', 10, 11],
+    ['4º Período da manhã', '11-12h', 11, 12],
+    ['Almoço 1', '12-13h', 12, 13],
+    ['Almoço 2', '13-14h', 13, 14],
+    ['1º Período da tarde', '14-15h', 14, 15],
+    ['2º Período da tarde', '15-16h', 15, 16],
+    ['3º Período da tarde', '16-17h', 16, 17],
+    ['4º Período da tarde', '17-18:30h', 17, 19],
+  ];
+  const groupNames = [...new Set([...(data.grupos?.nomes || []), ...rows.map((row) => row[3] || 'Sem grupo')])];
+  data.grupos = { nomes: groupNames };
+  data.atend = [];
+  data.aval = [];
+  data.cobert = [];
+  data.sat = [];
+  data.tma = [];
+  data.tme = [];
+  data.sla = [];
+  data.daily = {};
+  data.agentes = {};
+  data.byMonth = {};
+  for (let mi = 0; mi < months; mi += 1) {
+    const monthNo = mi + 1;
+    const mk = short[mi] || String(monthNo);
+    const monthRows = rows.filter((row) => Number(row[0]) === monthNo);
+    const rated = monthRows.filter((row) => workerRowCsat(row) !== null);
+    data.atend[mi] = monthRows.length;
+    data.aval[mi] = rated.length;
+    data.cobert[mi] = monthRows.length ? rated.length / monthRows.length : 0;
+    data.sat[mi] = avg(rated.map(workerRowCsat)) || 0;
+    data.tma[mi] = fmt(avg(monthRows.map((row) => row[4]).filter((value) => value != null)) || 0);
+    data.tme[mi] = fmt(avg(monthRows.map((row) => row[5]).filter((value) => value != null)) || 0);
+    data.sla[mi] = monthRows.length ? monthRows.filter((row) => (row[5] || 0) <= 120).length / monthRows.length : 0;
+
+    const dayMap = {};
+    for (const row of monthRows) {
+      const day = String(row[1]);
+      const csat = workerRowCsat(row);
+      if (!dayMap[day]) dayMap[day] = { rows: [], ratings: [] };
+      dayMap[day].rows.push(row);
+      if (csat !== null) dayMap[day].ratings.push(csat);
+    }
+    data.daily[monthNo] = Object.fromEntries(Object.entries(dayMap).map(([day, item]) => [
+      day,
+      { v: item.rows.length, c: avg(item.ratings) || data.sat[mi] || 0 },
+    ]));
+    data.grupos[mk] = groupNames.map((group) => monthRows.filter((row) => (row[3] || 'Sem grupo') === group).length);
+
+    const agents = [...new Set(monthRows.map((row) => row[2] || 'Sem agente'))];
+    for (const agent of agents) {
+      if (!data.agentes[agent]) data.agentes[agent] = Array.from({ length: months }, () => [0, 0, 0, '00:00:00']);
+      const agentRows = monthRows.filter((row) => (row[2] || 'Sem agente') === agent);
+      const agentRated = agentRows.filter((row) => workerRowCsat(row) !== null);
+      data.agentes[agent][mi] = [
+        agentRows.length,
+        agentRated.length,
+        avg(agentRated.map(workerRowCsat)) || 0,
+        fmt(avg(agentRows.map((row) => row[4]).filter((value) => value != null)) || 0),
+      ];
+    }
+
+    const avDist = {};
+    for (const row of rated) {
+      const key = String(Math.round(workerRowCsat(row)));
+      avDist[key] = (avDist[key] || 0) + 1;
+    }
+    const tmaAg = {};
+    for (const agent of agents) {
+      const agentRows = monthRows.filter((row) => (row[2] || 'Sem agente') === agent);
+      const tmas = agentRows.map((row) => row[4]).filter((value) => value != null);
+      if (agentRows.length) {
+        tmaAg[agent] = [
+          (avg(tmas) || 0) / 60,
+          med(tmas) / 60,
+          avg(agentRows.map((row) => row[5]).filter((value) => value != null)) || 0,
+          agentRows.length,
+        ];
+      }
+    }
+    const tmaDist = [0, 0, 0, 0, 0, 0];
+    for (const row of monthRows) {
+      const min = (row[4] || 0) / 60;
+      const index = min < 10 ? 0 : min < 20 ? 1 : min < 30 ? 2 : min < 45 ? 3 : min < 60 ? 4 : 5;
+      tmaDist[index] += 1;
+    }
+    const agGrp = {};
+    for (const row of monthRows) {
+      const agent = row[2] || 'Sem agente';
+      const group = row[3] || 'Sem grupo';
+      if (!agGrp[agent]) agGrp[agent] = {};
+      agGrp[agent][group] = (agGrp[agent][group] || 0) + 1;
+    }
+    const csatWeek = { labels: [], data: [] };
+    for (let week = 1; week <= 5; week += 1) {
+      const weekRows = rated.filter((row) => weekOf(row[1]) === week);
+      if (weekRows.length) {
+        csatWeek.labels.push(`Sem.${week}`);
+        csatWeek.data.push(Number((avg(weekRows.map(workerRowCsat)) || 0).toFixed(3)));
+      }
+    }
+    const periodos = periodDefs.map(([n, h, startHour, endHour]) => {
+      const periodRows = monthRows.filter((row) => Number(row[9]) >= startHour && Number(row[9]) < endHour);
+      const periodRated = periodRows.filter((row) => workerRowCsat(row) !== null);
+      return {
+        n,
+        h,
+        at: periodRows.length,
+        pct: monthRows.length ? periodRows.length / monthRows.length : 0,
+        av: periodRated.length,
+        cob: periodRows.length ? periodRated.length / periodRows.length : 0,
+        sat: avg(periodRated.map(workerRowCsat)) || 0,
+        tma: fmt(avg(periodRows.map((row) => row[4]).filter((value) => value != null)) || 0),
+        tme: fmt(avg(periodRows.map((row) => row[5]).filter((value) => value != null)) || 0),
+      };
+    });
+    data.byMonth[mk] = { tmaAg, avDist, tmaDist, agGrp, csatWeek, periodos };
+    if (mi === Number(data.focusIndex || 0)) {
+      data.tmaAg = tmaAg;
+      data.avDist = avDist;
+      data.csatWeek = csatWeek;
+    }
+  }
+  return data;
+}
+
+function neppoLiveRangeForRequest(year, month) {
+  const now = saoPauloDateParts();
+  const isCurrentMonth = Number(year) === now.year && Number(month) === now.month;
+  if (isCurrentMonth) {
+    return {
+      mode: 'today',
+      day: now.day,
+      start: new Date(Date.UTC(year, month - 1, now.day, 3, 0, 0)),
+      end: new Date(Date.UTC(year, month - 1, now.day + 1, 3, 0, 0)),
+    };
+  }
+  return {
+    mode: 'month',
+    day: 0,
+    start: new Date(Date.UTC(year, month - 1, 1, 3, 0, 0)),
+    end: new Date(Date.UTC(year, month, 1, 3, 0, 0)),
+  };
 }
 
 function neppoLiveCacheKey(year, month) {
@@ -1092,11 +1283,11 @@ async function buildLiveNeppoDashboard(request, env, month, year) {
   const auth = await getNeppoApiToken(env);
   if (!auth.ok) return { ok: false, status: auth.status, body: auth };
 
-  const start = new Date(Date.UTC(year, month - 1, 1, 3, 0, 0));
-  const end = new Date(Date.UTC(year, month, 1, 3, 0, 0));
+  const range = neppoLiveRangeForRequest(year, month);
+  const { start, end } = range;
   const token = auth.token;
   const agents = [];
-  for (let page = 0; page < 20; page += 1) {
+  for (let page = 0; page < 3; page += 1) {
     const batch = await invokeNeppoApiList(token, 'agent', page, 200, [], 'createdAt');
     if (!batch.length) break;
     agents.push(...batch);
@@ -1113,8 +1304,8 @@ async function buildLiveNeppoDashboard(request, env, month, year) {
     }
   }
 
-  const sessions = await getNeppoRowsUntil(token, 'user-session', start, end, 'createdAt', 'createdAt');
-  const answers = await getNeppoRowsUntil(token, 'chat-answer', start, end, 'createdAt', 'createdAt');
+  const sessions = await getNeppoRowsUntil(token, 'user-session', start, end, 'createdAt', 'createdAt', { maxPages: range.mode === 'today' ? 8 : 18, pageSize: 100 });
+  const answers = await getNeppoRowsUntil(token, 'chat-answer', start, end, 'createdAt', 'createdAt', { maxPages: range.mode === 'today' ? 8 : 18, pageSize: 100 });
   const ratingBySession = new Map();
   for (const answer of answers) {
     if (Number(answer.questionId) !== 1) continue;
@@ -1173,19 +1364,33 @@ async function buildLiveNeppoDashboard(request, env, month, year) {
   }
 
   const rows = [
-    ...((baseData.rows || []).filter((row) => Array.isArray(row) && Number(row[0]) !== month)),
+    ...((baseData.rows || []).filter((row) => Array.isArray(row) && !(
+      Number(row[0]) === month && (range.mode === 'month' || Number(row[1]) === range.day)
+    ))),
     ...liveRows,
   ];
   baseData.rows = rows;
   baseData.focusMonth = month;
   baseData.focusIndex = Array.isArray(baseData.meses) ? Math.max(0, Math.min(baseData.meses.length - 1, month - 1)) : 0;
+  recalculateDashboardMetricsFromRows(baseData);
   const meta = {
     source: 'neppo-live',
     checkedAt: new Date().toISOString(),
     year,
     month,
+    range: {
+      mode: range.mode,
+      day: range.day,
+      start: start.toISOString(),
+      end: end.toISOString(),
+    },
     liveRows: liveRows.length,
     ratings: ratingBySession.size,
+    pages: {
+      agents: Math.ceil(agents.length / 200) || 1,
+      sessions: sessions.pages || 0,
+      answers: answers.pages || 0,
+    },
   };
   return {
     ok: true,
@@ -4994,8 +5199,11 @@ export default {
     }));
   },
   async scheduled(event, env, ctx) {
-    if (evolutionApiBase(env) && evolutionApiKey(env)) {
-      ctx.waitUntil(reconcileWhatsappGroups(env, ctx, { limit: 50 }));
+    if (event?.cron === '1-59/2 * * * *') {
+      if (evolutionApiBase(env) && evolutionApiKey(env)) {
+        ctx.waitUntil(reconcileWhatsappGroups(env, ctx, { limit: 50 }));
+      }
+      return;
     }
     ctx.waitUntil(refreshNeppoLiveDashboardForCron(env));
   },

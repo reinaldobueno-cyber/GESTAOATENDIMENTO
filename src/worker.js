@@ -946,6 +946,15 @@ async function readNeppoLiveHealth(env) {
   return env.ADJUSTMENTS.get(NEPPO_LIVE_HEALTH_KEY, 'json').catch(() => null);
 }
 
+function neppoRefreshSecret(env) {
+  return String(env.NEPPO_REFRESH_SECRET || env.WEBHOOK_SECRET || env.NEPPO_CLIENT_SECRET || '').trim();
+}
+
+function requestSecret(request) {
+  const bearer = String(request.headers.get('Authorization') || '').trim().match(/^Bearer\s+(.+)$/i);
+  return String(request.headers.get('X-Neppo-Refresh-Secret') || bearer?.[1] || '').trim();
+}
+
 async function refreshNeppoLiveDashboard(request, env, year, month) {
   const result = await buildLiveNeppoDashboard(request, env, month, year);
   if (!result.ok) throw Object.assign(new Error(result.body?.message || 'Falha NEPPO live.'), { status: result.status, body: result.body });
@@ -959,32 +968,40 @@ async function refreshNeppoLiveDashboardForCron(env) {
   const missing = missingNeppoApiConfig(env);
   if (!env.ADJUSTMENTS) return;
   if (!schedule.open) {
-    await writeNeppoLiveHealth(env, {
+    const status = {
       ok: true,
       stage: 'outside-hours',
       year,
       month,
       schedule,
       message: 'Fora do expediente NEPPO. Atualizacao automatica pausada ate a proxima janela.',
-    });
-    return;
+    };
+    await writeNeppoLiveHealth(env, status);
+    return status;
   }
   if (missing.length) {
-    await writeNeppoLiveHealth(env, {
+    const status = {
       ok: false,
       stage: 'config',
       year,
       month,
       schedule,
       message: `Credenciais API NEPPO ausentes no Worker: ${missing.join(', ')}.`,
-    });
-    return;
+    };
+    await writeNeppoLiveHealth(env, status);
+    return status;
+  }
+  const cached = await readNeppoLiveKv(env, year, month);
+  if (neppoLiveIsFresh(cached, NEPPO_LIVE_FRESH_MS)) {
+    const status = { ok: true, stage: 'fresh-cache', year, month, schedule, message: 'Base NEPPO recente no KV; coleta pulada para evitar duplicidade.' };
+    await writeNeppoLiveHealth(env, status);
+    return status;
   }
   await writeNeppoLiveHealth(env, { ok: null, stage: 'running', year, month, schedule, message: 'Atualizacao NEPPO em andamento no Worker.' });
   const request = new Request('https://gestaoatendimento.reinaldo-bueno.workers.dev/');
   try {
     const body = await refreshNeppoLiveDashboard(request, env, year, month);
-    await writeNeppoLiveHealth(env, {
+    const status = {
       ok: true,
       stage: 'success',
       year,
@@ -993,9 +1010,11 @@ async function refreshNeppoLiveDashboardForCron(env) {
       liveRows: body?.meta?.liveRows || 0,
       ratings: body?.meta?.ratings || 0,
       message: 'Base NEPPO atualizada no Worker/KV.',
-    });
+    };
+    await writeNeppoLiveHealth(env, status);
+    return status;
   } catch (error) {
-    await writeNeppoLiveHealth(env, {
+    const status = {
       ok: false,
       stage: 'error',
       year,
@@ -1004,7 +1023,9 @@ async function refreshNeppoLiveDashboardForCron(env) {
       status: error.status || 0,
       message: error.body?.message || error.message || String(error),
       detail: error.body?.detail || '',
-    });
+    };
+    await writeNeppoLiveHealth(env, status);
+    return status;
   }
 }
 
@@ -1244,6 +1265,26 @@ async function handleNeppoLiveHealth(env) {
       month,
       missing: true,
     },
+  });
+}
+
+async function handleNeppoLiveCronTrigger(request, env) {
+  if (request.method !== 'POST') {
+    return jsonResponse({ error: 'Metodo nao permitido.' }, 405);
+  }
+  const expected = neppoRefreshSecret(env);
+  if (!expected) {
+    return jsonResponse({ error: 'Segredo de atualizacao NEPPO nao configurado.' }, 503);
+  }
+  const received = requestSecret(request);
+  if (!received || !timingSafeEqual(received, expected)) {
+    return jsonResponse({ error: 'Nao autorizado.' }, 401);
+  }
+  const status = await refreshNeppoLiveDashboardForCron(env);
+  return jsonResponse({
+    ok: status?.ok !== false,
+    status: status || null,
+    schedule: neppoBusinessSchedule(),
   });
 }
 
@@ -4561,6 +4602,10 @@ export default {
 
     if (url.pathname === '/api/whatsapp-grupo/reconcile-targets') {
       return handleWhatsappGroupReconcileTargets(request, env);
+    }
+
+    if (url.pathname === '/api/neppo-live/cron') {
+      return handleNeppoLiveCronTrigger(request, env);
     }
 
     if (!parseAppUsers(env).length && !(await loadManagedUsers(env)).length) {

@@ -1,19 +1,26 @@
-name: Atualizar dashboard NEPPO legado
+name: Acionar atualizacao NEPPO Worker
 
 on:
+  schedule:
+    - cron: '*/5 11-20 * * 1-5'
   workflow_dispatch:
-  # Fluxo legado mantido apenas para historico. A atualizacao operacional do
-  # NEPPO agora acontece no Worker/KV, de segunda a sexta, 08:00-18:00.
-  # Este workflow nao deve regenerar index.html nem publicar Cloudflare.
+  # Acionador sem estado local: chama o Worker/KV e nunca regenera index.html,
+  # nunca commita e nunca publica Cloudflare.
 
 permissions:
   contents: read
 
 jobs:
-  disabled-legacy-dashboard:
-    runs-on: windows-latest
+  trigger-worker-refresh:
+    runs-on: ubuntu-latest
     steps:
-      - name: Publicador legado desativado
-        shell: pwsh
+      - name: Chamar Worker NEPPO
+        shell: bash
+        env:
+          NEPPO_REFRESH_SECRET: ${{ secrets.NEPPO_CLIENT_SECRET }}
         run: |
-          Write-Output "Publicador legado do dashboard NEPPO desativado. Use o Worker/KV."
+          test -n "$NEPPO_REFRESH_SECRET"
+          curl --fail --silent --show-error --retry 2 --retry-delay 10 \
+            -X POST \
+            -H "X-Neppo-Refresh-Secret: $NEPPO_REFRESH_SECRET" \
+            "https://gestaoatendimento.reinaldo-bueno.workers.dev/api/neppo-live/cron"

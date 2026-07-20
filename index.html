@@ -1147,6 +1147,7 @@ canvas{cursor:pointer;}
           <th class="sortable" data-sort="start" onclick="setAtendimentoSort('start')">Data inicial</th>
           <th class="sortable" data-sort="end" onclick="setAtendimentoSort('end')">Data encerramento</th>
           <th class="sortable" data-sort="client" onclick="setAtendimentoSort('client')">Cliente</th>
+          <th class="sortable" data-sort="user" onclick="setAtendimentoSort('user')">Usuário</th>
           <th class="sortable" data-sort="phone" onclick="setAtendimentoSort('phone')">Telefone</th>
           <th class="sortable" data-sort="week" onclick="setAtendimentoSort('week')">Semana</th>
           <th class="sortable" data-sort="period" onclick="setAtendimentoSort('period')">Período</th>
@@ -338175,18 +338176,70 @@ function opSortValue(r,key){
   const map={
     tma:()=>r[4]||0,protocol:()=>r[7]||'',agent:()=>r[2]||'',group:()=>r[3]||'',
     start:()=>parseBrDate(r[10]),end:()=>parseBrDate(r[11]),client:()=>r[12]||'',
+    user:()=>atendimentoUser(r),
     phone:()=>atendimentoPhone(r),week:()=>Math.ceil((+r[1]||1)/7),period:()=>r[8]||'',
     day:()=>r[1]||0,month:()=>r[0]||0,tme:()=>r[5]||0,operation:()=>r[17]||'',
     channel:()=>r[14]||'',rating:()=>rowCsat(r)==null?-1:rowCsat(r)
   };
   return (map[key]||map.start)();
 }
-function atendimentoPhone(r){
-  for(const value of [r?.[13],r?.[14],r?.[23],r?.[12],r?.[19]]){
-    const digits=String(value||'').replace(/\D/g,'');
-    if(digits.length>=10&&digits.length<=15)return digits;
+let atendimentoPhoneIndex=null;
+function atendimentoPhoneDigits(value,{loose=false}={}){
+  const text=String(value||'').trim();
+  const digits=text.replace(/\D/g,'');
+  if(digits.length<10||digits.length>15)return '';
+  if(loose)return digits;
+  const phoneHint=/(whatsapp|telefone|phone|celular|voice|\+55|\b55\d{10,13}\b)/i.test(text);
+  const onlyNumber=/^\D*\+?\d[\d\s().-]{8,}\D*$/.test(text);
+  return (phoneHint||onlyNumber)?digits:'';
+}
+function atendimentoRawPhone(r){
+  for(const value of [r?.[13],r?.[14],r?.[23]]){
+    const digits=atendimentoPhoneDigits(value,{loose:true});
+    if(digits)return digits;
+  }
+  for(const value of [r?.[12],r?.[18],r?.[19]]){
+    const digits=atendimentoPhoneDigits(value);
+    if(digits)return digits;
   }
   return '';
+}
+function atendimentoPhoneKeys(r){
+  return [
+    clientCode(r),
+    clientDisplayCode(clientCode(r)),
+    r?.[20],
+    r?.[21]?`DOC:${String(r[21]).replace(/\D/g,'')}`:'',
+    r?.[19],
+    r?.[12],
+  ].map(v=>String(v||'').trim()).filter(Boolean);
+}
+function buildAtendimentoPhoneIndex(){
+  const map=new Map();
+  (D.rows||[]).forEach(r=>{
+    if(!Array.isArray(r))return;
+    const phone=atendimentoRawPhone(r);
+    if(!phone)return;
+    atendimentoPhoneKeys(r).forEach(key=>{if(!map.has(key))map.set(key,phone);});
+  });
+  atendimentoPhoneIndex=map;
+}
+function atendimentoPhone(r){
+  const direct=atendimentoRawPhone(r);
+  if(direct)return direct;
+  if(!atendimentoPhoneIndex)buildAtendimentoPhoneIndex();
+  for(const key of atendimentoPhoneKeys(r)){
+    const phone=atendimentoPhoneIndex?.get(key);
+    if(phone)return phone;
+  }
+  return '';
+}
+function atendimentoUser(r){
+  const value=String(r?.[18]||r?.[23]||'').trim();
+  if(value&&!/^CLIENTE:/i.test(value)&&!/^(DOC|EXT):/i.test(value))return value;
+  const raw=String(r?.[12]||'').trim();
+  const parts=raw.split(/\s+-\s+/).map(x=>x.trim()).filter(Boolean);
+  return parts.length>1?parts[0]:'';
 }
 function setAtendimentoSort(key){
   opSort={key,dir:(opSort.key===key&&opSort.dir==='asc')?'desc':'asc'};
@@ -338377,7 +338430,7 @@ function atendimentoRows(){
     if(av==='unrated'&&cs!=null)return false;
     if(av==='low'&&!(cs!=null&&cs<9))return false;
     if(q){
-    const hay=[r[7],r[12],atendimentoPhone(r),r[13],r[18],r[19],r[20],r[21],r[22],r[23],r[2],r[3]].map(x=>String(x||'').toLowerCase()).join(' ');
+    const hay=[r[7],r[12],atendimentoUser(r),atendimentoPhone(r),r[13],r[18],r[19],r[20],r[21],r[22],r[23],r[2],r[3]].map(x=>String(x||'').toLowerCase()).join(' ');
       if(!hay.includes(q))return false;
     }
     return true;
@@ -338664,6 +338717,7 @@ function renderAtendimentos(){
     const chamada=r[14]||'WHATSAPP';
     const operacao=r[17]||'MODELO';
     const phone=atendimentoPhone(r);
+    const user=atendimentoUser(r);
     return `<tr>
       <td class="op-mono"${liveTmaAttrs(r)}>${fmtDur(liveTmaSec(r))}</td>
       <td class="op-mono">${esc(r[7])}</td>
@@ -338672,6 +338726,7 @@ function renderAtendimentos(){
       <td class="op-mono">${esc(r[10]||'')}</td>
       <td class="op-mono">${esc(r[11]||'')}</td>
       <td class="op-client" title="${esc(r[12]||'')}">${clientButton(r)}</td>
+      <td>${esc(user||'')}</td>
       <td class="op-mono">${esc(phone)}</td>
       <td class="op-mono">${semanaFromDay(r[1])}</td>
       <td>${esc(r[8])}</td>
@@ -340246,6 +340301,7 @@ function replaceDashboardData(nextData){
   const oldMonthCount=Array.isArray(D.meses)?D.meses.length:0;
   Object.keys(D).forEach(k=>delete D[k]);
   Object.assign(D,nextData);
+  atendimentoPhoneIndex=null;
   normalizeDashboardMonths();
   applyManualAdjustments();
   return oldMonthCount===D.meses.length;

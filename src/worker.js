@@ -3297,6 +3297,63 @@ async function whatsappGroupSessionForRecord(env, record) {
   return whatsappSessionWindowMatches(session, record) ? session : null;
 }
 
+function whatsappSessionsShareWindow(left, right) {
+  if (!left?.id || !right?.id) return false;
+  const leftFirst = left.first_message_at || left.started_at || left.created_at || '';
+  const rightFirst = right.first_message_at || right.started_at || right.created_at || '';
+  const leftLast = left.last_message_at || left.updated_at || leftFirst;
+  const rightLast = right.last_message_at || right.updated_at || rightFirst;
+  const leftDay = whatsappSessionDateKey(leftFirst || leftLast);
+  const rightDay = whatsappSessionDateKey(rightFirst || rightLast);
+  if (leftDay && rightDay && leftDay !== rightDay) return false;
+  const leftLastTime = new Date(leftLast).getTime();
+  const rightFirstTime = new Date(rightFirst).getTime();
+  const rightLastTime = new Date(rightLast).getTime();
+  const leftFirstTime = new Date(leftFirst).getTime();
+  if (Number.isFinite(leftLastTime) && Number.isFinite(rightFirstTime) && Math.abs(rightFirstTime - leftLastTime) <= WHATSAPP_SESSION_MAX_IDLE_MS) return true;
+  if (Number.isFinite(rightLastTime) && Number.isFinite(leftFirstTime) && Math.abs(leftFirstTime - rightLastTime) <= WHATSAPP_SESSION_MAX_IDLE_MS) return true;
+  return false;
+}
+
+function chooseWhatsappSessionMergeTarget(rows, preferredId = '') {
+  const preferred = rows.find((row) => row.id === preferredId);
+  if (preferred && (preferred.first_response_at || String(preferred.status || '').toUpperCase() === WHATSAPP_SESSION_IN_PROGRESS)) return preferred;
+  return rows.find((row) => row.first_response_at || String(row.status || '').toUpperCase() === WHATSAPP_SESSION_IN_PROGRESS)
+    || preferred
+    || rows[0]
+    || null;
+}
+
+async function mergeWhatsappGroupSessionDuplicates(env, record, preferredId = '') {
+  if (!env.REVIEWS_DB || !record?.grupoId) return null;
+  const statuses = openSessionStatuses();
+  const placeholders = statuses.map(() => '?').join(', ');
+  const result = await env.REVIEWS_DB.prepare(`
+    SELECT *
+    FROM whatsapp_group_sessions
+    WHERE instance = ? AND grupo_id = ? AND status IN (${placeholders})
+    ORDER BY first_message_at ASC, started_at ASC, created_at ASC
+    LIMIT 30
+  `).bind(record.instance || '', record.grupoId, ...statuses).all();
+  const rows = Array.isArray(result?.results) ? result.results : [];
+  const base = rows.find((row) => row.id === preferredId) || rows.find((row) => whatsappSessionWindowMatches(row, record));
+  if (!base) return null;
+  const group = rows.filter((row) => row.id === base.id || whatsappSessionsShareWindow(row, base));
+  if (group.length < 2) return base;
+  const target = chooseWhatsappSessionMergeTarget(group, preferredId);
+  if (!target?.id) return base;
+  const duplicates = group.filter((row) => row.id !== target.id);
+  for (const duplicate of duplicates) {
+    await env.REVIEWS_DB.prepare(`
+      UPDATE whatsapp_group_attendances
+      SET session_id = ?, session_protocol = ?, session_status = ?
+      WHERE session_id = ?
+    `).bind(target.id, target.protocol || '', target.status || WHATSAPP_SESSION_UNANSWERED, duplicate.id).run();
+    await env.REVIEWS_DB.prepare('DELETE FROM whatsapp_group_sessions WHERE id = ?').bind(duplicate.id).run();
+  }
+  return recalculateWhatsappSessionTiming(env, target.id);
+}
+
 async function createWhatsappGroupSession(env, record, actor, status = WHATSAPP_SESSION_UNANSWERED) {
   const now = new Date().toISOString();
   const id = `WGS-${Date.now()}-${crypto.randomUUID()}`;
@@ -3712,15 +3769,16 @@ async function processWhatsappGroupItemPayload(env, itemPayload, ctx = null) {
   const duplicate = await whatsappGroupAttendanceExists(env, record);
   if (duplicate) {
     const recalculated = duplicate.session_id ? await recalculateWhatsappSessionTiming(env, duplicate.session_id).catch(() => null) : null;
+    const merged = duplicate.session_id ? await mergeWhatsappGroupSessionDuplicates(env, record, duplicate.session_id).catch(() => null) : null;
     return {
       inserted: false,
       duplicate: true,
       origin: WHATSAPP_GROUP_ORIGIN,
       grupoId: record.grupoId,
       tipoMensagem: record.tipoMensagem,
-      sessionId: duplicate.session_id || '',
-      sessionProtocol: duplicate.session_protocol || '',
-      sessionStatus: recalculated?.status || duplicate.session_status || '',
+      sessionId: merged?.id || duplicate.session_id || '',
+      sessionProtocol: merged?.protocol || duplicate.session_protocol || '',
+      sessionStatus: merged?.status || recalculated?.status || duplicate.session_status || '',
     };
   }
 
@@ -3731,6 +3789,7 @@ async function processWhatsappGroupItemPayload(env, itemPayload, ctx = null) {
 
   const inserted = await insertWhatsappGroupAttendance(env, record);
   const recalculated = record.sessionId ? await recalculateWhatsappSessionTiming(env, record.sessionId).catch(() => null) : null;
+  const merged = record.sessionId ? await mergeWhatsappGroupSessionDuplicates(env, record, record.sessionId).catch(() => null) : null;
   await upsertWhatsappInstanceFromRecord(env, record);
   await upsertWhatsappGroupFromRecord(env, record);
   if (ctx && !record.grupoNome) ctx.waitUntil(enrichWhatsappGroupName(env, record));
@@ -3741,8 +3800,8 @@ async function processWhatsappGroupItemPayload(env, itemPayload, ctx = null) {
     origin: WHATSAPP_GROUP_ORIGIN,
     grupoId: record.grupoId,
     tipoMensagem: record.tipoMensagem,
-    sessionProtocol: record.sessionProtocol,
-    sessionStatus: recalculated?.status || record.sessionStatus,
+    sessionProtocol: merged?.protocol || record.sessionProtocol,
+    sessionStatus: merged?.status || recalculated?.status || record.sessionStatus,
     command: session.command || '',
   };
 }

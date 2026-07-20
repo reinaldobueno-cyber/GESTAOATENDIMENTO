@@ -336393,6 +336393,50 @@ function whatsappCanonicalAgentName(session){
 function whatsappStatusKey(value){
   return String(value||'').trim().toUpperCase();
 }
+function whatsappMetricText(value){
+  return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+}
+function whatsappIsExcludedMetricGroup(item){
+  const text=[item?.grupoNome,item?.grupoId,item?.clienteNome,whatsappGroupLabel(item||{})].map(whatsappMetricText).join(' ');
+  return text.includes('teste integracao');
+}
+function whatsappBusinessParts(value){
+  const date=value instanceof Date?value:new Date(value||'');
+  if(!Number.isFinite(date.getTime()))return null;
+  const br=new Date(date.getTime()-3*60*60*1000);
+  return {year:br.getUTCFullYear(),month:br.getUTCMonth(),day:br.getUTCDate(),dow:br.getUTCDay(),hour:br.getUTCHours(),minute:br.getUTCMinutes(),second:br.getUTCSeconds(),ms:br.getUTCMilliseconds()};
+}
+function whatsappBusinessOpen(value){
+  const p=whatsappBusinessParts(value);
+  return !!p&&p.dow>=1&&p.dow<=5&&p.hour>=8&&p.hour<18;
+}
+function whatsappBusinessBoundaryUtc(p,hour){
+  return Date.UTC(p.year,p.month,p.day,hour,0,0,0)+3*60*60*1000;
+}
+function whatsappBusinessSecondsBetween(startValue,endValue){
+  let start=new Date(startValue||'').getTime(), end=new Date(endValue||'').getTime();
+  if(!Number.isFinite(start)||!Number.isFinite(end)||end<start)return 0;
+  let total=0, cursor=start, guard=0;
+  while(cursor<end&&guard++<45){
+    const p=whatsappBusinessParts(new Date(cursor));
+    if(!p)break;
+    const dayStart=whatsappBusinessBoundaryUtc(p,8), dayEnd=whatsappBusinessBoundaryUtc(p,18);
+    if(p.dow>=1&&p.dow<=5){
+      const from=Math.max(cursor,dayStart), to=Math.min(end,dayEnd);
+      if(to>from)total+=to-from;
+    }
+    cursor=Date.UTC(p.year,p.month,p.day+1,8,0,0,0)+3*60*60*1000;
+  }
+  return Math.round(total/1000);
+}
+function whatsappSessionOutsideUnanswered(session){
+  if(!whatsappIsUnansweredStatus(session?.status)||session?.firstResponseAt)return false;
+  const first=session?.firstMessageAt||session?.startedAt||session?.createdAt||'';
+  return first&&!whatsappBusinessOpen(first);
+}
+function whatsappSessionCountsAsOpen(session){
+  return whatsappIsUnansweredStatus(session?.status)&&!whatsappSessionOutsideUnanswered(session)&&!whatsappIsExcludedMetricGroup(session);
+}
 function whatsappIsUnansweredStatus(value){
   const status=whatsappStatusKey(value);
   return ['OPEN','SEM_RESPOSTA','UNANSWERED','PENDING'].includes(status);
@@ -336431,7 +336475,7 @@ function whatsappDuration(seconds){
 function whatsappGroupFillGroups(){
   const select=$('wg-group-filter');if(!select)return;
   const current=select.value;
-  const groups=[...new Map([...(WHATSAPP_GROUP_RECORDS||[]),...(WHATSAPP_GROUP_SESSIONS||[])].map(r=>[String(r.grupoId||''),whatsappGroupLabel(r)]).filter(([id])=>id)).entries()]
+  const groups=[...new Map([...(WHATSAPP_GROUP_RECORDS||[]),...(WHATSAPP_GROUP_SESSIONS||[])].filter(r=>!whatsappIsExcludedMetricGroup(r)).map(r=>[String(r.grupoId||''),whatsappGroupLabel(r)]).filter(([id])=>id)).entries()]
     .sort((a,b)=>a[1].localeCompare(b[1],'pt-BR',{numeric:true,sensitivity:'base'}));
   select.innerHTML='<option value="">Todos</option>'+groups.map(([id,label])=>`<option value="${esc(id)}">${esc(label)}</option>`).join('');
   if([...select.options].some(o=>o.value===current))select.value=current;
@@ -336513,6 +336557,7 @@ function whatsappGroupFiltered(){
   const start=$('wg-start')?.value||'', end=$('wg-end')?.value||'', group=$('wg-group-filter')?.value||'', type=$('wg-type-filter')?.value||'', fromMe=$('wg-fromme-filter')?.value||'', instance=$('wg-instance-filter')?.value||'';
   const q=String($('wg-search')?.value||'').trim().toLowerCase();
   return (WHATSAPP_GROUP_RECORDS||[]).filter(r=>{
+    if(whatsappIsExcludedMetricGroup(r))return false;
     const day=String(r.messageDatetime||r.createdAt||'').slice(0,10);
     if(start&&day<start)return false;
     if(end&&day>end)return false;
@@ -336539,12 +336584,13 @@ function whatsappSessionFiltered(){
   const start=$('wg-start')?.value||'', end=$('wg-end')?.value||'', group=$('wg-group-filter')?.value||'', instance=$('wg-instance-filter')?.value||'';
   const q=String($('wg-search')?.value||'').trim().toLowerCase();
   return (WHATSAPP_GROUP_SESSIONS||[]).filter(s=>{
+    if(whatsappIsExcludedMetricGroup(s))return false;
     const day=String(s.startedAt||s.createdAt||'').slice(0,10);
     if(start&&day<start)return false;
     if(end&&day>end)return false;
     if(group&&String(s.grupoId||'')!==group)return false;
     if(instance&&String(s.instance||'')!==instance)return false;
-    if(WHATSAPP_GROUP_ONLY_UNANSWERED&&!whatsappIsUnansweredStatus(s.status))return false;
+    if(WHATSAPP_GROUP_ONLY_UNANSWERED&&!whatsappSessionCountsAsOpen(s))return false;
     if(q&&!['protocol','grupoId','grupoNome','clienteNome','remetenteId','remetenteNome','agenteNome'].some(k=>String(s[k]||'').toLowerCase().includes(q)))return false;
     return true;
   });
@@ -336555,7 +336601,7 @@ function whatsappIsHiddenCommand(r){
 }
 function whatsappIsInternalTestGroup(g){
   const text=[g?.grupoNome,g?.grupoId,g?.clienteNome,...(g?.agentes||[])].map(v=>String(v||'').toLowerCase()).join(' ');
-  return /\bcodex\b|dedup|codexteste/.test(text);
+  return /\bcodex\b|dedup|codexteste/.test(text)||whatsappIsExcludedMetricGroup(g);
 }
 function renderWhatsappGroupConfig(){
   const mode=WHATSAPP_GROUP_CONFIG?.settings?.mode||'ALL_GROUPS';
@@ -336611,7 +336657,7 @@ function renderWhatsappSessionRows(sessions){
       if(whatsappDateKey(s.closedAt||s.updatedAt||s.startedAt)===todayKey)buckets.closed.push(s);
       return;
     }
-    if(whatsappIsUnansweredStatus(s.status))buckets.unanswered.push(s);
+    if(whatsappSessionCountsAsOpen(s))buckets.unanswered.push(s);
     else buckets.progress.push(s);
   });
   const card=s=>{
@@ -336643,7 +336689,7 @@ function filterWhatsappAllProtocols(){
   });
 }
 function openWhatsappAllProtocols(){
-  const sessions=(WHATSAPP_GROUP_SESSIONS||[]).slice().sort((a,b)=>String(b.startedAt||b.createdAt||b.updatedAt||'').localeCompare(String(a.startedAt||a.createdAt||a.updatedAt||'')));
+  const sessions=(WHATSAPP_GROUP_SESSIONS||[]).filter(s=>!whatsappIsExcludedMetricGroup(s)).sort((a,b)=>String(b.startedAt||b.createdAt||b.updatedAt||'').localeCompare(String(a.startedAt||a.createdAt||a.updatedAt||'')));
   const total=sessions.length;
   const unanswered=sessions.filter(s=>whatsappProtocolStatusGroup(s)==='unanswered').length;
   const progress=sessions.filter(s=>whatsappProtocolStatusGroup(s)==='progress').length;
@@ -336691,6 +336737,7 @@ function whatsappSessionAgentName(session){
 function whatsappSessionsForAgentDay(monthValue,agent,day){
   const [year,month]=String(monthValue||'').split('-').map(Number);
   return (WHATSAPP_GROUP_SESSIONS||[]).filter(s=>{
+    if(whatsappIsExcludedMetricGroup(s))return false;
     if(!whatsappIsClosedStatus(s.status))return false;
     const d=whatsappSessionAgentMetricDate(s);
     if(!d||d.getFullYear()!==year||d.getMonth()!==month-1||d.getDate()!==Number(day))return false;
@@ -336712,6 +336759,7 @@ function renderWhatsappAgentDayMatrix(){
   const sel=whatsappSelectedAgentMonth();
   if(monthInput&&monthInput.value!==sel.value)monthInput.value=sel.value;
   const sessions=(WHATSAPP_GROUP_SESSIONS||[]).filter(s=>{
+    if(whatsappIsExcludedMetricGroup(s))return false;
     if(!whatsappIsClosedStatus(s.status))return false;
     const d=whatsappSessionAgentMetricDate(s);
     return d&&d.getFullYear()===sel.year&&d.getMonth()===sel.monthIndex;
@@ -336812,7 +336860,11 @@ function whatsappSessionMessages(session){
 }
 function whatsappSessionFirstResponseSeconds(session){
   const stored=Number(session?.firstResponseSeconds||0);
-  if(Number.isFinite(stored)&&stored>0)return stored;
+  if(session?.firstResponseAt&&(session?.firstMessageAt||session?.startedAt)){
+    const business=whatsappBusinessSecondsBetween(session.firstMessageAt||session.startedAt,session.firstResponseAt);
+    if(business>0)return business;
+    if(Number.isFinite(stored)&&stored>0)return stored;
+  }
   const rows=whatsappSessionMessages(session);
   const firstClient=rows.find(r=>!r.fromMe);
   if(!firstClient)return stored===0?0:null;
@@ -336824,7 +336876,8 @@ function whatsappSessionFirstResponseSeconds(session){
   const a=new Date(firstClient.messageDatetime||firstClient.createdAt||'').getTime();
   const b=new Date(firstAgent.messageDatetime||firstAgent.createdAt||'').getTime();
   if(!Number.isFinite(a)||!Number.isFinite(b)||b<a)return stored||null;
-  return Math.round((b-a)/1000);
+  const business=whatsappBusinessSecondsBetween(firstClient.messageDatetime||firstClient.createdAt||'',firstAgent.messageDatetime||firstAgent.createdAt||'');
+  return business>0?business:Math.round((b-a)/1000);
 }
 function renderWhatsappGroupSummary(rows){
   const host=$('wg-group-list');if(!host)return;
@@ -336860,7 +336913,7 @@ function renderWhatsappGroupSummary(rows){
     const {key,current}=ensureGroup(s);
     if(s.protocol)current.protocols.add(String(s.protocol));
     current.sessionMessages+=Number(s.messageCount||0);
-    if(whatsappIsUnansweredStatus(s.status))current.open+=1;
+    if(whatsappSessionCountsAsOpen(s))current.open+=1;
     else if(whatsappIsClosedStatus(s.status))current.closed+=1;
     else current.progress+=1;
     current.last=String(s.lastMessageAt||s.updatedAt||s.createdAt||'')>String(current.last||'')?String(s.lastMessageAt||s.updatedAt||s.createdAt||''):current.last;
@@ -336893,6 +336946,7 @@ function whatsappSessionDate(session,field='closedAt'){
 }
 function whatsappMonthClosedSessions(sessions){
   return (sessions||[]).filter(s=>{
+    if(whatsappIsExcludedMetricGroup(s))return false;
     if(String(s.status||'').toUpperCase()!=='CLOSED')return false;
     const d=whatsappSessionDate(s,'closedAt');
     return d&&d.getFullYear()===2026&&d.getMonth()===appM;
@@ -337111,7 +337165,7 @@ function setWhatsappAlertButtons(primary,secondary){
 function showWhatsappGroupAlert(session,count){
   if(!WHATSAPP_GROUP_SOUND)return;
   const box=$('wg-alert-popup');if(!box)return;
-  const pending=(WHATSAPP_GROUP_SESSIONS||[]).filter(s=>whatsappIsUnansweredStatus(s.status));
+  const pending=(WHATSAPP_GROUP_SESSIONS||[]).filter(whatsappSessionCountsAsOpen);
   const key=pending.map(s=>`${s.id||s.protocol||''}:${s.messageCount||0}:${s.lastMessageAt||s.updatedAt||''}`).sort().join('|');
   if(key&&WHATSAPP_GROUP_DISMISSED_ALERT_KEY===key)return;
   box.dataset.alertType='unanswered';
@@ -337171,7 +337225,7 @@ function notifyBrowserWhatsappPending(session,count,key){
   }catch{}
 }
 function notifyWhatsappUnanswered(sessions){
-  const pending=(sessions||[]).filter(s=>whatsappIsUnansweredStatus(s.status));
+  const pending=(sessions||[]).filter(whatsappSessionCountsAsOpen);
   const key=pending.map(s=>`${s.id||s.protocol||''}:${s.messageCount||0}:${s.lastMessageAt||s.updatedAt||''}`).sort().join('|');
   if($('wg-live-badge'))$('wg-live-badge').textContent=pending.length?`${fN(pending.length)} sem resposta`:'Atualização automática ativa';
   document.title=pending.length?`(${fN(pending.length)}) SEM RESPOSTA · ${whatsappGroupTitleBase}`:whatsappGroupTitleBase;
@@ -337190,7 +337244,7 @@ function notifyWhatsappUnregisteredGroups(rows,sessions){
   if(!whatsappGroupConfigLoaded)return;
   const groups=whatsappUnregisteredGroups(rows,sessions);
   const key=groups.map(g=>`${g.instance||''}|${g.grupoId||''}:${g.total}:${g.last||''}`).sort().join('|');
-  if($('wg-live-badge')&&!WHATSAPP_GROUP_SESSIONS.some(s=>whatsappIsUnansweredStatus(s.status))){
+  if($('wg-live-badge')&&!WHATSAPP_GROUP_SESSIONS.some(whatsappSessionCountsAsOpen)){
     $('wg-live-badge').textContent=groups.length?`${fN(groups.length)} grupo novo`:'Atualização automática ativa';
   }
   if(key&&key!==WHATSAPP_GROUP_LAST_UNREGISTERED_KEY){
@@ -337229,10 +337283,13 @@ function renderWhatsappGroupRecords(){
   const filteredSessions=whatsappSessionFiltered().sort((a,b)=>String(b.lastMessageAt||b.updatedAt||b.startedAt||b.createdAt||'').localeCompare(String(a.lastMessageAt||a.updatedAt||a.startedAt||a.createdAt||'')));
   const openGroups=new Set(rows.map(r=>r.grupoId).filter(Boolean));
   const sessions=filteredSessions;
-  const open=sessions.filter(s=>whatsappIsUnansweredStatus(s.status)).length;
+  const open=sessions.filter(whatsappSessionCountsAsOpen).length;
   const progress=sessions.filter(s=>whatsappIsProgressStatus(s.status)).length;
   const closed=sessions.filter(s=>whatsappIsClosedStatus(s.status)).length;
-  const responseTimes=sessions.map(s=>whatsappSessionFirstResponseSeconds(s)).filter(v=>Number.isFinite(v)&&v>=0);
+  const responseTimes=sessions
+    .filter(s=>s.firstResponseAt||whatsappSessionMessages(s).some(r=>r.fromMe||String(r.agentName||r.agenteNome||'').trim()))
+    .map(s=>whatsappSessionFirstResponseSeconds(s))
+    .filter(v=>Number.isFinite(v)&&v>=0);
   const avgResponse=responseTimes.length?responseTimes.reduce((sum,value)=>sum+value,0)/responseTimes.length:null;
   if($('wg-k-sessions'))$('wg-k-sessions').textContent=fN(sessions.length);
   if($('wg-k-total'))$('wg-k-total').textContent=fN(rows.length);
@@ -337375,6 +337432,7 @@ function go(id,el){
   document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
   if(el)el.classList.add('active');$('pane-'+id)?.classList.add('active');
+  if(id==='visao')setGlobalMonth(appM);
   if(id==='calendario')renderCal();
   if(id==='agentes')buildAgentes(agM);
   if(id==='clientes')renderClientsMonth(appM);
@@ -340206,7 +340264,9 @@ async function checkDashboardAssetUpdate(options={}){
   if(!payload){dashboardLastCheckMessage='Falha ao consultar a base NEPPO. Nova tentativa em 20 segundos.';scheduleDashboardNextCheck(DASHBOARD_REFRESH_RETRY_MS);if(manual)toast('Não consegui consultar a nova base agora.',true);return false;}
   const {data,signature}=payload;
   if(!dashboardAssetSignature){dashboardAssetSignature=signature;dashboardLastCheckMessage='Base conferida. Nenhuma mudança ainda.';if(!dashboardNextCheckAtMs||dashboardNextCheckAtMs<=Date.now())scheduleDashboardNextCheck(DASHBOARD_REFRESH_INTERVAL_MS);else renderNeppoRefreshStatus();if(manual)toast('Base conferida. Sem mudança ainda.');return false;}
-  if(signature!==dashboardAssetSignature){
+  const currentSignature=dashboardNumbersSignature(D);
+  const payloadSignature=dashboardNumbersSignature(data);
+  if(signature!==dashboardAssetSignature||payloadSignature!==currentSignature){
     const paneId=activeDashboardPaneId();
     sessionStorage.setItem('gestao-dashboard-auto-refresh',new Date().toISOString());
     const sameStructure=replaceDashboardData(data);

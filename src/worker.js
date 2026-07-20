@@ -7,6 +7,8 @@ const NEPPO_AUTH_BASE = 'https://api-auth.neppo.com.br';
 const NEPPO_LIVE_KV_PREFIX = 'neppo-live-dashboard-v2';
 const NEPPO_LIVE_HEALTH_KEY = 'neppo-live-health-v2';
 const NEPPO_LIVE_FRESH_MS = 15 * 1000;
+const NEPPO_LIVE_CRON_FRESH_MS = 90 * 1000;
+const NEPPO_LIVE_RUNNING_LOCK_MS = 3 * 60 * 1000;
 const NEPPO_LIVE_STALE_MS = 30 * 60 * 1000;
 const NEPPO_LIVE_KV_EXPIRATION_TTL = 2 * 24 * 60 * 60;
 const NEPPO_BUSINESS_START_HOUR = 8;
@@ -1138,6 +1140,11 @@ async function readNeppoLiveHealth(env) {
   return env.ADJUSTMENTS.get(NEPPO_LIVE_HEALTH_KEY, 'json').catch(() => null);
 }
 
+function neppoLiveHealthAgeMs(status) {
+  const time = new Date(status?.checkedAt || '').getTime();
+  return Number.isFinite(time) ? Date.now() - time : Infinity;
+}
+
 function neppoRefreshSecret(env) {
   return String(env.NEPPO_REFRESH_SECRET || env.WEBHOOK_SECRET || env.NEPPO_CLIENT_SECRET || '').trim();
 }
@@ -1193,11 +1200,42 @@ async function refreshNeppoLiveDashboardForCron(env) {
     await writeNeppoLiveHealth(env, status);
     return status;
   }
-  const cached = await readNeppoLiveKv(env, year, month);
-  if (neppoLiveIsFresh(cached, NEPPO_LIVE_FRESH_MS)) {
-    const status = { ok: true, stage: 'fresh-cache', year, month, schedule, message: 'Base NEPPO recente no KV; coleta pulada para evitar duplicidade.' };
+  const [cached, currentHealth] = await Promise.all([
+    readNeppoLiveKv(env, year, month),
+    readNeppoLiveHealth(env),
+  ]);
+  if (neppoLiveIsFresh(cached, NEPPO_LIVE_CRON_FRESH_MS)) {
+    const status = {
+      ok: true,
+      stage: 'success',
+      year,
+      month,
+      schedule,
+      liveRows: cached?.meta?.liveRows || 0,
+      ratings: cached?.meta?.ratings || 0,
+      ageMs: neppoLiveAgeMs(cached),
+      message: 'Base NEPPO recente no KV; coleta pulada para evitar duplicidade.',
+    };
     await writeNeppoLiveHealth(env, status);
     return status;
+  }
+  if (currentHealth?.stage === 'running' && neppoLiveHealthAgeMs(currentHealth) <= NEPPO_LIVE_RUNNING_LOCK_MS) {
+    if (cached && neppoLiveAgeMs(cached) <= NEPPO_LIVE_STALE_MS) {
+      const status = {
+        ok: true,
+        stage: 'success',
+        year,
+        month,
+        schedule,
+        liveRows: cached?.meta?.liveRows || 0,
+        ratings: cached?.meta?.ratings || 0,
+        ageMs: neppoLiveAgeMs(cached),
+        message: 'Coleta NEPPO anterior ainda em andamento; painel mantido com KV valido.',
+      };
+      await writeNeppoLiveHealth(env, status);
+      return status;
+    }
+    return currentHealth;
   }
   await writeNeppoLiveHealth(env, { ok: null, stage: 'running', year, month, schedule, message: 'Atualizacao NEPPO em andamento no Worker.' });
   const request = new Request('https://gestaoatendimento.reinaldo-bueno.workers.dev/');
@@ -1463,24 +1501,51 @@ async function handleNeppoLiveHealth(env) {
   const schedule = neppoBusinessSchedule();
   const cached = await readNeppoLiveKv(env, year, month);
   const health = await readNeppoLiveHealth(env);
+  const cache = cached ? {
+    key: neppoLiveCacheKey(year, month),
+    year,
+    month,
+    ageMs: neppoLiveAgeMs(cached),
+    checkedAt: cached?.meta?.checkedAt || '',
+    liveRows: cached?.meta?.liveRows || 0,
+    ratings: cached?.meta?.ratings || 0,
+  } : {
+    key: neppoLiveCacheKey(year, month),
+    year,
+    month,
+    missing: true,
+  };
+  let healthView = health || null;
+  const cacheCheckedAt = cached?.meta?.checkedAt || '';
+  const cacheTime = Date.parse(cacheCheckedAt);
+  const healthTime = Date.parse(health?.checkedAt || '');
+  if (
+    cached &&
+    Number.isFinite(cacheTime) &&
+    (
+      !healthView ||
+      healthView.stage === 'running' ||
+      !Number.isFinite(healthTime) ||
+      cacheTime > healthTime
+    )
+  ) {
+    healthView = {
+      checkedAt: cacheCheckedAt,
+      ok: true,
+      stage: 'success',
+      year,
+      month,
+      schedule,
+      liveRows: cached?.meta?.liveRows || 0,
+      ratings: cached?.meta?.ratings || 0,
+      message: 'Base NEPPO atualizada no Worker/KV.',
+    };
+  }
   return jsonResponse({
     ok: true,
     schedule,
-    health: health || null,
-    cache: cached ? {
-      key: neppoLiveCacheKey(year, month),
-      year,
-      month,
-      ageMs: neppoLiveAgeMs(cached),
-      checkedAt: cached?.meta?.checkedAt || '',
-      liveRows: cached?.meta?.liveRows || 0,
-      ratings: cached?.meta?.ratings || 0,
-    } : {
-      key: neppoLiveCacheKey(year, month),
-      year,
-      month,
-      missing: true,
-    },
+    health: healthView,
+    cache,
   });
 }
 
@@ -3183,6 +3248,27 @@ function normalizeWhatsappName(value) {
     .trim();
 }
 
+function whatsappMetricText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function whatsappIsExcludedMetricGroup(row = {}) {
+  const text = [
+    row.grupo_nome,
+    row.grupoNome,
+    row.grupo_id,
+    row.grupoId,
+    row.cliente_nome,
+    row.clienteNome,
+  ].map(whatsappMetricText).join(' ');
+  return text.includes('teste integracao');
+}
+
 function whatsappNameMatches(name, candidate) {
   const a = normalizeWhatsappName(name);
   const b = normalizeWhatsappName(candidate);
@@ -3342,6 +3428,59 @@ function secondsBetweenIso(start, end) {
   return Math.round((b - a) / 1000);
 }
 
+function whatsappBusinessParts(value) {
+  const date = value instanceof Date ? value : new Date(value || '');
+  if (!Number.isFinite(date.getTime())) return null;
+  const br = new Date(date.getTime() - 3 * 60 * 60 * 1000);
+  return {
+    year: br.getUTCFullYear(),
+    month: br.getUTCMonth(),
+    day: br.getUTCDate(),
+    dow: br.getUTCDay(),
+    hour: br.getUTCHours(),
+  };
+}
+
+function whatsappBusinessBoundaryUtc(parts, hour) {
+  return Date.UTC(parts.year, parts.month, parts.day, hour, 0, 0, 0) + 3 * 60 * 60 * 1000;
+}
+
+function whatsappBusinessOpen(value) {
+  const parts = whatsappBusinessParts(value);
+  return Boolean(parts && parts.dow >= 1 && parts.dow <= 5 && parts.hour >= 8 && parts.hour < 18);
+}
+
+function whatsappBusinessSecondsBetween(startValue, endValue) {
+  let start = new Date(startValue || '').getTime();
+  const end = new Date(endValue || '').getTime();
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return 0;
+  let total = 0;
+  let guard = 0;
+  while (start < end && guard < 45) {
+    guard += 1;
+    const parts = whatsappBusinessParts(new Date(start));
+    if (!parts) break;
+    const dayStart = whatsappBusinessBoundaryUtc(parts, 8);
+    const dayEnd = whatsappBusinessBoundaryUtc(parts, 18);
+    if (parts.dow >= 1 && parts.dow <= 5) {
+      const from = Math.max(start, dayStart);
+      const to = Math.min(end, dayEnd);
+      if (to > from) total += to - from;
+    }
+    start = Date.UTC(parts.year, parts.month, parts.day + 1, 8, 0, 0, 0) + 3 * 60 * 60 * 1000;
+  }
+  return Math.round(total / 1000);
+}
+
+function whatsappSessionCountsAsOpen(row = {}) {
+  const status = String(row.status || '').toUpperCase();
+  if (![WHATSAPP_SESSION_OPEN, WHATSAPP_SESSION_UNANSWERED, 'UNANSWERED', 'PENDING'].includes(status)) return false;
+  if (row.first_response_at) return false;
+  if (whatsappIsExcludedMetricGroup(row)) return false;
+  const first = row.first_message_at || row.started_at || row.created_at || '';
+  return !first || whatsappBusinessOpen(first);
+}
+
 function whatsappMessageTime(row = {}) {
   return row.message_datetime || row.created_at || row.first_message_at || row.started_at || '';
 }
@@ -3376,7 +3515,9 @@ async function recalculateWhatsappSessionTiming(env, sessionId) {
     ? rows.find((row) => whatsappIsAgentAttendance(row) && String(row.at) >= String(firstParticipant.at))
     : rows.find((row) => whatsappIsAgentAttendance(row)) || null;
   const firstResponseAt = firstResponse ? firstResponse.at : '';
-  const firstResponseSeconds = firstResponseAt ? secondsBetweenIso(firstMessageAt, firstResponseAt) : 0;
+  const firstResponseSeconds = firstResponseAt
+    ? (whatsappBusinessSecondsBetween(firstMessageAt, firstResponseAt) || secondsBetweenIso(firstMessageAt, firstResponseAt))
+    : 0;
   const participantCount = rows.filter((row) => !whatsappIsAgentAttendance(row)).length;
   const fromMeCount = rows.filter((row) => Number(row.from_me || 0) === 1).length;
   const nextStatus = String(session.status || '').toUpperCase() === WHATSAPP_SESSION_CLOSED
@@ -3617,8 +3758,9 @@ async function touchWhatsappGroupSession(env, session, record, actor = {}) {
   const firstResponseAt = agentMessage && !hasFirstResponse ? messageAt : (session.first_response_at || '');
   const nextStatus = isOlderThanLast ? (session.status || WHATSAPP_SESSION_UNANSWERED) : (agentMessage ? WHATSAPP_SESSION_IN_PROGRESS : WHATSAPP_SESSION_UNANSWERED);
   const nextLastMessageAt = isOlderThanLast ? (session.last_message_at || messageAt) : messageAt;
+  const firstResponseStartAt = session.first_message_at || session.started_at || messageAt;
   const firstResponseSeconds = agentMessage && !hasFirstResponse
-    ? secondsBetweenIso(session.first_message_at || session.started_at || messageAt, messageAt)
+    ? (whatsappBusinessSecondsBetween(firstResponseStartAt, messageAt) || secondsBetweenIso(firstResponseStartAt, messageAt))
     : Number(session.first_response_seconds || 0);
   const agentName = actor?.isAgent ? (actor.agentName || record.remetenteNome || '') : '';
   const agentId = actor?.isAgent ? (actor.agentId || record.remetenteId || '') : '';
@@ -4351,18 +4493,19 @@ async function handleWhatsappGroupHealth(request, env, profile = {}) {
   const now = Date.now();
   const since24h = new Date(now - 24 * 60 * 60 * 1000).toISOString();
   const since1h = new Date(now - 60 * 60 * 1000).toISOString();
-  const [instancesResult, groupsResult, lastMessage, lastFailure, failures24h, failures1h, mediaCache, sessionRows] = await Promise.all([
+  const [instancesResult, groupsResult, lastMessagesResult, lastFailure, failures24h, failures1h, mediaCache, sessionRows] = await Promise.all([
     env.REVIEWS_DB.prepare('SELECT instance, nome, telefone, status, updated_at FROM whatsapp_instances ORDER BY updated_at DESC LIMIT 20').all(),
     env.REVIEWS_DB.prepare('SELECT COUNT(*) AS total, SUM(CASE WHEN monitorado = 1 THEN 1 ELSE 0 END) AS monitored FROM whatsapp_groups').first(),
-    env.REVIEWS_DB.prepare('SELECT id, instance, grupo_id, grupo_nome, remetente_nome, tipo_mensagem, message_datetime, created_at FROM whatsapp_group_attendances ORDER BY created_at DESC LIMIT 1').first(),
+    env.REVIEWS_DB.prepare('SELECT id, instance, grupo_id, grupo_nome, remetente_nome, tipo_mensagem, message_datetime, created_at FROM whatsapp_group_attendances ORDER BY created_at DESC LIMIT 20').all(),
     env.REVIEWS_DB.prepare('SELECT instance, grupo_id, error_message, created_at FROM whatsapp_webhook_failures ORDER BY created_at DESC LIMIT 1').first(),
     env.REVIEWS_DB.prepare('SELECT COUNT(*) AS total FROM whatsapp_webhook_failures WHERE created_at >= ?').bind(since24h).first(),
     env.REVIEWS_DB.prepare('SELECT COUNT(*) AS total FROM whatsapp_webhook_failures WHERE created_at >= ?').bind(since1h).first(),
     env.REVIEWS_DB.prepare('SELECT COUNT(*) AS total, MAX(updated_at) AS lastCachedAt FROM whatsapp_group_media_cache').first(),
     env.REVIEWS_DB.prepare(`
-      SELECT status, COUNT(*) AS total
+      SELECT *
       FROM whatsapp_group_sessions
-      GROUP BY status
+      ORDER BY updated_at DESC
+      LIMIT 1000
     `).all(),
   ]);
   const instances = Array.isArray(instancesResult?.results) ? instancesResult.results : [];
@@ -4371,11 +4514,13 @@ async function handleWhatsappGroupHealth(request, env, profile = {}) {
   const lastReconcileRaw = await whatsappGroupSettingValue(env, 'last_reconcile_result');
   let lastReconcile = null;
   try { lastReconcile = lastReconcileRaw ? JSON.parse(lastReconcileRaw) : null; } catch {}
+  const lastMessage = (lastMessagesResult?.results || []).find((row) => !whatsappIsExcludedMetricGroup(row)) || null;
+  const sessionList = (sessionRows?.results || []).filter((row) => !whatsappIsExcludedMetricGroup(row));
   const sessions = {};
-  for (const row of (sessionRows?.results || [])) sessions[String(row.status || '')] = Number(row.total || 0);
+  for (const row of sessionList) sessions[String(row.status || '')] = Number(sessions[String(row.status || '')] || 0) + 1;
   const openStatuses = [WHATSAPP_SESSION_OPEN, WHATSAPP_SESSION_UNANSWERED];
   const progressStatuses = [WHATSAPP_SESSION_IN_PROGRESS, WHATSAPP_SESSION_ANSWERED, WHATSAPP_SESSION_RESPONDED];
-  const openCount = openStatuses.reduce((sum, key) => sum + Number(sessions[key] || 0), 0);
+  const openCount = sessionList.filter(whatsappSessionCountsAsOpen).length;
   const progressCount = progressStatuses.reduce((sum, key) => sum + Number(sessions[key] || 0), 0);
   return jsonResponse({
     ok: true,
@@ -4582,10 +4727,12 @@ async function handleWhatsappGroupAttendances(request, env) {
     ORDER BY updated_at DESC
     LIMIT 500
   `).all();
+  const attendances = (result.results || []).filter((row) => !whatsappIsExcludedMetricGroup(row));
+  const sessions = (sessionResult.results || []).filter((row) => !whatsappIsExcludedMetricGroup(row));
 
   return jsonResponse({
-    attendances: (result.results || []).map(whatsappAttendanceToPublic),
-    sessions: (sessionResult.results || []).map(whatsappSessionToPublic),
+    attendances: attendances.map(whatsappAttendanceToPublic),
+    sessions: sessions.map(whatsappSessionToPublic),
     storage: true,
     origin: WHATSAPP_GROUP_ORIGIN,
     limit,

@@ -11,6 +11,7 @@ const NEPPO_LIVE_STALE_MS = 30 * 60 * 1000;
 const NEPPO_LIVE_KV_EXPIRATION_TTL = 2 * 24 * 60 * 60;
 const NEPPO_BUSINESS_START_HOUR = 8;
 const NEPPO_BUSINESS_END_HOUR = 18;
+const DASHBOARD_RELEASE_MARKER = 'gestaoatendimento-20260720-release-guard';
 
 function setupRequired() {
   return new Response(
@@ -1349,6 +1350,16 @@ function rewriteDashboardBrand(response) {
   const contentType = response.headers.get('Content-Type') || '';
   if (!contentType.toLowerCase().includes('text/html')) return response;
   return new HTMLRewriter()
+    .on('head', {
+      element(element) {
+        element.append(`<meta name="gestao-release" content="${DASHBOARD_RELEASE_MARKER}">`, { html: true });
+      },
+    })
+    .on('body', {
+      element(element) {
+        element.setAttribute('data-gestao-release', DASHBOARD_RELEASE_MARKER);
+      },
+    })
     .on('.logo-gem', {
       element(element) {
         element.setInnerContent('M');
@@ -4906,6 +4917,7 @@ export default {
     const headers = new Headers(response.headers);
     headers.set('Cache-Control', 'private, no-store');
     headers.set('X-Robots-Tag', 'noindex, nofollow');
+    headers.set('X-Gestao-Release', DASHBOARD_RELEASE_MARKER);
 
     return rewriteDashboardBrand(new Response(response.body, {
       status: response.status,

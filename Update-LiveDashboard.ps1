@@ -301,7 +301,8 @@ if ($NoCommit) {
 
 if ($DisableCloudflareDeploy) {
   Write-Host 'Deploy Cloudflare bloqueado nesta execução automatica.'
-} elseif ($DeployCloudflare -or -not [string]::IsNullOrWhiteSpace($env:CLOUDFLARE_API_TOKEN)) {
+} elseif ($DeployCloudflare) {
+  & (Join-Path $scriptDir 'Test-DashboardRelease.ps1') -HtmlPath $targetHtmlPath
   Write-Host 'Publicando dashboard atualizado no Cloudflare...'
   $env:CLOUDFLARE_API_KEY = ''
   $env:CLOUDFLARE_EMAIL = ''
@@ -312,6 +313,8 @@ if ($DisableCloudflareDeploy) {
   if ($LASTEXITCODE -ne 0) {
     throw "Deploy Cloudflare falhou com codigo $LASTEXITCODE."
   }
+} elseif (-not [string]::IsNullOrWhiteSpace($env:CLOUDFLARE_API_TOKEN)) {
+  Write-Host 'Token Cloudflare encontrado no ambiente, mas deploy automatico foi bloqueado. Use -DeployCloudflare para publicar.'
 }
 
 if ($SkipPush) {

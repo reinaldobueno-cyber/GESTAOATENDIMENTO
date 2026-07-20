@@ -38,6 +38,10 @@ Write-Host 'Validando token...'
 Invoke-CheckedCommand npm exec --yes wrangler@latest -- whoami
 
 Write-Host ''
+Write-Host 'Validando HTML atual...'
+& (Join-Path $scriptDir 'Test-DashboardRelease.ps1')
+
+Write-Host ''
 Write-Host 'Publicando Worker...'
 Invoke-CheckedCommand npm exec --yes wrangler@latest -- deploy
 

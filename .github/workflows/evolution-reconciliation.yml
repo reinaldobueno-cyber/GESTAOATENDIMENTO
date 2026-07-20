@@ -1,0 +1,26 @@
+name: Reconciliar Evolution Worker
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  trigger-worker-reconciliation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chamar reconciliacao Evolution no Worker
+        shell: bash
+        env:
+          WHATSAPP_RECONCILE_SECRET: ${{ secrets.NEPPO_CLIENT_SECRET }}
+        run: |
+          test -n "$WHATSAPP_RECONCILE_SECRET"
+          curl --fail --silent --show-error --retry 2 --retry-delay 10 \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -H "X-Whatsapp-Reconcile-Secret: $WHATSAPP_RECONCILE_SECRET" \
+            --data '{"limit":50}' \
+            "https://gestaoatendimento.reinaldo-bueno.workers.dev/api/whatsapp-grupo/reconcile-cron"

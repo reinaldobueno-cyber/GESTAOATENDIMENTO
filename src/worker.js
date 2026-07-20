@@ -950,9 +950,19 @@ function neppoRefreshSecret(env) {
   return String(env.NEPPO_REFRESH_SECRET || env.WEBHOOK_SECRET || env.NEPPO_CLIENT_SECRET || '').trim();
 }
 
+function whatsappReconcileSecret(env) {
+  return String(env.WHATSAPP_RECONCILE_SECRET || env.WEBHOOK_SECRET || env.NEPPO_CLIENT_SECRET || '').trim();
+}
+
 function requestSecret(request) {
   const bearer = String(request.headers.get('Authorization') || '').trim().match(/^Bearer\s+(.+)$/i);
-  return String(request.headers.get('X-Neppo-Refresh-Secret') || bearer?.[1] || '').trim();
+  return String(
+    request.headers.get('X-Neppo-Refresh-Secret') ||
+    request.headers.get('X-Whatsapp-Reconcile-Secret') ||
+    request.headers.get('X-Gestao-Automation-Secret') ||
+    bearer?.[1] ||
+    '',
+  ).trim();
 }
 
 async function refreshNeppoLiveDashboard(request, env, year, month) {
@@ -3116,6 +3126,104 @@ function secondsBetweenIso(start, end) {
   return Math.round((b - a) / 1000);
 }
 
+function whatsappMessageTime(row = {}) {
+  return row.message_datetime || row.created_at || row.first_message_at || row.started_at || '';
+}
+
+function whatsappIsAgentAttendance(row = {}) {
+  return Number(row.from_me || 0) === 1 || !!String(row.agent_name || '').trim();
+}
+
+async function recalculateWhatsappSessionTiming(env, sessionId) {
+  const id = cleanWebhookText(sessionId, 160);
+  if (!id || !env.REVIEWS_DB) return null;
+  await ensureWhatsappGroupD1(env);
+  const session = await env.REVIEWS_DB.prepare('SELECT * FROM whatsapp_group_sessions WHERE id = ? LIMIT 1')
+    .bind(id)
+    .first();
+  if (!session) return null;
+  const result = await env.REVIEWS_DB.prepare(`
+    SELECT message_datetime, created_at, from_me, agent_name
+    FROM whatsapp_group_attendances
+    WHERE session_id = ?
+    ORDER BY message_datetime ASC, created_at ASC
+  `).bind(id).all();
+  const rows = (Array.isArray(result?.results) ? result.results : [])
+    .map((row) => ({ ...row, at: whatsappMessageTime(row) }))
+    .filter((row) => row.at);
+  if (!rows.length) return session;
+
+  const firstAny = rows[0];
+  const firstParticipant = rows.find((row) => !whatsappIsAgentAttendance(row)) || null;
+  const firstMessageAt = (firstParticipant || firstAny).at;
+  const firstResponse = firstParticipant
+    ? rows.find((row) => whatsappIsAgentAttendance(row) && String(row.at) >= String(firstParticipant.at))
+    : rows.find((row) => whatsappIsAgentAttendance(row)) || null;
+  const firstResponseAt = firstResponse ? firstResponse.at : '';
+  const firstResponseSeconds = firstResponseAt ? secondsBetweenIso(firstMessageAt, firstResponseAt) : 0;
+  const participantCount = rows.filter((row) => !whatsappIsAgentAttendance(row)).length;
+  const fromMeCount = rows.filter((row) => Number(row.from_me || 0) === 1).length;
+  const nextStatus = String(session.status || '').toUpperCase() === WHATSAPP_SESSION_CLOSED
+    ? WHATSAPP_SESSION_CLOSED
+    : firstResponseAt ? WHATSAPP_SESSION_IN_PROGRESS : WHATSAPP_SESSION_UNANSWERED;
+  const now = new Date().toISOString();
+
+  await env.REVIEWS_DB.prepare(`
+    UPDATE whatsapp_group_sessions
+    SET
+      status = ?,
+      started_at = ?,
+      first_message_at = ?,
+      first_response_at = ?,
+      first_response_seconds = ?,
+      last_message_at = ?,
+      message_count = ?,
+      participant_count = ?,
+      from_me_count = ?,
+      updated_at = ?
+    WHERE id = ?
+  `).bind(
+    nextStatus,
+    firstMessageAt,
+    firstMessageAt,
+    firstResponseAt,
+    firstResponseSeconds,
+    rows[rows.length - 1].at,
+    rows.length,
+    participantCount,
+    fromMeCount,
+    now,
+    id,
+  ).run();
+  await env.REVIEWS_DB.prepare(`
+    UPDATE whatsapp_group_attendances
+    SET session_status = ?
+    WHERE session_id = ?
+  `).bind(nextStatus, id).run();
+  return env.REVIEWS_DB.prepare('SELECT * FROM whatsapp_group_sessions WHERE id = ? LIMIT 1')
+    .bind(id)
+    .first();
+}
+
+async function recalculateRecentWhatsappSessions(env, limit = 200) {
+  if (!env.REVIEWS_DB) return 0;
+  await ensureWhatsappGroupD1(env);
+  const result = await env.REVIEWS_DB.prepare(`
+    SELECT id
+    FROM whatsapp_group_sessions
+    ORDER BY updated_at DESC
+    LIMIT ?
+  `).bind(Math.max(1, Math.min(Number(limit || 200), 500))).all();
+  const rows = Array.isArray(result?.results) ? result.results : [];
+  let count = 0;
+  for (const row of rows) {
+    if (!row?.id) continue;
+    const updated = await recalculateWhatsappSessionTiming(env, row.id).catch(() => null);
+    if (updated) count += 1;
+  }
+  return count;
+}
+
 function openSessionStatuses() {
   return [
     WHATSAPP_SESSION_OPEN,
@@ -3592,6 +3700,7 @@ async function processWhatsappGroupItemPayload(env, itemPayload, ctx = null) {
 
   const duplicate = await whatsappGroupAttendanceExists(env, record);
   if (duplicate) {
+    const recalculated = duplicate.session_id ? await recalculateWhatsappSessionTiming(env, duplicate.session_id).catch(() => null) : null;
     return {
       inserted: false,
       duplicate: true,
@@ -3600,7 +3709,7 @@ async function processWhatsappGroupItemPayload(env, itemPayload, ctx = null) {
       tipoMensagem: record.tipoMensagem,
       sessionId: duplicate.session_id || '',
       sessionProtocol: duplicate.session_protocol || '',
-      sessionStatus: duplicate.session_status || '',
+      sessionStatus: recalculated?.status || duplicate.session_status || '',
     };
   }
 
@@ -3610,6 +3719,7 @@ async function processWhatsappGroupItemPayload(env, itemPayload, ctx = null) {
   record.sessionStatus = session.sessionStatus || '';
 
   const inserted = await insertWhatsappGroupAttendance(env, record);
+  const recalculated = record.sessionId ? await recalculateWhatsappSessionTiming(env, record.sessionId).catch(() => null) : null;
   await upsertWhatsappInstanceFromRecord(env, record);
   await upsertWhatsappGroupFromRecord(env, record);
   if (ctx && !record.grupoNome) ctx.waitUntil(enrichWhatsappGroupName(env, record));
@@ -3621,7 +3731,7 @@ async function processWhatsappGroupItemPayload(env, itemPayload, ctx = null) {
     grupoId: record.grupoId,
     tipoMensagem: record.tipoMensagem,
     sessionProtocol: record.sessionProtocol,
-    sessionStatus: record.sessionStatus,
+    sessionStatus: recalculated?.status || record.sessionStatus,
     command: session.command || '',
   };
 }
@@ -3885,12 +3995,14 @@ async function reconcileWhatsappGroups(env, ctx = null, options = {}) {
       results.push(result);
     }
   }
+  const recalculatedCount = await recalculateRecentWhatsappSessions(env, 200).catch(() => 0);
   const ok = groups.length === 0 || checkedCount > 0;
   const result = {
     ok,
     groups: groups.length,
     checkedCount,
     insertedCount,
+    recalculatedCount,
     reason: ok ? '' : 'evolution_nao_retornou_mensagens',
     finishedAt: new Date().toISOString(),
     results: results.slice(-100),
@@ -3900,6 +4012,7 @@ async function reconcileWhatsappGroups(env, ctx = null, options = {}) {
     groups: result.groups,
     checkedCount: result.checkedCount,
     insertedCount: result.insertedCount,
+    recalculatedCount: result.recalculatedCount,
     reason: result.reason,
     finishedAt: result.finishedAt,
   })).catch(() => {});
@@ -4029,6 +4142,17 @@ async function handleWhatsappGroupReconcile(request, env, profile = {}) {
   if (request.method !== 'POST') return jsonResponse({ error: 'Metodo nao permitido.' }, 405);
   const body = await request.json().catch(() => ({}));
   const result = await reconcileWhatsappGroups(env, null, { limit: body.limit || 50 });
+  return jsonResponse(result, result.insertedCount > 0 ? 201 : 200);
+}
+
+async function handleWhatsappGroupReconcileCron(request, env, ctx = null) {
+  if (request.method !== 'POST') return jsonResponse({ error: 'Metodo nao permitido.' }, 405);
+  const expected = whatsappReconcileSecret(env);
+  if (!expected) return jsonResponse({ error: 'Segredo de reconciliacao WhatsApp nao configurado.' }, 503);
+  const received = requestSecret(request);
+  if (!received || !timingSafeEqual(received, expected)) return jsonResponse({ error: 'Nao autorizado.' }, 401);
+  const body = await request.json().catch(() => ({}));
+  const result = await reconcileWhatsappGroups(env, ctx, { limit: body.limit || 50 });
   return jsonResponse(result, result.insertedCount > 0 ? 201 : 200);
 }
 
@@ -4606,6 +4730,10 @@ export default {
 
     if (url.pathname === '/api/neppo-live/cron') {
       return handleNeppoLiveCronTrigger(request, env);
+    }
+
+    if (url.pathname === '/api/whatsapp-grupo/reconcile-cron') {
+      return handleWhatsappGroupReconcileCron(request, env, ctx);
     }
 
     if (!parseAppUsers(env).length && !(await loadManagedUsers(env)).length) {

@@ -291,7 +291,10 @@ function neppoBusinessOpen(){
     .replace('Sem nova publicação no NEPPO por enquanto.', 'Sem mudança na base NEPPO por enquanto.')
     .replace('Consultando publicação automaticamente...', 'Consultando base NEPPO automaticamente...')
     .replace('Última publicação', 'Última base')
-    .replace('setTimeout(()=>{if(!document.hidden)checkDashboardAssetUpdate({force:true});},15000);', 'setTimeout(()=>{if(!document.hidden&&neppoBusinessOpen())checkDashboardAssetUpdate({force:true});},15000);');
+    .replace('setTimeout(()=>{if(!document.hidden)checkDashboardAssetUpdate({force:true});},15000);', 'setTimeout(()=>{if(!document.hidden&&neppoBusinessOpen())checkDashboardAssetUpdate({force:true});},15000);')
+    .replace('let neppoLiveHealthLoading=false;', 'let neppoLiveHealthLoading=false;\nlet neppoLiveHealthLastCheckMs=0;')
+    .replace('  if(neppoLiveHealthLoading)return null;\n  neppoLiveHealthLoading=true;', '  if(neppoLiveHealthLoading)return null;\n  neppoLiveHealthLastCheckMs=Date.now();\n  neppoLiveHealthLoading=true;')
+    .replace('dashboardStatusTimer=setInterval(()=>{renderNeppoRefreshStatus();loadNeppoLiveHealth();},60000);', "dashboardStatusTimer=setInterval(()=>{renderNeppoRefreshStatus();if(Date.now()-neppoLiveHealthLastCheckMs>60000)loadNeppoLiveHealth();},10000);");
 
   if (!next.includes("Fora do expediente NEPPO. Próxima tentativa na próxima janela útil.")) {
     next = next.replace(

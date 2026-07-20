@@ -336155,6 +336155,7 @@ let dashboardAutoRefreshTimer=null;
 let dashboardStatusTimer=null;
 let neppoLiveHealth=null;
 let neppoLiveHealthLoading=false;
+let neppoLiveHealthLastCheckMs=0;
 function dashboardInitialPublishedAtMs(){
   const parsed=new Date(document.lastModified||'');
   return Number.isNaN(parsed.getTime())?Date.now():parsed.getTime();
@@ -336172,6 +336173,7 @@ function whatsappHealthItem(label,value,sub,cls='ok'){
 }
 async function loadNeppoLiveHealth(){
   if(neppoLiveHealthLoading)return null;
+  neppoLiveHealthLastCheckMs=Date.now();
   neppoLiveHealthLoading=true;
   try{
     const res=await fetch('/api/neppo-live/health',{cache:'no-store',credentials:'same-origin'});
@@ -340229,7 +340231,7 @@ function startDashboardAutoRefresh(){
   loadNeppoLiveHealth();
   setTimeout(()=>{if(!document.hidden&&neppoBusinessOpen())checkDashboardAssetUpdate({force:true});},15000);
   dashboardAutoRefreshTimer=setInterval(runDashboardScheduledCheck,30000);
-  dashboardStatusTimer=setInterval(()=>{renderNeppoRefreshStatus();loadNeppoLiveHealth();},60000);
+  dashboardStatusTimer=setInterval(()=>{renderNeppoRefreshStatus();if(Date.now()-neppoLiveHealthLastCheckMs>60000)loadNeppoLiveHealth();},10000);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){loadNeppoLiveHealth();renderNeppoRefreshStatus();runDashboardScheduledCheck();}});
   window.addEventListener('focus',()=>{loadNeppoLiveHealth();renderNeppoRefreshStatus();runDashboardScheduledCheck();});
   window.addEventListener('pageshow',()=>{renderNeppoRefreshStatus();});

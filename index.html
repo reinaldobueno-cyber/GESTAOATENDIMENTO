@@ -1209,6 +1209,8 @@ canvas{cursor:pointer;}
     <div class="kpi" style="--kc:var(--moss2)"><div class="kl">Encerrados mês</div><div class="kv" id="wg-k-month-closed">0</div><div class="ks">Calendário WhatsApp</div></div>
     <div class="kpi" style="--kc:var(--sage)"><div class="kl">Mensagens</div><div class="kv" id="wg-k-total">0</div><div class="ks">Interações capturadas</div></div>
     <div class="kpi" style="--kc:var(--moss2)"><div class="kl">1ª resposta</div><div class="kv" id="wg-k-first-response">--</div><div class="ks">Média dos respondidos</div></div>
+    <div class="kpi" style="--kc:var(--moss3)"><div class="kl">TMA grupo</div><div class="kv" id="wg-k-tma-group">--</div><div class="ks">Início ao encerramento</div></div>
+    <div class="kpi" style="--kc:#356999"><div class="kl">TMA tratativa</div><div class="kv" id="wg-k-tma-treatment">--</div><div class="ks">Resposta ao encerramento</div></div>
   </div>
 
   <div class="fbar">
@@ -336879,6 +336881,22 @@ function whatsappSessionFirstResponseSeconds(session){
   const business=whatsappBusinessSecondsBetween(firstClient.messageDatetime||firstClient.createdAt||'',firstAgent.messageDatetime||firstAgent.createdAt||'');
   return business>0?business:Math.round((b-a)/1000);
 }
+function whatsappSessionGroupTmaSeconds(session){
+  if(!whatsappIsClosedStatus(session?.status)||!session?.closedAt)return null;
+  const start=session.firstMessageAt||session.startedAt||session.createdAt||'';
+  if(!start)return null;
+  const business=whatsappBusinessSecondsBetween(start,session.closedAt);
+  if(business>0)return business;
+  const rawStart=new Date(start).getTime(), rawEnd=new Date(session.closedAt).getTime();
+  return Number.isFinite(rawStart)&&Number.isFinite(rawEnd)&&rawEnd>=rawStart?Math.round((rawEnd-rawStart)/1000):null;
+}
+function whatsappSessionTreatmentTmaSeconds(session){
+  if(!whatsappIsClosedStatus(session?.status)||!session?.closedAt||!session?.firstResponseAt)return null;
+  const business=whatsappBusinessSecondsBetween(session.firstResponseAt,session.closedAt);
+  if(business>0)return business;
+  const rawStart=new Date(session.firstResponseAt).getTime(), rawEnd=new Date(session.closedAt).getTime();
+  return Number.isFinite(rawStart)&&Number.isFinite(rawEnd)&&rawEnd>=rawStart?Math.round((rawEnd-rawStart)/1000):null;
+}
 function renderWhatsappGroupSummary(rows){
   const host=$('wg-group-list');if(!host)return;
   const q=String($('wg-summary-search')?.value||'').trim().toLowerCase();
@@ -337291,11 +337309,18 @@ function renderWhatsappGroupRecords(){
     .map(s=>whatsappSessionFirstResponseSeconds(s))
     .filter(v=>Number.isFinite(v)&&v>=0);
   const avgResponse=responseTimes.length?responseTimes.reduce((sum,value)=>sum+value,0)/responseTimes.length:null;
+  const closedSessions=sessions.filter(s=>whatsappIsClosedStatus(s.status));
+  const groupTmaTimes=closedSessions.map(whatsappSessionGroupTmaSeconds).filter(v=>Number.isFinite(v)&&v>=0);
+  const treatmentTmaTimes=closedSessions.map(whatsappSessionTreatmentTmaSeconds).filter(v=>Number.isFinite(v)&&v>=0);
+  const avgGroupTma=groupTmaTimes.length?groupTmaTimes.reduce((sum,value)=>sum+value,0)/groupTmaTimes.length:null;
+  const avgTreatmentTma=treatmentTmaTimes.length?treatmentTmaTimes.reduce((sum,value)=>sum+value,0)/treatmentTmaTimes.length:null;
   if($('wg-k-sessions'))$('wg-k-sessions').textContent=fN(sessions.length);
   if($('wg-k-total'))$('wg-k-total').textContent=fN(rows.length);
   if($('wg-k-open'))$('wg-k-open').textContent=fN(open);
   if($('wg-k-progress'))$('wg-k-progress').textContent=fN(progress);
   if($('wg-k-first-response'))$('wg-k-first-response').textContent=avgResponse==null?'--':whatsappDuration(avgResponse);
+  if($('wg-k-tma-group'))$('wg-k-tma-group').textContent=avgGroupTma==null?'--':whatsappDuration(avgGroupTma);
+  if($('wg-k-tma-treatment'))$('wg-k-tma-treatment').textContent=avgTreatmentTma==null?'--':whatsappDuration(avgTreatmentTma);
   if($('wg-k-closed'))$('wg-k-closed').textContent=fN(closed);
   if($('wg-summary'))$('wg-summary').textContent=`${fN(sessions.length)} atendimento(s) · ${fN(rows.length)} mensagem(ns) · ${fN(open)} sem resposta · ${fN(progress)} em tratativa/respondido(s) · ${fN(closed)} encerrado(s) · ${fN(openGroups.size)} grupo(s)`;
   safeWhatsappRender('painel de atendimento',()=>renderWhatsappSessionRows(filteredSessions));

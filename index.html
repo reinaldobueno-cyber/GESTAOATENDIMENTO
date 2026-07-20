@@ -338246,6 +338246,103 @@ function atendimentoUser(r){
   const parts=raw.split(/\s+-\s+/).map(x=>x.trim()).filter(Boolean);
   return parts.length>1&&!atendimentoUserIsGeneric(parts[0])?parts[0]:'';
 }
+const atendimentoHistoryEnrichmentCache=new Map();
+const atendimentoHistoryEnrichmentInFlight=new Set();
+function atendimentoStripText(value){
+  const div=document.createElement('div');
+  div.innerHTML=String(value||'');
+  return (div.textContent||div.innerText||String(value||'')).trim();
+}
+function atendimentoMessageSender(message){
+  const raw=message?.sendBy||message?.sentBy||message?.sender||message?.author||message?.action||'MENSAGEM';
+  const upper=String(raw).toUpperCase();
+  const name=message?.fromUser||message?.userName||message?.agentName||message?.senderName||'';
+  let label=String(raw);
+  if(upper.includes('USER'))label='CLIENTE';
+  else if(upper.includes('AGENT'))label='ATENDENTE';
+  else if(upper.includes('BOT'))label='BOT';
+  else if(upper.includes('SYSTEM'))label='SISTEMA';
+  else if(upper==='NONE'||upper==='TRANSFER'||upper==='QUEUE')label='SISTEMA';
+  return name?`${label} - ${name}`:label;
+}
+function atendimentoCallerFromSender(value){
+  const cleaned=atendimentoStripText(value).replace(/^CLIENTE\s*-\s*/i,'').replace(/\s+-\s+\d{2}\/\d{2}\/\d{4}.*$/i,'').trim();
+  const parts=cleaned.split(/\s+-\s+/).map(x=>x.trim()).filter(Boolean);
+  const candidate=parts.length>1?parts[0]:cleaned;
+  return atendimentoUserIsGeneric(candidate)?'':candidate;
+}
+function atendimentoPhoneFromHistoryValue(value,key=''){
+  if(value==null)return '';
+  const keyText=String(key||'');
+  if(typeof value==='string'||typeof value==='number'){
+    const text=String(value);
+    const hinted=/(phone|fone|celular|mobile|whatsapp|voice|origin|jid|sender|author|from|contact|remote)/i.test(keyText)||/(WHATSAPP|VOICE)\s*\+?\d{10,15}/i.test(text)||/@s\.whatsapp\.net/i.test(text);
+    return hinted?atendimentoPhoneDigits(text,{loose:true}):'';
+  }
+  if(typeof value!=='object')return '';
+  for(const [childKey,childValue] of Object.entries(value)){
+    const phone=atendimentoPhoneFromHistoryValue(childValue,childKey);
+    if(phone)return phone;
+  }
+  return '';
+}
+function atendimentoInfoFromHistoryMessages(messages){
+  const info={user:'',phone:''};
+  for(const message of messages||[]){
+    if(!info.phone)info.phone=atendimentoPhoneFromHistoryValue(message);
+    if(!info.user){
+      const sender=atendimentoMessageSender(message);
+      if(/^CLIENTE\b/i.test(sender))info.user=atendimentoCallerFromSender(sender);
+    }
+    if(info.user&&info.phone)break;
+  }
+  return info;
+}
+async function fetchAtendimentoHistoryInfo(protocol){
+  const key=String(protocol||'').toUpperCase();
+  if(!key)return {user:'',phone:''};
+  if(atendimentoHistoryEnrichmentCache.has(key))return atendimentoHistoryEnrichmentCache.get(key);
+  const promise=fetch(`/api/attendance/${encodeURIComponent(key)}`,{cache:'no-store',credentials:'same-origin'})
+    .then(res=>res.ok?res.json():null)
+    .then(data=>data?.ok?atendimentoInfoFromHistoryMessages(data.messages||[]):{user:'',phone:''})
+    .catch(()=>({user:'',phone:''}));
+  atendimentoHistoryEnrichmentCache.set(key,promise);
+  const value=await promise;
+  atendimentoHistoryEnrichmentCache.set(key,value);
+  return value;
+}
+async function enrichAtendimentoVisibleRows(rows){
+  const candidates=(rows||[]).filter(r=>Array.isArray(r)&&r[7]&&(!atendimentoUser(r)||!atendimentoPhone(r))).slice(0,30);
+  if(!candidates.length)return;
+  let changed=false;
+  const runOne=async(row)=>{
+    const protocol=String(row[7]||'').toUpperCase();
+    if(!protocol||atendimentoHistoryEnrichmentInFlight.has(protocol))return;
+    atendimentoHistoryEnrichmentInFlight.add(protocol);
+    try{
+      const info=await fetchAtendimentoHistoryInfo(protocol);
+      if(info.user&&!atendimentoUser(row)){
+        row[18]=info.user;
+        changed=true;
+      }
+      if(info.phone&&!atendimentoPhone(row)){
+        row[13]=info.phone;
+        atendimentoPhoneIndex=null;
+        changed=true;
+      }
+    }finally{
+      atendimentoHistoryEnrichmentInFlight.delete(protocol);
+    }
+  };
+  for(let i=0;i<candidates.length;i+=3){
+    await Promise.all(candidates.slice(i,i+3).map(runOne));
+  }
+  if(changed&&activeDashboardPaneId()==='atendimentos')renderAtendimentos();
+}
+function scheduleAtendimentoVisibleEnrichment(rows){
+  if(!rows?.length)return;
+  setTimeout(()=>enrichAtendimentoVisibleRows(rows).catch(()=>{}),50);
+}
 function setAtendimentoSort(key){
   opSort={key,dir:(opSort.key===key&&opSort.dir==='asc')?'desc':'asc'};
   renderAtendimentos();
@@ -338714,10 +338811,11 @@ function renderAtendimentos(){
   initAtendimentos();
   updateAtendimentoSortHeaders();
   const rows=atendimentoRows();
+  const visibleRows=rows.slice(0,500);
   const rated=rows.filter(isRatedRow), avgTma=avgArr(rows.map(liveTmaSec)), avgTme=avgArr(rows.map(r=>r[5]||0));
   $('op-summary').textContent=`${fN(rows.length)} atendimento(s) · ${fN(rated.length)} avaliação(ões) · CSAT ${rated.length?fS(avgArr(rated.map(rowCsat))):'—'} · TMA ${fmtDur(avgTma)} · TME ${fmtDur(avgTme)}`;
   $('op-empty').style.display=rows.length?'none':'block';
-  $('op-tbody').innerHTML=rows.slice(0,500).map(r=>{
+  $('op-tbody').innerHTML=visibleRows.map(r=>{
     const cs=rowCsat(r), rating=cs!=null?`<span class="op-badge">${fS(cs)}</span>`:'<span class="op-badge">SEM AVALIAÇÃO</span>';
     const chamada=r[14]||'WHATSAPP';
     const operacao=r[17]||'MODELO';
@@ -338744,6 +338842,7 @@ function renderAtendimentos(){
       <td>${rating}</td>
     </tr>`;
   }).join('');
+  scheduleAtendimentoVisibleEnrichment(visibleRows);
 }
 initAtendimentos();
 initTreatments();

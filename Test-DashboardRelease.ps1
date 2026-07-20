@@ -18,6 +18,8 @@ $checks = @(
   @{ Ok = $html.Contains('const DASHBOARD_REFRESH_RETRY_MS=20*1000;'); Message = 'retry NEPPO precisa estar em 20 segundos' },
   @{ Ok = $html.Contains('dashboardAutoRefreshTimer=setInterval(runDashboardScheduledCheck,5000);'); Message = 'loop do timer NEPPO precisa conferir a cada 5 segundos' },
   @{ Ok = $html.Contains('neppoLiveHealthLastCheckMs>15000'); Message = 'saude NEPPO precisa recarregar a cada 15 segundos' },
+  @{ Ok = $html.Contains("nextCardLabel='Retoma NEPPO';"); Message = 'fora do expediente precisa mostrar retomada NEPPO, nao timer travado' },
+  @{ Ok = $html.Contains("scheduleDashboardNextCheck(DASHBOARD_REFRESH_INTERVAL_MS);"); Message = 'fora do expediente precisa manter painel respirando em 15 segundos' },
   @{ Ok = $html.Contains('/api/neppo-live/dashboard'); Message = 'atualizacao NEPPO via Worker/KV nao encontrada' },
   @{ Ok = $html.Contains('.wg-group-summary{display:grid;gap:.45rem;max-height:none;overflow:visible;padding-right:0;}'); Message = 'layout atual do resumo por grupo nao encontrado' },
   @{ Ok = -not $html.Contains('🌿'); Message = 'logo antiga com folha ainda esta no HTML' },

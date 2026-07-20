@@ -336184,7 +336184,7 @@ async function loadNeppoLiveHealth(){
       if(Number.isFinite(checked))dashboardPublishedAtMs=checked;
       const nextStart=new Date(data.schedule?.nextStartAt||data.health?.schedule?.nextStartAt||'').getTime();
       const open=data.schedule?.open!==false&&data.health?.stage!=='outside-hours';
-      if(!open&&Number.isFinite(nextStart))dashboardNextCheckAtMs=Math.max(Date.now()+60000,nextStart);
+      if(!open&&Number.isFinite(nextStart))dashboardNextCheckAtMs=Date.now()+DASHBOARD_REFRESH_INTERVAL_MS;
       renderNeppoRefreshStatus();
       return data;
     }
@@ -336266,6 +336266,10 @@ function renderNeppoRefreshStatus(){
   const cacheAge=Number(liveCache?.ageMs||NaN);
   const serverSchedule=neppoLiveHealth?.schedule||liveHealth?.schedule||null;
   const outsideHours=serverSchedule?serverSchedule.open===false:!neppoBusinessOpen();
+  let nextCardLabel='Próxima checagem';
+  let nextCardValue=dashboardAssetRefreshBusy?'Verificando...':compactCountdown(remaining);
+  let nextCardSub='Ao zerar, o painel consulta a base nova automaticamente.';
+  let nextCardClass=age<warnMs?'ok':'bad';
   if(liveHealth){
     if(liveHealth.stage==='success'){
       status='Worker ativo';
@@ -336283,9 +336287,14 @@ function renderNeppoRefreshStatus(){
   }
   if(outsideHours){
     const nextStart=new Date(serverSchedule?.nextStartAt||nextNeppoBusinessStartMs()).getTime();
-    status='Fora do expediente';
+    status='Pausado';
     cls='ok';
-    detail=`NEPPO atualiza de segunda a sexta, 08:00 às 18:00. Próxima janela em ${compactCountdown(nextStart-now)}.`;
+    const nextStartLabel=Number.isFinite(nextStart)?new Date(nextStart).toLocaleString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'08:00';
+    detail=`Fora do expediente NEPPO. A busca de novos atendimentos retoma automaticamente às ${nextStartLabel}.`;
+    nextCardLabel='Retoma NEPPO';
+    nextCardValue=nextStartLabel;
+    nextCardSub='Durante o expediente, a checagem volta para 15 segundos.';
+    nextCardClass='ok';
   }else if(age>=DASHBOARD_REFRESH_INTERVAL_MS&&age<warnMs){
     status='Na janela de atualização';
     cls='warn';
@@ -336302,7 +336311,7 @@ function renderNeppoRefreshStatus(){
   el.innerHTML=[
     whatsappHealthItem('Status',status,detail,cls),
     whatsappHealthItem('Última base',Number.isFinite(cacheAge)?compactCountdown(cacheAge)+' atrás':(publishedOk?whatsappHealthAge(published.toISOString()):'Sem data'),'Base NEPPO mantida no Worker/KV, sem publicar HTML.',Number.isFinite(cacheAge)&&cacheAge<12*60*1000?'ok':(publishedOk?'warn':'bad')),
-    whatsappHealthItem('Próxima janela',dashboardAssetRefreshBusy?'Verificando...':compactCountdown(remaining),'Ao zerar, o painel consulta a base nova automaticamente.',age<warnMs?'ok':'bad'),
+    whatsappHealthItem(nextCardLabel,nextCardValue,nextCardSub,nextCardClass),
     whatsappHealthItem('Base atual',`${fN(monthRows)} no mês`,`Hoje no painel: ${fN(todayRows)} atendimento(s).`,monthRows>0?'ok':'warn')
   ].join('');
 }
@@ -340175,9 +340184,8 @@ async function checkDashboardAssetUpdate(options={}){
   const force=!!options.force||manual;
   if(dashboardAssetRefreshBusy){if(manual)toast('Verificação NEPPO já está em andamento.');return false;}
   if(!manual&&!neppoBusinessOpen()){
-    const nextStart=nextNeppoBusinessStartMs();
-    dashboardLastCheckMessage='Fora do expediente NEPPO. Próxima tentativa na próxima janela útil.';
-    scheduleDashboardNextCheck(Math.max(60000,nextStart-Date.now()));
+    dashboardLastCheckMessage='Fora do expediente NEPPO. Busca pausada até a próxima janela útil.';
+    scheduleDashboardNextCheck(DASHBOARD_REFRESH_INTERVAL_MS);
     loadNeppoLiveHealth();
     return false;
   }

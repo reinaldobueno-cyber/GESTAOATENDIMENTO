@@ -301,12 +301,14 @@ function neppoBusinessOpen(){
     .replace('  if(neppoLiveHealthLoading)return null;\n  neppoLiveHealthLoading=true;', '  if(neppoLiveHealthLoading)return null;\n  neppoLiveHealthLastCheckMs=Date.now();\n  neppoLiveHealthLoading=true;')
     .replace('dashboardStatusTimer=setInterval(()=>{renderNeppoRefreshStatus();loadNeppoLiveHealth();},60000);', "dashboardStatusTimer=setInterval(()=>{renderNeppoRefreshStatus();if(Date.now()-neppoLiveHealthLastCheckMs>15000)loadNeppoLiveHealth();},1000);")
     .replace("dashboardStatusTimer=setInterval(()=>{renderNeppoRefreshStatus();if(Date.now()-neppoLiveHealthLastCheckMs>60000)loadNeppoLiveHealth();},10000);", "dashboardStatusTimer=setInterval(()=>{renderNeppoRefreshStatus();if(Date.now()-neppoLiveHealthLastCheckMs>15000)loadNeppoLiveHealth();},1000);")
-    .replace('dashboardAutoRefreshTimer=setInterval(runDashboardScheduledCheck,30000);', 'dashboardAutoRefreshTimer=setInterval(runDashboardScheduledCheck,5000);');
+    .replace('dashboardAutoRefreshTimer=setInterval(runDashboardScheduledCheck,30000);', 'dashboardAutoRefreshTimer=setInterval(runDashboardScheduledCheck,5000);')
+    .replace('if(!open&&Number.isFinite(nextStart))dashboardNextCheckAtMs=Math.max(Date.now()+60000,nextStart);', 'if(!open&&Number.isFinite(nextStart))dashboardNextCheckAtMs=Date.now()+DASHBOARD_REFRESH_INTERVAL_MS;')
+    .replace("dashboardLastCheckMessage='Fora do expediente NEPPO. Próxima tentativa na próxima janela útil.';\n    scheduleDashboardNextCheck(Math.max(60000,nextStart-Date.now()));", "dashboardLastCheckMessage='Fora do expediente NEPPO. Busca pausada até a próxima janela útil.';\n    scheduleDashboardNextCheck(DASHBOARD_REFRESH_INTERVAL_MS);");
 
-  if (!next.includes("Fora do expediente NEPPO. Próxima tentativa na próxima janela útil.")) {
+  if (!next.includes("Fora do expediente NEPPO. Busca pausada até a próxima janela útil.")) {
     next = next.replace(
       "  if(dashboardAssetRefreshBusy){if(manual)toast('Verificação NEPPO já está em andamento.');return false;}\n",
-      "  if(dashboardAssetRefreshBusy){if(manual)toast('Verificação NEPPO já está em andamento.');return false;}\n  if(!manual&&!neppoBusinessOpen()){\n    const nextStart=nextNeppoBusinessStartMs();\n    dashboardLastCheckMessage='Fora do expediente NEPPO. Próxima tentativa na próxima janela útil.';\n    scheduleDashboardNextCheck(Math.max(60000,nextStart-Date.now()));\n    if(typeof loadNeppoLiveHealth==='function')loadNeppoLiveHealth();\n    return false;\n  }\n",
+      "  if(dashboardAssetRefreshBusy){if(manual)toast('Verificação NEPPO já está em andamento.');return false;}\n  if(!manual&&!neppoBusinessOpen()){\n    dashboardLastCheckMessage='Fora do expediente NEPPO. Busca pausada até a próxima janela útil.';\n    scheduleDashboardNextCheck(DASHBOARD_REFRESH_INTERVAL_MS);\n    if(typeof loadNeppoLiveHealth==='function')loadNeppoLiveHealth();\n    return false;\n  }\n",
     );
   }
 

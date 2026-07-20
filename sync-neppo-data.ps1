@@ -10,6 +10,8 @@ param(
   [switch]$ExportOnly,
   [switch]$NoMirrorRoot,
   [switch]$MergeExistingCsv,
+  [switch]$SkipReviews,
+  [switch]$DashboardOnly,
   [string]$ExistingCsvPath = ''
 )
 
@@ -116,6 +118,7 @@ function Get-NeppoToken {
     -Uri "$authBase/oauth2/token" `
     -Headers @{ Authorization = "Basic $basic" } `
     -ContentType 'application/x-www-form-urlencoded' `
+    -TimeoutSec 45 `
     -Body @{ grant_type = 'password'; username = $env:NEPPO_USERNAME; password = $env:NEPPO_PASSWORD }
 
   if ([string]::IsNullOrWhiteSpace($response.access_token)) {
@@ -142,6 +145,7 @@ function Invoke-NeppoList([string]$Token, [string]$Endpoint, [int]$Page, [int]$S
         -Uri "$apiBase/chatapi/1.0/api/$Endpoint" `
         -Headers @{ Authorization = "Bearer $Token" } `
         -ContentType 'application/json' `
+        -TimeoutSec 45 `
         -Body $body
     }
     catch {
@@ -186,6 +190,10 @@ function Get-NeppoRowsUntil([string]$Token, [string]$Endpoint, [datetimeoffset]$
     if ($stop) { break }
   }
   return $rows.ToArray()
+}
+
+function ConvertTo-BrazilOffset([datetimeoffset]$Value) {
+  return $Value.ToOffset([TimeSpan]::FromHours(-3))
 }
 
 function Get-PeriodName([int]$Hour) {
@@ -485,6 +493,42 @@ function Write-Exports($Records, [string]$Path, [array]$Months) {
   Write-Output "Exports written: $pendingMapPath"
 }
 
+function Write-AttendanceExport($Records, [string]$Path) {
+  if (!(Test-Path -LiteralPath $Path)) {
+    New-Item -ItemType Directory -Path $Path | Out-Null
+  }
+
+  $attendancePath = Join-Path $Path 'atendimentos-neppo.csv'
+  $Records | Sort-Object mes, dia, criadoEm, protocolo | ForEach-Object {
+    [pscustomobject]@{
+      Mes = $_.mes
+      Dia = $_.dia
+      DataInicial = $_.criadoEm
+      DataEncerramento = $_.encerradoEm
+      Protocolo = $_.protocolo
+      Agente = $_.agente
+      Grupo = $_.grupo
+      ClienteOriginal = $_.cliente
+      UsuarioInformado = $_.clienteUsuario
+      ContratoExtraido = $_.clienteContrato
+      ChaveCliente = $_.clienteChave
+      CpfCnpjNeppo = $_.cpfCnpj
+      CodigoExternoNeppo = $_.codigoExterno
+      UsuarioNeppo = $_.usuarioNeppo
+      UsuarioIdNeppo = $_.usuarioId
+      Telefone = $_.telefone
+      TempoAtendimentoSeg = [Math]::Round($_.atendSec, 0)
+      TempoEsperaSeg = [Math]::Round($_.esperaSec, 0)
+      Avaliacao = $_.avaliacao
+      Canal = $_.chamada
+      Operacao = $_.operacao
+      Status = $_.status
+      SessionId = $_.sessionId
+    }
+  } | Export-Csv -LiteralPath $attendancePath -NoTypeInformation -Encoding UTF8
+  Write-Output "Exports written: $attendancePath"
+}
+
 function To-NullableDouble([string]$Value) {
   if ([string]::IsNullOrWhiteSpace($Value) -or $Value -eq '—') { return $null }
   $normalized = $Value.Replace(',', '.')
@@ -576,31 +620,41 @@ try {
     -DateField 'createdAt' `
     -SortColumn 'createdAt'
 
-  Write-Output "Buscando avaliações no NEPPO..."
-  $answers = Get-NeppoRowsUntil `
-    -Token $token `
-    -Endpoint 'chat-answer' `
-    -Start $start `
-    -End $end `
-    -Conditions @() `
-    -DateField 'createdAt' `
-    -SortColumn 'createdAt'
-
   $ratingBySession = @{}
-  foreach ($answer in $answers) {
-    if ([int]$answer.questionId -ne 1) { continue }
-    $option = [int]$answer.optionAnswerId
-    if ($option -lt 20 -or $option -gt 30) { continue }
-    $ratingBySession[[int]$answer.sessionId] = [double]($option - 20)
+  if ($SkipReviews) {
+    Write-Output "Pulando avaliações no NEPPO nesta atualização rápida; preservando avaliações já salvas."
+    $existingPathForRatings = if (![string]::IsNullOrWhiteSpace($ExistingCsvPath)) { $ExistingCsvPath } else { Join-Path $exportDir 'atendimentos-neppo.csv' }
+    foreach ($existing in @(Import-RecordsFromCsv -Path $existingPathForRatings)) {
+      if ($existing.sessionId -and $existing.sessionId -gt 0 -and $null -ne $existing.avaliacao) {
+        $ratingBySession[[int]$existing.sessionId] = [double]$existing.avaliacao
+      }
+    }
+  } else {
+    Write-Output "Buscando avaliações no NEPPO..."
+    $answers = Get-NeppoRowsUntil `
+      -Token $token `
+      -Endpoint 'chat-answer' `
+      -Start $start `
+      -End $end `
+      -Conditions @() `
+      -DateField 'createdAt' `
+      -SortColumn 'createdAt'
+
+    foreach ($answer in $answers) {
+      if ([int]$answer.questionId -ne 1) { continue }
+      $option = [int]$answer.optionAnswerId
+      if ($option -lt 20 -or $option -gt 30) { continue }
+      $ratingBySession[[int]$answer.sessionId] = [double]($option - 20)
+    }
   }
 
   $records = New-Object System.Collections.Generic.List[object]
   foreach ($session in $sessions) {
     if ([bool]$session.onlyBot) { continue }
-    $dt = [datetimeoffset]::Parse([string]$session.createdAt)
+    $dt = ConvertTo-BrazilOffset ([datetimeoffset]::Parse([string]$session.createdAt))
     $closedDt = $null
     if (![string]::IsNullOrWhiteSpace([string]$session.closedAt)) {
-      $closedDt = [datetimeoffset]::Parse([string]$session.closedAt)
+      $closedDt = ConvertTo-BrazilOffset ([datetimeoffset]::Parse([string]$session.closedAt))
     }
     $lastAgent = [string]$session.lastAgent
     $agentName = ''
@@ -681,24 +735,68 @@ try {
   }
 
   $records = @(Remove-DuplicateProtocols -Records $records.ToArray())
-  $records = @(Resolve-DocumentClientConflicts -Records $records)
 
-  $treatmentResult = Apply-Treatments -Records $records -Path $treatmentsPath
-  $records = @($treatmentResult.Records)
-  $diary = @($treatmentResult.Diary)
+  if ($DashboardOnly) {
+    Write-Output 'Modo dashboard: pulando reconciliação pesada de clientes e tratamentos auxiliares.'
+    $diary = @()
+  } else {
+    $records = @(Resolve-DocumentClientConflicts -Records $records)
+
+    $treatmentResult = Apply-Treatments -Records $records -Path $treatmentsPath
+    $records = @($treatmentResult.Records)
+    $diary = @($treatmentResult.Diary)
+  }
 
   $months = if ($MergeExistingCsv) {
     @($records | Group-Object mes | Sort-Object { [int]$_.Name } | ForEach-Object { [int]$_.Name })
   } else {
     $StartMonth..$EndMonth
   }
-  Write-Exports -Records @($records) -Path $exportDir -Months $months
-  Write-DiaryExport -Diary @($diary) -Path $exportDir
+  if ($DashboardOnly) {
+    Write-AttendanceExport -Records @($records) -Path $exportDir
+  } else {
+    Write-Exports -Records @($records) -Path $exportDir -Months $months
+    Write-DiaryExport -Diary @($diary) -Path $exportDir
+  }
   if ($ExportOnly) {
     Write-Output "Export-only mode. records=$($records.Count) diary=$($diary.Count)"
     return
   }
+
+  if ($SkipReviews -or $DashboardOnly) {
+    $nodeCandidates = @()
+    if (![string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
+      $nodeCandidates += (Join-Path (Join-Path $env:LOCALAPPDATA 'CodexTools') (Join-Path 'node-v22' 'node.exe'))
+    }
+    $nodeCommand = Get-Command node -ErrorAction SilentlyContinue
+    if ($nodeCommand) { $nodeCandidates += $nodeCommand.Source }
+    $nodeCandidates = @($nodeCandidates | Where-Object { $_ -and (Test-Path -LiteralPath $_) })
+    if ($nodeCandidates.Count -eq 0) {
+      throw 'Node.js nao encontrado para montar o dashboard rapido.'
+    }
+    $builderPath = Join-Path $scriptDir 'tools\build-dashboard-data.js'
+    if (!(Test-Path -LiteralPath $builderPath)) {
+      throw "Construtor rapido nao encontrado: $builderPath"
+    }
+    $nodeExe = @($nodeCandidates)[0]
+    & $nodeExe $builderPath "--html=$htmlPath" "--exports=$exportDir" "--year=$Year"
+    if ($LASTEXITCODE -ne 0) {
+      throw "Construtor rapido do dashboard falhou com codigo $LASTEXITCODE."
+    }
+    if (!$NoMirrorRoot) {
+      $rootHtmlPath = Join-Path (Split-Path -Parent $scriptDir) 'index.html'
+      if ((Test-Path -LiteralPath $rootHtmlPath) -and $rootHtmlPath -ne $htmlPath) {
+        Copy-Item -LiteralPath $htmlPath -Destination $rootHtmlPath -Force
+      }
+    }
+    return
+  }
+
   $focusMonth = [int](($records | Group-Object mes | Sort-Object { [int]$_.Name } -Descending | Select-Object -First 1).Name)
+  $recordsByMonth = @{}
+  foreach ($monthGroup in ($records | Group-Object mes)) {
+    $recordsByMonth[[int]$monthGroup.Name] = @($monthGroup.Group)
+  }
   $monthShortNames = @('', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez')
   $monthFullNames = @('', 'Janeiro 2026', 'Fevereiro 2026', 'Março 2026', 'Abril 2026', 'Maio 2026', 'Junho 2026', 'Julho 2026', 'Agosto 2026', 'Setembro 2026', 'Outubro 2026', 'Novembro 2026', 'Dezembro 2026')
   $D = [ordered]@{
@@ -720,7 +818,7 @@ try {
   $D.sla = @()
 
   foreach ($m in $months) {
-    $rs = @($records | Where-Object mes -eq $m)
+    $rs = @($recordsByMonth[[int]$m])
     $closed = @($rs | Where-Object { [string]$_.status -eq 'CLOSED' })
     $open = @($rs | Where-Object { [string]$_.status -ne 'CLOSED' })
     $ev = @($closed | Where-Object { $null -ne $_.avaliacao })
@@ -738,7 +836,7 @@ try {
   $daily = [ordered]@{}
   foreach ($m in $months) {
     $daily[[string]$m] = [ordered]@{}
-    foreach ($g in ($records | Where-Object mes -eq $m | Group-Object dia | Sort-Object { [int]$_.Name })) {
+    foreach ($g in (@($recordsByMonth[[int]$m]) | Group-Object dia | Sort-Object { [int]$_.Name })) {
       $ev = @($g.Group | Where-Object { $null -ne $_.avaliacao })
       $c = if ($ev.Count) { [Math]::Round((Avg @($ev | ForEach-Object avaliacao)), 3) } else { $D.sat[$m - 1] }
       $daily[[string]$m][[string]$g.Name] = [ordered]@{ v = $g.Count; c = $c }
@@ -749,7 +847,7 @@ try {
   $dow = [ordered]@{}
   foreach ($m in $months) {
     $arr = @(0, 0, 0, 0, 0)
-    foreach ($rec in @($records | Where-Object mes -eq $m)) {
+    foreach ($rec in @($recordsByMonth[[int]$m])) {
       $dt = Get-Date -Year 2026 -Month $m -Day $rec.dia
       $idx = @{ Monday = 0; Tuesday = 1; Wednesday = 2; Thursday = 3; Friday = 4 }[$dt.DayOfWeek.ToString()]
       if ($null -ne $idx) { $arr[$idx]++ }
@@ -760,18 +858,19 @@ try {
 
   $semAll = [ordered]@{}
   foreach ($m in $months) {
-    $keys = @($records | Where-Object mes -eq $m | Select-Object -ExpandProperty semana -Unique | Sort-Object)
+    $monthRecords = @($recordsByMonth[[int]$m])
+    $keys = @($monthRecords | Select-Object -ExpandProperty semana -Unique | Sort-Object)
     $semAll[[string]$m] = @($keys | ForEach-Object {
       $wk = $_
-      @($records | Where-Object { $_.mes -eq $m -and $_.semana -eq $wk }).Count
+      @($monthRecords | Where-Object { $_.semana -eq $wk }).Count
     })
   }
   $D.semanas = $semAll
 
   $semDow = [ordered]@{}
-  foreach ($wk in @($records | Where-Object mes -eq $focusMonth | Select-Object -ExpandProperty semana -Unique | Sort-Object)) {
+  foreach ($wk in @($recordsByMonth[[int]$focusMonth] | Select-Object -ExpandProperty semana -Unique | Sort-Object)) {
     $arr = @(0, 0, 0, 0, 0)
-    foreach ($rec in @($records | Where-Object { $_.mes -eq $focusMonth -and $_.semana -eq $wk })) {
+    foreach ($rec in @($recordsByMonth[[int]$focusMonth] | Where-Object { $_.semana -eq $wk })) {
       $dt = Get-Date -Year 2026 -Month $focusMonth -Day $rec.dia
       $idx = @{ Monday = 0; Tuesday = 1; Wednesday = 2; Thursday = 3; Friday = 4 }[$dt.DayOfWeek.ToString()]
       if ($null -ne $idx) { $arr[$idx]++ }
@@ -785,7 +884,7 @@ try {
   foreach ($m in $months) {
     $arr = @()
     foreach ($gn in $groupNames) {
-      $arr += @($records | Where-Object { $_.mes -eq $m -and $_.grupo -eq $gn }).Count
+      $arr += @($recordsByMonth[[int]$m] | Where-Object { $_.grupo -eq $gn }).Count
     }
     $gr[(MonthKey $m)] = $arr
   }
@@ -796,7 +895,7 @@ try {
   foreach ($a in $agents) {
     $vals = @()
     foreach ($m in $months) {
-      $rs = @($records | Where-Object { $_.agente -eq $a -and $_.mes -eq $m })
+      $rs = @($recordsByMonth[[int]$m] | Where-Object { $_.agente -eq $a })
       $closed = @($rs | Where-Object { [string]$_.status -eq 'CLOSED' })
       $ev = @($closed | Where-Object { $null -ne $_.avaliacao })
       $tmaVal = if ($closed.Count) { F-Time (Avg @($closed | ForEach-Object atendSec)) } else { '—' }
@@ -837,7 +936,7 @@ try {
     )
   })
 
-  $focus = @($records | Where-Object mes -eq $focusMonth)
+  $focus = @($recordsByMonth[[int]$focusMonth])
 
   $tmaAg = [ordered]@{}
   foreach ($g in ($focus | Group-Object agente | Sort-Object Name)) {
@@ -916,9 +1015,10 @@ try {
   $agDay = [ordered]@{}
   foreach ($m in $months) {
     $byAg = [ordered]@{}
-    foreach ($a in @($records | Where-Object mes -eq $m | Group-Object agente | Sort-Object Name | ForEach-Object Name)) {
+    $monthRecords = @($recordsByMonth[[int]$m])
+    foreach ($a in @($monthRecords | Group-Object agente | Sort-Object Name | ForEach-Object Name)) {
       $ht = [ordered]@{}
-      foreach ($g in ($records | Where-Object { $_.mes -eq $m -and $_.agente -eq $a } | Group-Object dia | Sort-Object { [int]$_.Name })) {
+      foreach ($g in ($monthRecords | Where-Object { $_.agente -eq $a } | Group-Object dia | Sort-Object { [int]$_.Name })) {
         $ht[[string]$g.Name] = $g.Count
       }
       $byAg[$a] = $ht
@@ -967,7 +1067,7 @@ try {
   foreach ($m in $months) {
     $perMes[(MonthKey $m)] = @($periodOrder | ForEach-Object {
       $pn = $_
-      @($records | Where-Object { $_.mes -eq $m -and $_.periodo -eq $pn }).Count
+      @($recordsByMonth[[int]$m] | Where-Object { $_.periodo -eq $pn }).Count
     })
   }
   $D.perMes = $perMes
@@ -994,7 +1094,7 @@ try {
 
   $byMonth = [ordered]@{}
   foreach ($mm in $months) {
-    $focusM = @($records | Where-Object mes -eq $mm)
+    $focusM = @($recordsByMonth[[int]$mm])
     $mk = MonthKey $mm
 
     $tmaAgM = [ordered]@{}
@@ -1125,15 +1225,294 @@ try {
 
   $D.diary = $diary
 
+  function Get-DashboardDataBlock {
+    param(
+      [Parameter(Mandatory = $true)][string]$Html
+    )
+
+    $prefix = 'const D ='
+    $prefixIndex = $Html.IndexOf($prefix)
+    if ($prefixIndex -lt 0) { throw 'Bloco const D nao encontrado no HTML.' }
+
+    $jsonStart = $Html.IndexOf('{', $prefixIndex)
+    if ($jsonStart -lt 0) { throw 'Inicio do bloco const D nao encontrado no HTML.' }
+
+    $depth = 0
+    $inString = $false
+    $escaped = $false
+    for ($i = $jsonStart; $i -lt $Html.Length; $i++) {
+      $ch = $Html[$i]
+      if ($inString) {
+        if ($escaped) {
+          $escaped = $false
+        } elseif ($ch -eq [char]92) {
+          $escaped = $true
+        } elseif ($ch -eq [char]34) {
+          $inString = $false
+        }
+        continue
+      }
+
+      if ($ch -eq [char]34) {
+        $inString = $true
+      } elseif ($ch -eq '{') {
+        $depth++
+      } elseif ($ch -eq '}') {
+        $depth--
+        if ($depth -eq 0) {
+          $jsonEnd = $i + 1
+          return [pscustomobject]@{
+            Start = $jsonStart
+            End = $jsonEnd
+            Json = $Html.Substring($jsonStart, $jsonEnd - $jsonStart)
+          }
+        }
+      }
+    }
+
+    throw 'Fim do bloco const D nao encontrado no HTML.'
+  }
+
+  function Ensure-DashboardLiveRefresh {
+    param(
+      [Parameter(Mandatory = $true)][string]$Html
+    )
+
+    $refreshBlock = @'
+// Atualiza os números quando a rotina NEPPO publicar uma nova versão do painel.
+let dashboardAssetSignature='';
+let dashboardAssetRefreshBusy=false;
+function initializeDashboardAssetSignature(){
+  if(!dashboardAssetSignature)dashboardAssetSignature=dashboardNumbersSignature(D);
+}
+function canReloadDashboardAsset(){
+  if(document.visibilityState&&document.visibilityState!=='visible')return false;
+  if(document.querySelector('.modal.open'))return false;
+  return true;
+}
+function saoPauloNowParts(){
+  const br=new Date(Date.now()-3*60*60*1000);
+  return {year:br.getUTCFullYear(),month:br.getUTCMonth(),day:br.getUTCDate(),dow:br.getUTCDay(),hour:br.getUTCHours(),minute:br.getUTCMinutes()};
+}
+function nextNeppoBusinessStartMs(){
+  const p=saoPauloNowParts();
+  let brStart=Date.UTC(p.year,p.month,p.day,8,0,0);
+  const brNow=Date.UTC(p.year,p.month,p.day,p.hour,p.minute,0);
+  let dow=p.dow;
+  if(dow>=1&&dow<=5&&p.hour<8)return brStart+3*60*60*1000;
+  do{brStart+=24*60*60*1000;dow=(dow+1)%7;}while(dow===0||dow===6||brStart<=brNow);
+  return brStart+3*60*60*1000;
+}
+function neppoBusinessOpen(){
+  const p=saoPauloNowParts();
+  return p.dow>=1&&p.dow<=5&&p.hour>=8&&p.hour<18;
+}
+function extractDashboardDataFromHtml(html){
+  const marker='const D =';
+  const markerIndex=html.indexOf(marker);
+  if(markerIndex<0)return null;
+  const start=html.indexOf('{',markerIndex);
+  if(start<0)return null;
+  let depth=0,inString=false,escaped=false;
+  for(let i=start;i<html.length;i++){
+    const ch=html[i];
+    if(inString){
+      if(escaped)escaped=false;
+      else if(ch==='\\')escaped=true;
+      else if(ch==='"')inString=false;
+      continue;
+    }
+    if(ch==='"')inString=true;
+    else if(ch==='{')depth++;
+    else if(ch==='}'){
+      depth--;
+      if(depth===0){
+        try{return JSON.parse(html.slice(start,i+1));}
+        catch{return null;}
+      }
+    }
+  }
+  return null;
+}
+function dashboardNumbersSignature(data){
+  if(!data)return '';
+  const rows=Array.isArray(data.rows)?data.rows:[];
+  return JSON.stringify({atend:data.atend||[],open:data.open||[],closed:data.closed||[],aval:data.aval||[],focusMonth:data.focusMonth||0,rowCount:rows.length,lastRows:rows.slice(-5)});
+}
+async function readDashboardLivePayload(force=false){
+  const controller=new AbortController();
+  const timeoutId=setTimeout(()=>controller.abort(),25000);
+  try{
+    const url=new URL('/api/neppo-live/dashboard',location.origin);
+    url.searchParams.set('year','2026');
+    url.searchParams.set('month',String(D.focusMonth||new Date().getMonth()+1));
+    url.searchParams.set('_',Date.now());
+    if(force)url.searchParams.set('force','1');
+    const res=await fetch(url.toString(),{cache:'no-store',credentials:'same-origin',signal:controller.signal});
+    const payload=await res.json().catch(()=>null);
+    if(!res.ok||!payload?.ok||!payload?.data)return null;
+    return {data:payload.data,signature:payload.signature||dashboardNumbersSignature(payload.data),meta:payload.meta||{},source:'neppo-live'};
+  }catch{return null;}
+  finally{clearTimeout(timeoutId);}
+}
+async function readDashboardAssetPayload(force=false){
+  const controller=new AbortController();
+  const timeoutId=setTimeout(()=>controller.abort(),12000);
+  try{
+    const live=await readDashboardLivePayload(force);
+    if(live)return live;
+    const url=new URL(location.href);
+    url.searchParams.set('__dashboard_version',Date.now());
+    const res=await fetch(url.toString(),{cache:'no-store',credentials:'same-origin',signal:controller.signal});
+    if(!res.ok)return null;
+    const html=await res.text();
+    const data=extractDashboardDataFromHtml(html);
+    const signature=dashboardNumbersSignature(data);
+    return data&&signature?{data,signature}:null;
+  }catch{return null;}
+  finally{clearTimeout(timeoutId);}
+}
+function activeDashboardPaneId(){return document.querySelector('.pane.active')?.id?.replace(/^pane-/,'')||'visao';}
+function replaceDashboardData(nextData){
+  if(!nextData||!Array.isArray(nextData.meses))return false;
+  const oldMonthCount=Array.isArray(D.meses)?D.meses.length:0;
+  Object.keys(D).forEach(k=>delete D[k]);
+  Object.assign(D,nextData);
+  normalizeDashboardMonths();
+  applyManualAdjustments();
+  return oldMonthCount===D.meses.length;
+}
+function rebuildMonthButtons(){
+  if($('ov-ms')){$('ov-ms').innerHTML='';buildOvMs();}
+  if($('ag-ms')){$('ag-ms').innerHTML='';buildAgMs();}
+  buildGlobalMonthSelect();
+}
+function renderCurrentDashboardPane(paneId){
+  const month=Math.max(0,Math.min(appM,D.meses.length-1));
+  rebuildMonthButtons();
+  setGlobalMonth(month);
+  if(paneId==='historico')renderHistorico();
+  if(paneId==='atendimentos')renderAtendimentos();
+  if(paneId==='tratamentos')renderTreatments();
+  if(paneId==='bonificacao')renderBonus();
+  if(paneId==='whatsapp-grupo')renderWhatsappGroupRecords();
+  const stamp=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})+' · '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  if($('top-date'))$('top-date').textContent='Atualizado '+stamp;
+  if($('footer-date'))$('footer-date').textContent='Exportado em '+stamp;
+  renderNeppoRefreshStatus();
+}
+async function checkDashboardAssetUpdate(options={}){
+  if(options===true)options={manual:true,force:true};
+  const manual=!!options.manual;
+  const force=!!options.force||manual;
+  if(dashboardAssetRefreshBusy){if(manual)toast('Verificação NEPPO já está em andamento.');return false;}
+  if(!manual&&!neppoBusinessOpen()){
+    const nextStart=nextNeppoBusinessStartMs();
+    dashboardLastCheckMessage='Fora do expediente NEPPO. Próxima tentativa na próxima janela útil.';
+    scheduleDashboardNextCheck(Math.max(60000,nextStart-Date.now()));
+    if(typeof loadNeppoLiveHealth==='function')loadNeppoLiveHealth();
+    return false;
+  }
+  if(!force&&!canReloadDashboardAsset()){
+    dashboardLastCheckMessage='Atualização aguardando a tela liberar. Nova tentativa em segundos.';
+    scheduleDashboardNextCheck(5000);
+    return false;
+  }
+  initializeDashboardAssetSignature();
+  dashboardAssetRefreshBusy=true;
+  if(manual){dashboardLastCheckMessage='Verificando agora...';renderNeppoRefreshStatus();}
+  let payload=null;
+  try{
+    payload=await readDashboardAssetPayload(force);
+  }finally{
+    dashboardAssetRefreshBusy=false;
+  }
+  if(!payload){dashboardLastCheckMessage='Falha ao consultar a base NEPPO. Nova tentativa em 1 minuto.';scheduleDashboardNextCheck(DASHBOARD_REFRESH_RETRY_MS);if(manual)toast('Não consegui consultar a nova base agora.',true);return false;}
+  const {data,signature}=payload;
+  if(!dashboardAssetSignature){dashboardAssetSignature=signature;dashboardLastCheckMessage='Base conferida. Nenhuma mudança ainda.';if(!dashboardNextCheckAtMs||dashboardNextCheckAtMs<=Date.now())scheduleDashboardNextCheck(DASHBOARD_REFRESH_INTERVAL_MS);else renderNeppoRefreshStatus();if(manual)toast('Base conferida. Sem mudança ainda.');return false;}
+  if(signature!==dashboardAssetSignature){
+    const paneId=activeDashboardPaneId();
+    sessionStorage.setItem('gestao-dashboard-auto-refresh',new Date().toISOString());
+    const sameStructure=replaceDashboardData(data);
+    dashboardAssetSignature=signature;
+    dashboardPublishedAtMs=Date.now();
+    dashboardLastCheckMessage='Base NEPPO atualizada agora.';
+    scheduleDashboardNextCheck(DASHBOARD_REFRESH_INTERVAL_MS);
+    if(!sameStructure){location.reload();return true;}
+    renderCurrentDashboardPane(paneId);
+    toast('Dados NEPPO atualizados automaticamente.');
+    return true;
+  }
+  dashboardLastCheckMessage='Sem mudança na base NEPPO nesta verificação.';
+  if(dashboardNextCheckAtMs<=Date.now())scheduleDashboardNextCheck(DASHBOARD_REFRESH_RETRY_MS);else renderNeppoRefreshStatus();
+  if(manual)toast('Sem mudança na base NEPPO por enquanto.');
+  return false;
+}
+async function runDashboardScheduledCheck(){
+  if(document.hidden||dashboardAssetRefreshBusy)return false;
+  if(!dashboardNextCheckAtMs)scheduleDashboardNextCheck(DASHBOARD_REFRESH_INTERVAL_MS);
+  if(Date.now()<dashboardNextCheckAtMs)return false;
+  dashboardLastCheckMessage='Consultando base NEPPO automaticamente...';
+  renderNeppoRefreshStatus();
+  return checkDashboardAssetUpdate({force:false});
+}
+function startDashboardAutoRefresh(){
+  if(dashboardAutoRefreshTimer)return;
+  initializeDashboardAssetSignature();
+  scheduleDashboardNextCheck(DASHBOARD_REFRESH_INTERVAL_MS);
+  setTimeout(()=>{if(!document.hidden&&neppoBusinessOpen())checkDashboardAssetUpdate({force:true});},15000);
+  dashboardAutoRefreshTimer=setInterval(runDashboardScheduledCheck,30000);
+  dashboardStatusTimer=setInterval(renderNeppoRefreshStatus,15000);
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){renderNeppoRefreshStatus();runDashboardScheduledCheck();}});
+  window.addEventListener('focus',()=>{renderNeppoRefreshStatus();runDashboardScheduledCheck();});
+  window.addEventListener('pageshow',()=>{renderNeppoRefreshStatus();});
+}
+'@
+    $initMarker = '// ════════ INIT ════════'
+    $blockStart = $Html.IndexOf('// Atualiza os números quando a rotina NEPPO publicar uma nova versão do painel.')
+    if ($blockStart -lt 0) {
+      $blockStart = $Html.IndexOf('// Recarrega a tela quando a rotina NEPPO publicar uma nova versão do painel.')
+    }
+    $initIndex = if ($blockStart -ge 0) { $Html.IndexOf($initMarker, $blockStart) } else { -1 }
+    if ($blockStart -ge 0 -and $initIndex -gt $blockStart) {
+      $Html = $Html.Substring(0, $blockStart) + $refreshBlock + "`r`n`r`n" + $Html.Substring($initIndex)
+    } else {
+      $fallbackInitIndex = $Html.IndexOf($initMarker)
+      if ($fallbackInitIndex -ge 0) {
+        $Html = $Html.Substring(0, $fallbackInitIndex) + $refreshBlock + "`r`n`r`n" + $Html.Substring($fallbackInitIndex)
+      }
+    }
+
+    if ($Html -notmatch "function findNavTabButton\(id\)") {
+      $goReplacement = @'
+function findNavTabButton(id){
+  return [...document.querySelectorAll('.ntab')].find(btn=>String(btn.getAttribute('onclick')||'').includes("go('" + id + "'"));
+}
+function go(id,el){
+  if(id)sessionStorage.setItem('gestao-active-pane',id);
+  if(!el)el=findNavTabButton(id);
+'@
+      $Html = [regex]::Replace($Html, 'function go\(id,el\)\{', $goReplacement, 1)
+    }
+
+    if ($Html -notmatch "const savedPane=sessionStorage\.getItem\('gestao-active-pane'\)") {
+      $restorePane = @'
+setGlobalMonth(urlMonth>=1&&urlMonth<=D.meses.length?urlMonth-1:F);
+const savedPane=sessionStorage.getItem('gestao-active-pane');
+if(savedPane&&$('pane-'+savedPane))go(savedPane);
+'@
+      $Html = $Html -replace 'setGlobalMonth\(urlMonth>=1&&urlMonth<=D\.meses\.length\?urlMonth-1:F\);', $restorePane
+    }
+
+    $Html = $Html -replace 'const DASHBOARD_REFRESH_INTERVAL_MS=5\*60\*1000;', 'const DASHBOARD_REFRESH_INTERVAL_MS=30*1000;'
+    return $Html
+  }
+
   $json = $D | ConvertTo-Json -Depth 30
-  $newBlock = "const D = $json;"
   $html = Get-Content -LiteralPath $htmlPath -Raw
-  $html = [regex]::Replace(
-    $html,
-    'const D = \{[\s\S]*?\n\};\r?\n\r?\nconst MANUAL_ADJUSTMENTS_STORAGE_KEY',
-    ($newBlock + "`r`n`r`nconst MANUAL_ADJUSTMENTS_STORAGE_KEY"),
-    1
-  )
+  $dataBlock = Get-DashboardDataBlock -Html $html
+  $html = $html.Substring(0, $dataBlock.Start) + $json + $html.Substring($dataBlock.End)
+  $html = Ensure-DashboardLiveRefresh -Html $html
   Set-Content -LiteralPath $htmlPath -Value $html -Encoding UTF8
   if (!$NoMirrorRoot) {
     $rootHtmlPath = Join-Path (Split-Path -Parent $scriptDir) 'index.html'

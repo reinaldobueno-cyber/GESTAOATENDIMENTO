@@ -6,6 +6,11 @@
   "observability": {
     "enabled": true
   },
+  "triggers": {
+    "crons": [
+      "*/5 * * * *"
+    ]
+  },
   "assets": {
     "directory": ".",
     "binding": "ASSETS",
@@ -15,6 +20,13 @@
     {
       "binding": "ADJUSTMENTS",
       "id": "f5322e1c79514687ab28ebbf91837c25"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "REVIEWS_DB",
+      "database_name": "gestaoatendimento-reviews",
+      "database_id": "58a287c6-3799-4cba-b76e-2941f04f782e"
     }
   ],
   "compatibility_flags": [

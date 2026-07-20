@@ -869,7 +869,7 @@ function brDatePartsFromNeppo(value) {
   };
 }
 
-function extractDashboardDataFromHtmlForWorker(html) {
+function dashboardDataRangeFromHtmlForWorker(html) {
   const marker = 'const D =';
   const markerIndex = html.indexOf(marker);
   if (markerIndex < 0) return null;
@@ -890,10 +890,38 @@ function extractDashboardDataFromHtmlForWorker(html) {
     else if (ch === '{') depth += 1;
     else if (ch === '}') {
       depth -= 1;
-      if (depth === 0) return JSON.parse(html.slice(start, i + 1));
+      if (depth === 0) {
+        let end = i + 1;
+        while (html[end] === ' ' || html[end] === '\t') end += 1;
+        if (html[end] === ';') end += 1;
+        return {
+          statementStart: markerIndex,
+          statementEnd: end,
+          jsonStart: start,
+          jsonEnd: i + 1,
+        };
+      }
     }
   }
   return null;
+}
+
+function extractDashboardDataFromHtmlForWorker(html) {
+  const range = dashboardDataRangeFromHtmlForWorker(html);
+  return range ? JSON.parse(html.slice(range.jsonStart, range.jsonEnd)) : null;
+}
+
+function dashboardDataScriptLiteral(data) {
+  return JSON.stringify(data)
+    .replace(/<\//g, '<\\/')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
+}
+
+function replaceDashboardDataInHtml(html, data) {
+  const range = dashboardDataRangeFromHtmlForWorker(html);
+  if (!range || !data || !Array.isArray(data.rows)) return null;
+  return `${html.slice(0, range.statementStart)}const D = ${dashboardDataScriptLiteral(data)};${html.slice(range.statementEnd)}`;
 }
 
 async function readPublishedDashboardData(request, env) {
@@ -1657,6 +1685,35 @@ function rewriteDashboardBrand(response) {
       },
     })
     .transform(response);
+}
+
+async function injectLiveDashboardIntoHtml(env, response) {
+  const contentType = response.headers.get('Content-Type') || '';
+  if (!response.ok || !contentType.toLowerCase().includes('text/html')) return response;
+  const { year, month } = currentSaoPauloYearMonth();
+  const liveBody = await readNeppoLiveKv(env, year, month).catch(() => null);
+  if (!liveBody?.data) return response;
+
+  const html = await response.text();
+  const nextHtml = replaceDashboardDataInHtml(html, liveBody.data);
+  if (!nextHtml || nextHtml === html) {
+    return new Response(html, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    });
+  }
+
+  const headers = new Headers(response.headers);
+  headers.delete('Content-Length');
+  headers.set('X-Gestao-Dashboard-Source', 'neppo-live-kv');
+  headers.set('X-Gestao-Dashboard-Checked-At', liveBody.meta?.checkedAt || liveBody.checkedAt || '');
+  headers.set('X-Gestao-Dashboard-Rows', String(Array.isArray(liveBody.data.rows) ? liveBody.data.rows.length : 0));
+  return new Response(nextHtml, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
 }
 
 async function getCurrentDashboardRow(request, env, protocol) {
@@ -5355,11 +5412,13 @@ export default {
     headers.set('X-Robots-Tag', 'noindex, nofollow');
     headers.set('X-Gestao-Release', DASHBOARD_RELEASE_MARKER);
 
-    return rewriteDashboardBrand(new Response(response.body, {
+    const assetResponse = new Response(response.body, {
       status: response.status,
       statusText: response.statusText,
       headers,
-    }));
+    });
+    const liveDashboardResponse = await injectLiveDashboardIntoHtml(env, assetResponse);
+    return rewriteDashboardBrand(liveDashboardResponse);
   },
   async scheduled(event, env, ctx) {
     if (event?.cron === '1-59/2 * * * *') {

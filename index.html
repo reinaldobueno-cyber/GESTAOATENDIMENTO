@@ -338175,11 +338175,18 @@ function opSortValue(r,key){
   const map={
     tma:()=>r[4]||0,protocol:()=>r[7]||'',agent:()=>r[2]||'',group:()=>r[3]||'',
     start:()=>parseBrDate(r[10]),end:()=>parseBrDate(r[11]),client:()=>r[12]||'',
-    phone:()=>r[13]||'',week:()=>Math.ceil((+r[1]||1)/7),period:()=>r[8]||'',
+    phone:()=>atendimentoPhone(r),week:()=>Math.ceil((+r[1]||1)/7),period:()=>r[8]||'',
     day:()=>r[1]||0,month:()=>r[0]||0,tme:()=>r[5]||0,operation:()=>r[17]||'',
     channel:()=>r[14]||'',rating:()=>rowCsat(r)==null?-1:rowCsat(r)
   };
   return (map[key]||map.start)();
+}
+function atendimentoPhone(r){
+  for(const value of [r?.[13],r?.[14],r?.[23],r?.[12],r?.[19]]){
+    const digits=String(value||'').replace(/\D/g,'');
+    if(digits.length>=10&&digits.length<=15)return digits;
+  }
+  return '';
 }
 function setAtendimentoSort(key){
   opSort={key,dir:(opSort.key===key&&opSort.dir==='asc')?'desc':'asc'};
@@ -338370,7 +338377,7 @@ function atendimentoRows(){
     if(av==='unrated'&&cs!=null)return false;
     if(av==='low'&&!(cs!=null&&cs<9))return false;
     if(q){
-    const hay=[r[7],r[12],r[13],r[18],r[19],r[20],r[21],r[22],r[23],r[2],r[3]].map(x=>String(x||'').toLowerCase()).join(' ');
+    const hay=[r[7],r[12],atendimentoPhone(r),r[13],r[18],r[19],r[20],r[21],r[22],r[23],r[2],r[3]].map(x=>String(x||'').toLowerCase()).join(' ');
       if(!hay.includes(q))return false;
     }
     return true;
@@ -338656,6 +338663,7 @@ function renderAtendimentos(){
     const cs=rowCsat(r), rating=cs!=null?`<span class="op-badge">${fS(cs)}</span>`:'<span class="op-badge">SEM AVALIAÇÃO</span>';
     const chamada=r[14]||'WHATSAPP';
     const operacao=r[17]||'MODELO';
+    const phone=atendimentoPhone(r);
     return `<tr>
       <td class="op-mono"${liveTmaAttrs(r)}>${fmtDur(liveTmaSec(r))}</td>
       <td class="op-mono">${esc(r[7])}</td>
@@ -338664,7 +338672,7 @@ function renderAtendimentos(){
       <td class="op-mono">${esc(r[10]||'')}</td>
       <td class="op-mono">${esc(r[11]||'')}</td>
       <td class="op-client" title="${esc(r[12]||'')}">${clientButton(r)}</td>
-      <td class="op-mono">${esc(r[13]||'')}</td>
+      <td class="op-mono">${esc(phone)}</td>
       <td class="op-mono">${semanaFromDay(r[1])}</td>
       <td>${esc(r[8])}</td>
       <td class="op-mono">${String(r[1]).padStart(2,'0')}</td>

@@ -840,6 +840,14 @@ function splitNeppoClientName(value) {
   return { usuario: raw, contrato: raw };
 }
 
+function neppoPhoneFromValues(...values) {
+  for (const value of values) {
+    const digits = String(value || '').replace(/\D/g, '');
+    if (digits.length >= 10 && digits.length <= 15) return digits;
+  }
+  return '';
+}
+
 function neppoClientKey(clientName, cpfCnpj, externalCode, contract) {
   if (cpfCnpj) return `DOC:${cpfCnpj}`;
   if (externalCode) return `EXT:${externalCode}`;
@@ -1369,6 +1377,14 @@ async function buildLiveNeppoDashboard(request, env, month, year) {
     const clientParts = splitNeppoClientName(clientName);
     const cpfCnpj = normalizeDocument(session?.user?.cpf);
     const externalCode = String(session?.user?.externalCode || '');
+    const phone = neppoPhoneFromValues(
+      session?.user?.phone,
+      session.externalProtocol,
+      session?.user?.originUser,
+      session?.user?.userName,
+      session?.user?.displayName,
+      session?.user?.name,
+    );
     const protocol = String(session.protocol || '');
     if (!protocol || seenProtocols.has(protocol)) continue;
     seenProtocols.add(protocol);
@@ -1386,7 +1402,7 @@ async function buildLiveNeppoDashboard(request, env, month, year) {
       created.label,
       closed ? closed.label : '',
       clientName,
-      String(session?.user?.phone || session.externalProtocol || ''),
+      phone,
       String(session?.user?.originUser || ''),
       String(session.status || ''),
       Number(session.id || 0),

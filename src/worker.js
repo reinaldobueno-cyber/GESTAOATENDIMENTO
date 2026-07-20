@@ -11,6 +11,8 @@ const NEPPO_LIVE_CRON_FRESH_MS = 90 * 1000;
 const NEPPO_LIVE_RUNNING_LOCK_MS = 3 * 60 * 1000;
 const NEPPO_LIVE_STALE_MS = 30 * 60 * 1000;
 const NEPPO_LIVE_KV_EXPIRATION_TTL = 2 * 24 * 60 * 60;
+const NEPPO_LIVE_HISTORY_ENRICH_LIMIT = 60;
+const NEPPO_LIVE_HISTORY_ENRICH_CONCURRENCY = 4;
 const NEPPO_BUSINESS_START_HOUR = 8;
 const NEPPO_BUSINESS_END_HOUR = 18;
 const DASHBOARD_RELEASE_MARKER = 'gestaoatendimento-20260720-release-guard';
@@ -840,12 +842,66 @@ function splitNeppoClientName(value) {
   return { usuario: raw, contrato: raw };
 }
 
+function isGenericNeppoCaller(value) {
+  const raw = String(value || '').trim();
+  const normalized = normalizeClientLookupName(raw);
+  return (
+    !normalized ||
+    /^CLIENTE\s*#?\s*\d+$/i.test(raw) ||
+    /^(CLIENTE|ATENDENTE|BOT|SISTEMA|MENSAGEM|MESSAGE|NONE|TRANSFER|QUEUE)$/.test(normalized) ||
+    /^(WHATSAPP|VOICE)\s*\d+$/.test(normalized)
+  );
+}
+
+function conversationCallerNameFromSender(value) {
+  const cleaned = stripHtmlText(value)
+    .replace(/^CLIENTE\s*-\s*/i, '')
+    .replace(/\s+-\s+\d{2}\/\d{2}\/\d{4}.*$/i, '')
+    .trim();
+  const parts = cleaned.split(/\s+-\s+/).map((part) => part.trim()).filter(Boolean);
+  const candidate = parts.length > 1 ? parts[0] : cleaned;
+  return isGenericNeppoCaller(candidate) ? '' : candidate;
+}
+
 function neppoPhoneFromValues(...values) {
   for (const value of values) {
     const digits = String(value || '').replace(/\D/g, '');
     if (digits.length >= 10 && digits.length <= 15) return digits;
   }
   return '';
+}
+
+function neppoPhoneFromHistoryValue(value, key = '') {
+  if (value == null) return '';
+  const keyText = String(key || '');
+  if (typeof value === 'string' || typeof value === 'number') {
+    const text = String(value);
+    const hinted = /(phone|fone|celular|mobile|whatsapp|voice|origin|jid|sender|author|from|contact|remote)/i.test(keyText)
+      || /(WHATSAPP|VOICE)\s*\+?\d{10,15}/i.test(text)
+      || /@s\.whatsapp\.net/i.test(text);
+    return hinted ? neppoPhoneFromValues(text) : '';
+  }
+  if (typeof value !== 'object') return '';
+  for (const [childKey, childValue] of Object.entries(value)) {
+    const phone = neppoPhoneFromHistoryValue(childValue, childKey);
+    if (phone) return phone;
+  }
+  return '';
+}
+
+function conversationInfoFromMessages(messages) {
+  const info = { caller: '', phone: '' };
+  for (const message of messages || []) {
+    if (!info.phone) info.phone = neppoPhoneFromHistoryValue(message);
+    if (!info.caller) {
+      const sender = messageSender(message);
+      if (/^CLIENTE\b/i.test(sender)) {
+        info.caller = conversationCallerNameFromSender(sender);
+      }
+    }
+    if (info.caller && info.phone) break;
+  }
+  return info;
 }
 
 function neppoClientKey(clientName, cpfCnpj, externalCode, contract) {
@@ -1352,6 +1408,40 @@ function neppoBusinessSchedule(date = new Date()) {
   };
 }
 
+async function enrichLiveRowsFromNeppoHistory(liveRows, env) {
+  const result = { checked: 0, users: 0, phones: 0, skipped: 0, ok: true };
+  const candidates = (liveRows || [])
+    .filter((row) => Array.isArray(row) && row[16] && (!row[13] || isGenericNeppoCaller(row[18])))
+    .slice(0, NEPPO_LIVE_HISTORY_ENRICH_LIMIT);
+  result.skipped = Math.max(0, (liveRows || []).length - candidates.length);
+  if (!candidates.length) return result;
+
+  const auth = await getNeppoWebCookie(env);
+  if (!auth.ok) {
+    return { ...result, ok: false, message: auth.message || 'Histórico NEPPO indisponível para enriquecer usuário/telefone.' };
+  }
+
+  for (let index = 0; index < candidates.length; index += NEPPO_LIVE_HISTORY_ENRICH_CONCURRENCY) {
+    const batch = candidates.slice(index, index + NEPPO_LIVE_HISTORY_ENRICH_CONCURRENCY);
+    await Promise.all(batch.map(async (row) => {
+      const history = await fetchNeppoIssueHistory(row[16], auth.cookie).catch(() => null);
+      result.checked += 1;
+      if (!history?.ok) return;
+      const { caller, phone } = conversationInfoFromMessages(history.messages || []);
+      if (caller && (isGenericNeppoCaller(row[18]) || row[18] !== caller)) {
+        row[18] = caller;
+        result.users += 1;
+      }
+      if (!row[13] && phone) {
+        row[13] = phone;
+        result.phones += 1;
+      }
+    }));
+  }
+
+  return result;
+}
+
 async function buildLiveNeppoDashboard(request, env, month, year) {
   const baseData = await readPublishedDashboardData(request, env);
   const auth = await getNeppoApiToken(env);
@@ -1445,6 +1535,14 @@ async function buildLiveNeppoDashboard(request, env, month, year) {
     ]);
   }
 
+  const historyEnrichment = await enrichLiveRowsFromNeppoHistory(liveRows, env).catch((error) => ({
+    ok: false,
+    checked: 0,
+    users: 0,
+    phones: 0,
+    message: error.message || String(error),
+  }));
+
   const rows = [
     ...((baseData.rows || []).filter((row) => Array.isArray(row) && !(
       Number(row[0]) === month && (range.mode === 'month' || Number(row[1]) === range.day)
@@ -1467,6 +1565,7 @@ async function buildLiveNeppoDashboard(request, env, month, year) {
       end: end.toISOString(),
     },
     liveRows: liveRows.length,
+    historyEnrichment,
     ratings: ratingBySession.size,
     pages: {
       agents: Math.ceil(agents.length / 200) || 1,

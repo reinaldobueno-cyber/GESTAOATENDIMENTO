@@ -338234,12 +338234,17 @@ function atendimentoPhone(r){
   }
   return '';
 }
+function atendimentoUserIsGeneric(value){
+  const raw=String(value||'').trim();
+  const normalized=raw.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9#]+/g,' ').trim();
+  return !normalized||/^CLIENTE\s*#?\s*\d+$/i.test(raw)||/^(CLIENTE|ATENDENTE|BOT|SISTEMA|MENSAGEM|MESSAGE|NONE|TRANSFER|QUEUE)$/.test(normalized)||/^(WHATSAPP|VOICE)\s+\d+$/.test(normalized);
+}
 function atendimentoUser(r){
   const value=String(r?.[18]||r?.[23]||'').trim();
-  if(value&&!/^CLIENTE:/i.test(value)&&!/^(DOC|EXT):/i.test(value))return value;
+  if(value&&!atendimentoUserIsGeneric(value)&&!/^CLIENTE:/i.test(value)&&!/^(DOC|EXT):/i.test(value))return value;
   const raw=String(r?.[12]||'').trim();
   const parts=raw.split(/\s+-\s+/).map(x=>x.trim()).filter(Boolean);
-  return parts.length>1?parts[0]:'';
+  return parts.length>1&&!atendimentoUserIsGeneric(parts[0])?parts[0]:'';
 }
 function setAtendimentoSort(key){
   opSort={key,dir:(opSort.key===key&&opSort.dir==='asc')?'desc':'asc'};

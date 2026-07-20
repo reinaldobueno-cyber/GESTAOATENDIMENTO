@@ -154,8 +154,11 @@ function getConstDataBlock(html) {
 function ensureLiveRefreshHtml(html) {
   let next = html.replace(
     'const DASHBOARD_REFRESH_INTERVAL_MS=5*60*1000;',
-    'const DASHBOARD_REFRESH_INTERVAL_MS=30*1000;',
+    'const DASHBOARD_REFRESH_INTERVAL_MS=15*1000;',
   );
+  next = next
+    .replace('const DASHBOARD_REFRESH_INTERVAL_MS=30*1000;', 'const DASHBOARD_REFRESH_INTERVAL_MS=15*1000;')
+    .replace('const DASHBOARD_REFRESH_RETRY_MS=60*1000;', 'const DASHBOARD_REFRESH_RETRY_MS=20*1000;');
 
   if (!next.includes('/api/neppo-live/dashboard')) {
     const liveFunction = `async function readDashboardLivePayload(force=false){
@@ -260,7 +263,7 @@ function neppoBusinessOpen(){
   return p.dow>=1&&p.dow<=5&&p.hour>=8&&p.hour<18;
 }
 `;
-    next = next.replace('const DASHBOARD_REFRESH_INTERVAL_MS=30*1000;', `${businessHoursFunctions}const DASHBOARD_REFRESH_INTERVAL_MS=30*1000;`);
+    next = next.replace('const DASHBOARD_REFRESH_INTERVAL_MS=15*1000;', `${businessHoursFunctions}const DASHBOARD_REFRESH_INTERVAL_MS=15*1000;`);
   }
 
   const signatureFunction = `function dashboardNumbersSignature(data){
@@ -284,17 +287,21 @@ function neppoBusinessOpen(){
     .replace('async function readDashboardAssetPayload(){', 'async function readDashboardAssetPayload(force=false){')
     .replace('const live=await readDashboardLivePayload();', 'const live=await readDashboardLivePayload(force);')
     .replace('payload=await readDashboardAssetPayload();', 'payload=await readDashboardAssetPayload(force);')
-    .replace('Falha ao consultar a publicação. Nova tentativa em 1 minuto.', 'Falha ao consultar a base NEPPO. Nova tentativa em 1 minuto.')
+    .replace('Falha ao consultar a publicação. Nova tentativa em 1 minuto.', 'Falha ao consultar a base NEPPO. Nova tentativa em 20 segundos.')
+    .replace('Falha ao consultar a base NEPPO. Nova tentativa em 1 minuto.', 'Falha ao consultar a base NEPPO. Nova tentativa em 20 segundos.')
     .replace('Base conferida. Nenhuma nova publicação ainda.', 'Base conferida. Nenhuma mudança ainda.')
     .replace('Base conferida. Sem nova publicação ainda.', 'Base conferida. Sem mudança ainda.')
     .replace('Sem nova publicação no NEPPO nesta verificação.', 'Sem mudança na base NEPPO nesta verificação.')
     .replace('Sem nova publicação no NEPPO por enquanto.', 'Sem mudança na base NEPPO por enquanto.')
     .replace('Consultando publicação automaticamente...', 'Consultando base NEPPO automaticamente...')
     .replace('Última publicação', 'Última base')
-    .replace('setTimeout(()=>{if(!document.hidden)checkDashboardAssetUpdate({force:true});},15000);', 'setTimeout(()=>{if(!document.hidden&&neppoBusinessOpen())checkDashboardAssetUpdate({force:true});},15000);')
+    .replace('setTimeout(()=>{if(!document.hidden)checkDashboardAssetUpdate({force:true});},15000);', 'setTimeout(()=>{if(!document.hidden&&neppoBusinessOpen())checkDashboardAssetUpdate({force:true});},5000);')
+    .replace('setTimeout(()=>{if(!document.hidden&&neppoBusinessOpen())checkDashboardAssetUpdate({force:true});},15000);', 'setTimeout(()=>{if(!document.hidden&&neppoBusinessOpen())checkDashboardAssetUpdate({force:true});},5000);')
     .replace('let neppoLiveHealthLoading=false;', 'let neppoLiveHealthLoading=false;\nlet neppoLiveHealthLastCheckMs=0;')
     .replace('  if(neppoLiveHealthLoading)return null;\n  neppoLiveHealthLoading=true;', '  if(neppoLiveHealthLoading)return null;\n  neppoLiveHealthLastCheckMs=Date.now();\n  neppoLiveHealthLoading=true;')
-    .replace('dashboardStatusTimer=setInterval(()=>{renderNeppoRefreshStatus();loadNeppoLiveHealth();},60000);', "dashboardStatusTimer=setInterval(()=>{renderNeppoRefreshStatus();if(Date.now()-neppoLiveHealthLastCheckMs>60000)loadNeppoLiveHealth();},10000);");
+    .replace('dashboardStatusTimer=setInterval(()=>{renderNeppoRefreshStatus();loadNeppoLiveHealth();},60000);', "dashboardStatusTimer=setInterval(()=>{renderNeppoRefreshStatus();if(Date.now()-neppoLiveHealthLastCheckMs>15000)loadNeppoLiveHealth();},1000);")
+    .replace("dashboardStatusTimer=setInterval(()=>{renderNeppoRefreshStatus();if(Date.now()-neppoLiveHealthLastCheckMs>60000)loadNeppoLiveHealth();},10000);", "dashboardStatusTimer=setInterval(()=>{renderNeppoRefreshStatus();if(Date.now()-neppoLiveHealthLastCheckMs>15000)loadNeppoLiveHealth();},1000);")
+    .replace('dashboardAutoRefreshTimer=setInterval(runDashboardScheduledCheck,30000);', 'dashboardAutoRefreshTimer=setInterval(runDashboardScheduledCheck,5000);');
 
   if (!next.includes("Fora do expediente NEPPO. Próxima tentativa na próxima janela útil.")) {
     next = next.replace(

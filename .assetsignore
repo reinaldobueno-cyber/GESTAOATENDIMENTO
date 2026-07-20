@@ -19,8 +19,11 @@ secrets
 secrets/**
 src
 src/**
+tools
+tools/**
 node_modules
 node_modules/**
+wrangler*.jsonc
 *.log
 *.lock
 *.tmp

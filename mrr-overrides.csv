@@ -1,3 +1,6 @@
 Codigo,CpfCnpj,Cliente,ValorContrato,FormaPagamento,DivisorMRR,Mensalidade,Observacao
 "Cliente #001","09369048871","FERNANDA AUFIERO E OUTRO","64939.20","ANUAL","12","5411.60","Ajuste conforme CMAX: pagamento anual deve ser dividido por 12 para MRR."
 "Cliente #054","52300504000554","AGROPECUARIA SERRAMAR LTDA","46224.91","ANUAL","12","3852.08","Ajuste conforme CMAX: 4 contratos anuais ativos somados e divididos por 12 para MRR."
+"Cliente #033","06760460880","LUIS FERNANDO SARTINI FELLI - FAZENDA PIRACICABA","18245.72","ANUAL","12","1520.48","Ajuste pontual: valor anual dividido por 12 para MRR."
+"Cliente #249","33951116870","DANYLO BRUCHMAM MARTINS","13965.60","SEMESTRAL","6","2327.60","Pagamento semestral dividido por 6 para MRR; nome real corrigido."
+"Cliente #495","35075961000140","ESPERANCA AGROSSILVIPASTORIL","8418.40","ANUAL","12","701.53","Pagamento anual dividido por 12 para MRR."

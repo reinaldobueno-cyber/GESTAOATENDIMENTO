@@ -1,9 +1,9 @@
 # Como ajustar dados manualmente
 
-O caminho recomendado agora é pelo proprio site:
+O caminho recomendado agora é pelo proprio site, a partir do atendimento que precisa de correcao:
 
-1. Abra **Central do Gestor**.
-2. Clique em **Novo ajuste**.
+1. Abra o atendimento pelo detalhe, historico, lista ou drill de algum indicador.
+2. Clique em **Ajustar**.
 3. Informe protocolo, motivo, acao e diario/evidencia.
 4. Salve. O painel recalcula os indicadores tratados na hora.
 

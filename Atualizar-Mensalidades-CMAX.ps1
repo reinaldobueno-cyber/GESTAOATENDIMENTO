@@ -69,7 +69,9 @@ function Get-MrrDivisor([string]$PaymentForm) {
   switch ($PaymentForm) {
     'ANUAL' { return 12 }
     'SEMESTRAL' { return 6 }
+    'QUADRIMESTRAL' { return 4 }
     'TRIMESTRAL' { return 3 }
+    'BIMESTRAL' { return 2 }
     default { return 1 }
   }
 }

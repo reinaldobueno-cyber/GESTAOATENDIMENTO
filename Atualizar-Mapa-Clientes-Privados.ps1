@@ -6,7 +6,8 @@ param(
   [string]$PrivateCsvPath = 'cliente-map-privado.csv',
   [string]$PrivateJsPath = 'cliente-map-privado.js',
   [string]$PrivateModulePath = 'src\private-client-map.js',
-  [string]$ReportPath = 'exports\clientes-identificacao-relatorio.csv'
+  [string]$ReportPath = 'exports\clientes-identificacao-relatorio.csv',
+  [double]$MaxLegacyMrr = 10000
 )
 
 $ErrorActionPreference = 'Stop'
@@ -33,10 +34,54 @@ function Normalize-Money([string]$Value) {
   return ''
 }
 
+function Get-MrrDivisor([string]$PaymentForm, [string]$ExplicitDivisor = '') {
+  $parsed = 0.0
+  if ([double]::TryParse($ExplicitDivisor, [System.Globalization.NumberStyles]::Any, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$parsed) -and $parsed -gt 0) {
+    return $parsed
+  }
+  $form = ([string]$PaymentForm).Normalize([System.Text.NormalizationForm]::FormD) -replace '\p{Mn}', ''
+  switch -Regex ($form.ToUpperInvariant()) {
+    'ANUAL' { return 12 }
+    'SEMESTRAL' { return 6 }
+    'QUADRIMESTRAL' { return 4 }
+    'TRIMESTRAL' { return 3 }
+    'BIMESTRAL' { return 2 }
+    default { return 1 }
+  }
+}
+
+function Convert-ContractToMrr([string]$ContractValue, [string]$PaymentForm, [string]$ExplicitDivisor = '') {
+  $normalized = Normalize-Money $ContractValue
+  if ([string]::IsNullOrWhiteSpace($normalized)) { return '' }
+  $number = [double]::Parse($normalized, [System.Globalization.CultureInfo]::InvariantCulture)
+  $divisor = Get-MrrDivisor $PaymentForm $ExplicitDivisor
+  return ($number / $divisor).ToString('0.00', [System.Globalization.CultureInfo]::InvariantCulture)
+}
+
+function Use-LegacyMrr([string]$Value, [double]$MaxValue) {
+  $normalized = Normalize-Money $Value
+  if ([string]::IsNullOrWhiteSpace($normalized)) { return '' }
+  $number = [double]::Parse($normalized, [System.Globalization.CultureInfo]::InvariantCulture)
+  if ($number -le 0 -or $number -gt $MaxValue) { return '' }
+  return $normalized
+}
+
 function Is-GenericName([string]$Value) {
   if ([string]::IsNullOrWhiteSpace($Value)) { return $true }
   $v = $Value.Trim()
   return $v -match '^(voice_|whatsapp_|cliente\s*#|sem cliente|cliente nao informado|\.+$)' -or $v.Length -lt 3
+}
+
+function Repair-Mojibake([string]$Value) {
+  if ([string]::IsNullOrWhiteSpace($Value) -or $Value -notmatch '[ÃÂâ]') { return $Value }
+  foreach ($encodingId in @(28591, 1252)) {
+    try {
+      $bytes = [System.Text.Encoding]::GetEncoding($encodingId).GetBytes($Value)
+      $fixed = [System.Text.Encoding]::UTF8.GetString($bytes)
+      if ($fixed -notmatch [char]0xFFFD) { return $fixed }
+    } catch {}
+  }
+  return $Value
 }
 
 function Escape-JsString([string]$Value) {
@@ -129,24 +174,28 @@ foreach ($client in $ordered) {
   if ($null -ne $aux) { $auxMatches++ }
   $auxMonthlyFee = if ($null -ne $aux) { Normalize-Money ([string]$aux.Mensalidade) } else { '' }
   $auxContractValue = if ($null -ne $aux) { Normalize-Money ([string]$aux.ValorContrato) } else { '' }
-  $monthlyFee = if (![string]::IsNullOrWhiteSpace($auxMonthlyFee)) { $auxMonthlyFee } elseif ($null -ne $existing) { Normalize-Money ([string]$existing.Mensalidade) } else { '' }
-  $contractValue = if (![string]::IsNullOrWhiteSpace($auxContractValue)) { $auxContractValue } elseif ($null -ne $existing) { Normalize-Money ([string]$existing.ValorContrato) } else { '' }
-  $paymentForm = if ($null -ne $aux -and ![string]::IsNullOrWhiteSpace([string]$aux.FormaPagamento)) { [string]$aux.FormaPagamento } elseif ($null -ne $existing) { [string]$existing.FormaPagamento } else { '' }
-  $mrrDivisor = if ($null -ne $aux -and ![string]::IsNullOrWhiteSpace([string]$aux.DivisorMRR)) { [string]$aux.DivisorMRR } elseif ($null -ne $existing -and ![string]::IsNullOrWhiteSpace([string]$existing.DivisorMRR)) { [string]$existing.DivisorMRR } else { '' }
+  $legacyMonthlyFee = if ($null -ne $existing) { Use-LegacyMrr ([string]$existing.Mensalidade) $MaxLegacyMrr } else { '' }
+  $monthlyFee = if (![string]::IsNullOrWhiteSpace($auxMonthlyFee)) { $auxMonthlyFee } elseif (![string]::IsNullOrWhiteSpace($legacyMonthlyFee)) { $legacyMonthlyFee } else { '' }
+  $contractValue = if (![string]::IsNullOrWhiteSpace($auxContractValue)) { $auxContractValue } elseif (![string]::IsNullOrWhiteSpace($legacyMonthlyFee) -and $null -ne $existing) { Normalize-Money ([string]$existing.ValorContrato) } elseif ($null -eq $aux -and $null -ne $existing) { Normalize-Money ([string]$existing.ValorContrato) } else { '' }
+  $paymentForm = if ($null -ne $aux -and ![string]::IsNullOrWhiteSpace([string]$aux.FormaPagamento)) { [string]$aux.FormaPagamento } elseif (![string]::IsNullOrWhiteSpace($legacyMonthlyFee) -and $null -ne $existing) { [string]$existing.FormaPagamento } elseif ($null -eq $aux -and $null -ne $existing) { [string]$existing.FormaPagamento } else { '' }
+  $mrrDivisor = if ($null -ne $aux -and ![string]::IsNullOrWhiteSpace([string]$aux.DivisorMRR)) { [string]$aux.DivisorMRR } elseif (![string]::IsNullOrWhiteSpace($legacyMonthlyFee) -and $null -ne $existing -and ![string]::IsNullOrWhiteSpace([string]$existing.DivisorMRR)) { [string]$existing.DivisorMRR } elseif ($null -eq $aux -and $null -ne $existing -and ![string]::IsNullOrWhiteSpace([string]$existing.DivisorMRR)) { [string]$existing.DivisorMRR } else { '' }
   $mrrOverride = if (![string]::IsNullOrWhiteSpace($doc) -and $mrrOverrideByDoc.ContainsKey($doc)) { $mrrOverrideByDoc[$doc] } elseif ($mrrOverrideByCode.ContainsKey($code)) { $mrrOverrideByCode[$code] } else { $null }
   if ($null -ne $mrrOverride) {
-    $monthlyFee = Normalize-Money ([string]$mrrOverride.Mensalidade)
     $contractValue = Normalize-Money ([string]$mrrOverride.ValorContrato)
     $paymentForm = [string]$mrrOverride.FormaPagamento
-    $mrrDivisor = [string]$mrrOverride.DivisorMRR
+    $mrrDivisor = [string](Get-MrrDivisor $paymentForm ([string]$mrrOverride.DivisorMRR))
+    $monthlyFee = Convert-ContractToMrr $contractValue $paymentForm $mrrDivisor
+    if ([string]::IsNullOrWhiteSpace($monthlyFee)) { $monthlyFee = Normalize-Money ([string]$mrrOverride.Mensalidade) }
   }
 
-  $baseName = [string]$client.ContratoExtraido
-  if (Is-GenericName $baseName) { $baseName = [string]$client.ClienteExemplo }
-  $auxName = if ($null -ne $aux) { [string]$aux.Nome } else { '' }
+  $baseName = Repair-Mojibake ([string]$client.ContratoExtraido)
+  if (Is-GenericName $baseName) { $baseName = Repair-Mojibake ([string]$client.ClienteExemplo) }
+  $auxName = if ($null -ne $aux) { Repair-Mojibake ([string]$aux.Nome) } else { '' }
   $name = if ((Is-GenericName $baseName) -and ![string]::IsNullOrWhiteSpace($auxName)) { $auxName } else { $baseName }
   if (Is-GenericName $name) { $name = $key -replace '^NOME:', '' }
   if (Is-GenericName $name) { $name = 'Cliente sem nome cadastrado no NEPPO' }
+  if ($null -ne $mrrOverride -and ![string]::IsNullOrWhiteSpace([string]$mrrOverride.Cliente)) { $name = [string]$mrrOverride.Cliente }
+  $name = Repair-Mojibake $name
 
   $source = if (![string]::IsNullOrWhiteSpace($doc)) {
     if ($null -ne $aux) { 'neppo_doc+base_auxiliar' } else { 'neppo_doc' }
@@ -162,7 +211,7 @@ foreach ($client in $ordered) {
     TotalAtendimentos = [int]$client.Total
     ChaveCliente = $key
     Cliente = $name
-    Exemplo = [string]$client.ClienteExemplo
+    Exemplo = Repair-Mojibake ([string]$client.ClienteExemplo)
     CpfCnpj = $doc
     Mensalidade = $monthlyFee
     ValorContrato = $contractValue

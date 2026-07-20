@@ -7,11 +7,57 @@ $ErrorActionPreference = 'Stop'
 $scriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
 if ([string]::IsNullOrWhiteSpace($HtmlPath)) { $HtmlPath = Join-Path $scriptDir 'index.html' }
 
-$html = Get-Content -LiteralPath $HtmlPath -Raw
-$match = [regex]::Match($html, '(?s)const D = (\{.*?\n\});\r?\n\r?\nconst MANUAL_ADJUSTMENTS_STORAGE_KEY')
-if (!$match.Success) { throw 'Bloco const D não encontrado no HTML.' }
+function Get-DashboardDataBlock {
+  param(
+    [Parameter(Mandatory = $true)][string]$Html
+  )
 
-$D = $match.Groups[1].Value | ConvertFrom-Json
+  $prefix = 'const D ='
+  $prefixIndex = $Html.IndexOf($prefix)
+  if ($prefixIndex -lt 0) { throw 'Bloco const D nao encontrado no HTML.' }
+
+  $jsonStart = $Html.IndexOf('{', $prefixIndex)
+  if ($jsonStart -lt 0) { throw 'Inicio do bloco const D nao encontrado no HTML.' }
+
+  $depth = 0
+  $inString = $false
+  $escaped = $false
+  for ($i = $jsonStart; $i -lt $Html.Length; $i++) {
+    $ch = $Html[$i]
+    if ($inString) {
+      if ($escaped) {
+        $escaped = $false
+      } elseif ($ch -eq [char]92) {
+        $escaped = $true
+      } elseif ($ch -eq [char]34) {
+        $inString = $false
+      }
+      continue
+    }
+
+    if ($ch -eq [char]34) {
+      $inString = $true
+    } elseif ($ch -eq '{') {
+      $depth++
+    } elseif ($ch -eq '}') {
+      $depth--
+      if ($depth -eq 0) {
+        $jsonEnd = $i + 1
+        return [pscustomobject]@{
+          Start = $jsonStart
+          End = $jsonEnd
+          Json = $Html.Substring($jsonStart, $jsonEnd - $jsonStart)
+        }
+      }
+    }
+  }
+
+  throw 'Fim do bloco const D nao encontrado no HTML.'
+}
+
+$html = Get-Content -LiteralPath $HtmlPath -Raw
+$dataBlock = Get-DashboardDataBlock -Html $html
+$D = $dataBlock.Json | ConvertFrom-Json
 $privateCsvPath = Join-Path $scriptDir 'cliente-map-privado.csv'
 
 $existingByKey = @{}
@@ -87,7 +133,7 @@ for ($i = 0; $i -lt $D.rows.Count; $i++) {
 }
 
 $json = $D | ConvertTo-Json -Depth 100
-$newHtml = $html.Substring(0, $match.Groups[1].Index) + $json + $html.Substring($match.Groups[1].Index + $match.Groups[1].Length)
+$newHtml = $html.Substring(0, $dataBlock.Start) + $json + $html.Substring($dataBlock.End)
 
 $sensitivePatterns = @('DOC:', 'whatsapp_', 'CpfCnpjNeppo', 'UsuarioNeppo')
 foreach ($pattern in $sensitivePatterns) {

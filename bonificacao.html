@@ -437,12 +437,18 @@ button,input,select,textarea{font-family:var(--f)}
 <div class="pg" id="pg-lancar">
   <div class="ph">
     <div class="ph-l"><div class="pt">Lançamento Inteligente</div><div class="ps">Revisão antes de salvar · validações em tempo real · impacto financeiro calculado por faixas</div></div>
+    <div class="ph-r">
+      <button class="btn bp bsm" onclick="useGestaoData()">↧ Usar dados da Gestão</button>
+      <button class="btn bs bsm" onclick="auditGestaoClosing()">✓ Auditar fechamento</button>
+      <button class="btn bs bsm" onclick="resetGestaoData()">↺ Resetar preenchimento</button>
+    </div>
   </div>
 
   <!-- COMO PREENCHER -->
   <div style="background:var(--g4);border:1.5px solid var(--g3);border-radius:var(--r2);padding:12px 16px;margin-bottom:14px;font-size:12px;color:var(--g1)">
     <strong>Como preencher (resumo rápido):</strong> 1) Selecione mês e dias úteis. &nbsp;2) Escolha o colaborador na lista. &nbsp;3) Preencha as métricas. &nbsp;4) Revise o preview antes de salvar.
   </div>
+  <div id="gestao-import-status" class="alert ok" style="display:none;margin-bottom:14px"></div>
 
   <!-- PERÍODO -->
   <div class="fcard">
@@ -513,6 +519,7 @@ button,input,select,textarea{font-family:var(--f)}
             <option value="Raissa Ribeiro">Raissa Ribeiro</option>
             <option value="Julia Almeda">Julia Almeda</option>
             <option value="Alexandre Lobo">Alexandre Lobo</option>
+            <option value="Isaac Coelho">Isaac Coelho</option>
           </optgroup>
           <optgroup label="— Núcleo Engorda —">
             <option value="Natalia Vieira">Natalia Vieira</option>
@@ -927,10 +934,10 @@ button,input,select,textarea{font-family:var(--f)}
 
 <script>
 // ════════════════════════════════════════════════════
-// SEED DATA — 22 meses extraídos da planilha (HTMLs do ZIP)
+// SEED DATA — 24 meses extraídos da planilha (HTMLs do ZIP) + fechamentos oficiais
 // Fevereiro/2026 CORRIGIDO: R$6.014,20
 // ════════════════════════════════════════════════════
-const SEED={"2024-05":{"agents":[{"nome":"Anita Cristina","total":283.5},{"nome":"Dhonleno Freitas","total":337.5},{"nome":"Evelyn Souza","total":283.5},{"nome":"Gabriel de Oliveira","total":337.5},{"nome":"Lais Medeiros","total":283.5},{"nome":"Lucas Pereira","total":283.5},{"nome":"Maria Eduarda","total":302.17},{"nome":"Raissa Ribeiro","total":337.5},{"nome":"Rhuan Marques","total":365.5},{"nome":"Wiviane Limiro","total":525.8}],"total":3339.97},"2024-06":{"agents":[{"nome":"Anita Cristina","total":612.5},{"nome":"Dhonleno Freitas","total":312.5},{"nome":"Evelyn Souza","total":369.17},{"nome":"Gabriel de Oliveira","total":292.5},{"nome":"Lais Medeiros","total":275.17},{"nome":"Lucas Pereira","total":346.5},{"nome":"Maria Eduarda","total":521.17},{"nome":"Raissa Ribeiro","total":611.17},{"nome":"Wiviane Limiro","total":506.5},{"nome":"Lucas Levi","total":150}],"total":3997.18},"2024-08":{"agents":[{"nome":"Dhonleno Freitas","total":373.5},{"nome":"Evelyn Souza","total":387.17},{"nome":"Gabriel de Oliveira","total":373.5},{"nome":"Lais Medeiros","total":420.5},{"nome":"Lucas Pereira","total":420.5},{"nome":"Maria Eduarda","total":420.5},{"nome":"Raissa Ribeiro","total":420.5},{"nome":"Wiviane Limiro","total":423.17},{"nome":"Helder Andrade","total":373.5}],"total":3612.84},"2024-09":{"agents":[{"nome":"Dhonleno Freitas","total":405},{"nome":"Evelyn Souza","total":439.5},{"nome":"Gabriel de Oliveira","total":405},{"nome":"Lais Medeiros","total":405.67},{"nome":"Lucas Pereira","total":427.5},{"nome":"Maria Eduarda","total":454.17},{"nome":"Raissa Ribeiro","total":427.5},{"nome":"Wiviane Limiro","total":451.5},{"nome":"Helder Andrade","total":429}],"total":3844.84},"2024-10":{"agents":[{"nome":"Dhonleno Freitas","total":405},{"nome":"Evelyn Souza","total":451.5},{"nome":"Gabriel de Oliveira","total":373.5},{"nome":"Lais Medeiros","total":451.5},{"nome":"Lucas Pereira","total":450},{"nome":"Maria Eduarda","total":454.17},{"nome":"Raissa Ribeiro","total":450},{"nome":"Wiviane Limiro","total":433.5},{"nome":"Helder Andrade","total":453}],"total":3922.17},"2024-11":{"agents":[{"nome":"Dhonleno Freitas","total":491},{"nome":"Evelyn Souza","total":503},{"nome":"Gabriel de Oliveira","total":455},{"nome":"Lais Medeiros","total":604.5},{"nome":"Lucas Pereira","total":501.5},{"nome":"Maria Eduarda","total":501.5},{"nome":"Raissa Ribeiro","total":501.5},{"nome":"Wiviane Limiro","total":651.5},{"nome":"Helder Andrade","total":503},{"nome":"Sergio","total":252.5},{"nome":"Ana Paula","total":252.5},{"nome":"Reinaldo","total":200}],"total":5417.5},"2024-12":{"agents":[{"nome":"Dhonleno Freitas","total":455},{"nome":"Evelyn Souza","total":504.5},{"nome":"Gabriel de Oliveira","total":455},{"nome":"Lais Medeiros","total":501.5},{"nome":"Lucas Pereira","total":477.5},{"nome":"Maria Eduarda","total":471.5},{"nome":"Raissa Ribeiro","total":477.5},{"nome":"Helder Andrade","total":500},{"nome":"Sergio","total":387.7},{"nome":"Ana Paula","total":287.7}],"total":4517.9},"2025-01":{"agents":[{"nome":"Dhonleno Freitas","total":605},{"nome":"Evelyn Souza","total":491},{"nome":"Gabriel de Oliveira","total":455},{"nome":"Lais Medeiros","total":551.5},{"nome":"Lucas Pereira","total":464},{"nome":"Maria Eduarda","total":501.5},{"nome":"Raissa Ribeiro","total":651.5},{"nome":"Sergio","total":501.5},{"nome":"Ana Paula","total":501.5}],"total":4722.5},"2025-02":{"agents":[{"nome":"Dhonleno Freitas","total":450},{"nome":"Evelyn Souza","total":450},{"nome":"Gabriel de Oliveira","total":405},{"nome":"Lais Medeiros","total":451.5},{"nome":"Lucas Pereira","total":451.5},{"nome":"Maria Mariana","total":378},{"nome":"Raissa Ribeiro","total":451.5},{"nome":"Sergio","total":665.5},{"nome":"Ana Paula","total":436.5}],"total":4139.5},"2025-03":{"agents":[{"nome":"Dhonleno Freitas","total":482},{"nome":"Evelyn Souza","total":513.5},{"nome":"Gabriel de Oliveira","total":455},{"nome":"Lais Medeiros","total":501.5},{"nome":"Lucas Pereira","total":878},{"nome":"Maria Mariana","total":419},{"nome":"Raissa Ribeiro","total":651.5},{"nome":"Sergio","total":750},{"nome":"Ana Paula","total":414.5},{"nome":"Reinaldo","total":150}],"total":5215},"2025-04":{"agents":[{"nome":"Dhonleno Freitas","total":455},{"nome":"Evelyn Souza","total":491},{"nome":"Gabriel de Oliveira","total":468.5},{"nome":"Lais Medeiros","total":501.5},{"nome":"Maria Mariana","total":587},{"nome":"Raissa Ribeiro","total":551.5},{"nome":"Sergio Castro","total":500},{"nome":"Ana Paula","total":473},{"nome":"Julia Almeda","total":477.5},{"nome":"Giovana Borges","total":464},{"nome":"Natalia Vieira","total":446}],"total":5415},"2025-05":{"agents":[{"nome":"Dhonleno Freitas","total":500},{"nome":"Evelyn Souza","total":554.5},{"nome":"Gabriel de Oliveira","total":455},{"nome":"Lais Medeiros","total":501.5},{"nome":"Maria Mariana","total":587},{"nome":"Raissa Ribeiro","total":575},{"nome":"Sergio Castro","total":500},{"nome":"Ana Paula","total":566.5},{"nome":"Julia Almeda","total":482},{"nome":"Natalia Vieira","total":551.5},{"nome":"Wiviane Limiro","total":500}],"total":5773},"2025-06":{"agents":[{"nome":"Dhonleno Freitas","total":500},{"nome":"Evelyn Souza","total":554.5},{"nome":"Gabriel de Oliveira","total":455},{"nome":"Lais Medeiros","total":501.5},{"nome":"Maria Mariana","total":587},{"nome":"Raissa Ribeiro","total":575},{"nome":"Sergio Castro","total":500},{"nome":"Ana Paula","total":566.5},{"nome":"Julia Almeda","total":482},{"nome":"Natalia Vieira","total":551.5},{"nome":"Reinaldo Bueno","total":150}],"total":6376,"diverge":true,"note":"soma=5423 declarado=6376 — Wiviane R$453 pendente mês anterior (nota planilha)"},"2025-07":{"agents":[{"nome":"Dhonleno Freitas","total":500},{"nome":"Evelyn Souza","total":550},{"nome":"Gabriel de Oliveira","total":650},{"nome":"Lais Medeiros","total":700},{"nome":"Maria Mariana","total":500},{"nome":"Raissa Ribeiro","total":650},{"nome":"Sergio Castro","total":500},{"nome":"Ana Paula","total":656},{"nome":"Julia Almeda","total":500},{"nome":"Natalia Vieira","total":557.5},{"nome":"Wiviane Limiro","total":500},{"nome":"Alexandre Lobo","total":441.5},{"nome":"Wanderley Cabral","total":459.5}],"total":7164.5},"2025-08":{"agents":[{"nome":"Dhonleno Freitas","total":500},{"nome":"Evelyn Souza","total":518.5},{"nome":"Gabriel de Oliveira","total":500},{"nome":"Lais Medeiros","total":550},{"nome":"Maria Mariana","total":449},{"nome":"Raissa Ribeiro","total":464},{"nome":"Ana Paula","total":509},{"nome":"Julia Almeda","total":491},{"nome":"Natalia Vieira","total":500},{"nome":"Wiviane Limiro","total":514},{"nome":"Alexandre Lobo","total":480.5},{"nome":"Wanderley Cabral","total":459.5},{"nome":"Reinaldo Bueno","total":50}],"total":5985.5},"2025-09":{"agents":[{"nome":"Dhonleno Freitas","total":500},{"nome":"Evelyn Souza","total":603},{"nome":"Gabriel de Oliveira","total":500},{"nome":"Lais Medeiros","total":625},{"nome":"Raissa Ribeiro","total":578},{"nome":"Ana Paula","total":525},{"nome":"Julia Almeda","total":455},{"nome":"Natalia Vieira","total":509},{"nome":"Wiviane Limiro","total":550},{"nome":"Alexandre Lobo","total":480.5},{"nome":"Wanderley Cabral","total":459.5},{"nome":"Reinaldo Bueno","total":50}],"total":5835},"2025-10":{"agents":[{"nome":"Dhonleno Freitas","total":550},{"nome":"Evelyn Souza","total":656},{"nome":"Gabriel de Oliveira","total":500},{"nome":"Lais Medeiros","total":504.5},{"nome":"Marcelo","total":255.5},{"nome":"Raissa Ribeiro","total":495.5},{"nome":"Ana Paula","total":554.5},{"nome":"Julia Almeda","total":473},{"nome":"Natalia Vieira","total":519.5},{"nome":"Wiviane Limiro","total":607.5},{"nome":"Alexandre Lobo","total":491},{"nome":"Wanderley Cabral","total":459.5}],"total":6066.5},"2025-11":{"agents":[{"nome":"Dhonleno Freitas","total":537},{"nome":"Evelyn Souza","total":550},{"nome":"Gabriel de Oliveira","total":455},{"nome":"Lais Medeiros","total":501.5},{"nome":"Marcelo","total":455},{"nome":"Raissa Ribeiro","total":651.5},{"nome":"Ana Paula","total":40},{"nome":"Julia Almeda","total":477.5},{"nome":"Natalia Vieira","total":501.5},{"nome":"Wiviane Limiro","total":577.5},{"nome":"Alexandre Lobo","total":500},{"nome":"Wanderley Cabral","total":441.5},{"nome":"Beatriz","total":441.5},{"nome":"Gabriel Almeida","total":477.5},{"nome":"Reinaldo Bueno","total":150}],"total":6750.33},"2025-12":{"agents":[{"nome":"Dhonleno Freitas","total":500},{"nome":"Evelyn Souza","total":513.5},{"nome":"Gabriel de Oliveira","total":500},{"nome":"Lais Medeiros","total":515},{"nome":"Marcelo","total":40},{"nome":"Raissa Ribeiro","total":503.75},{"nome":"Ana Paula","total":517.25},{"nome":"Julia Almeda","total":514.25},{"nome":"Natalia Vieira","total":565},{"nome":"Wiviane Limiro","total":532},{"nome":"Alexandre Lobo","total":491},{"nome":"Wanderley Cabral","total":459.5},{"nome":"Beatriz","total":518.75},{"nome":"Gabriel Almeida","total":483.5}],"total":6711},"2026-01":{"agents":[{"nome":"Dhonleno Freitas","total":455},{"nome":"Evelyn Souza","total":506},{"nome":"Gabriel de Oliveira","total":650},{"nome":"Lais Medeiros","total":504.5},{"nome":"Raissa Ribeiro","total":650},{"nome":"Ana Paula","total":667.25},{"nome":"Julia Almeda","total":495.5},{"nome":"Natalia Vieira","total":567},{"nome":"Wiviane Limiro","total":464},{"nome":"Alexandre Lobo","total":477.5},{"nome":"Wanderley Cabral","total":193.75},{"nome":"Beatriz","total":392.75},{"nome":"Gabriel Almeida","total":401}],"total":6424.25},"2026-02":{"agents":[{"nome":"Dhonleno Freitas","total":365},{"nome":"Evelyn Souza","total":636.2},{"nome":"Gabriel de Oliveira","total":500},{"nome":"Lais Medeiros","total":575},{"nome":"Raissa Ribeiro","total":593},{"nome":"Ana Paula","total":511.7},{"nome":"Julia Almeda","total":571.4},{"nome":"Natalia Vieira","total":482.9},{"nome":"Wiviane Limiro","total":473},{"nome":"Alexandre Lobo","total":500},{"nome":"Beatriz","total":495},{"nome":"Gabriel Almeida","total":311}],"total":6014.2},"2026-03":{"agents":[{"nome":"Dhonleno Freitas","total":500},{"nome":"Evelyn Souza","total":519.8},{"nome":"Gabriel de Oliveira","total":500},{"nome":"Lais Medeiros","total":800.9},{"nome":"Marcelo Costa","total":500},{"nome":"Raissa Ribeiro","total":500},{"nome":"Ana Paula","total":511.7},{"nome":"Julia Almeda","total":491.5},{"nome":"Natalia Vieira","total":700},{"nome":"Wiviane Limiro","total":473},{"nome":"Alexandre Lobo","total":464},{"nome":"Marcelo Santos","total":297.5},{"nome":"Beatriz","total":575.2},{"nome":"Marcus","total":311}],"total":7144.6},"2026-04":{"agents":[{"nome":"Dhonleno Freitas","total":338},{"nome":"Evelyn Souza","total":659},{"nome":"Gabriel de Oliveira","total":464},{"nome":"Lais Medeiros","total":428},{"nome":"Marcelo Costa","total":500},{"nome":"Raissa Ribeiro","total":500},{"nome":"Ana Paula","total":457.7},{"nome":"Julia Almeda","total":428},{"nome":"Natalia Vieira","total":551.8},{"nome":"Wiviane Limiro","total":500},{"nome":"Alexandre Lobo","total":482},{"nome":"Marcelo Santos","total":481.1},{"nome":"Beatriz","total":552.7},{"nome":"Marcus","total":511.7}],"total":6854}};
+const SEED={"2024-05":{"agents":[{"nome":"Anita Cristina","total":283.5},{"nome":"Dhonleno Freitas","total":337.5},{"nome":"Evelyn Souza","total":283.5},{"nome":"Gabriel de Oliveira","total":337.5},{"nome":"Lais Medeiros","total":283.5},{"nome":"Lucas Pereira","total":283.5},{"nome":"Maria Eduarda","total":302.17},{"nome":"Raissa Ribeiro","total":337.5},{"nome":"Rhuan Marques","total":365.5},{"nome":"Wiviane Limiro","total":525.8}],"total":3339.97},"2024-06":{"agents":[{"nome":"Anita Cristina","total":612.5},{"nome":"Dhonleno Freitas","total":312.5},{"nome":"Evelyn Souza","total":369.17},{"nome":"Gabriel de Oliveira","total":292.5},{"nome":"Lais Medeiros","total":275.17},{"nome":"Lucas Pereira","total":346.5},{"nome":"Maria Eduarda","total":521.17},{"nome":"Raissa Ribeiro","total":611.17},{"nome":"Wiviane Limiro","total":506.5},{"nome":"Lucas Levi","total":150}],"total":3997.18},"2024-08":{"agents":[{"nome":"Dhonleno Freitas","total":373.5},{"nome":"Evelyn Souza","total":387.17},{"nome":"Gabriel de Oliveira","total":373.5},{"nome":"Lais Medeiros","total":420.5},{"nome":"Lucas Pereira","total":420.5},{"nome":"Maria Eduarda","total":420.5},{"nome":"Raissa Ribeiro","total":420.5},{"nome":"Wiviane Limiro","total":423.17},{"nome":"Helder Andrade","total":373.5}],"total":3612.84},"2024-09":{"agents":[{"nome":"Dhonleno Freitas","total":405},{"nome":"Evelyn Souza","total":439.5},{"nome":"Gabriel de Oliveira","total":405},{"nome":"Lais Medeiros","total":405.67},{"nome":"Lucas Pereira","total":427.5},{"nome":"Maria Eduarda","total":454.17},{"nome":"Raissa Ribeiro","total":427.5},{"nome":"Wiviane Limiro","total":451.5},{"nome":"Helder Andrade","total":429}],"total":3844.84},"2024-10":{"agents":[{"nome":"Dhonleno Freitas","total":405},{"nome":"Evelyn Souza","total":451.5},{"nome":"Gabriel de Oliveira","total":373.5},{"nome":"Lais Medeiros","total":451.5},{"nome":"Lucas Pereira","total":450},{"nome":"Maria Eduarda","total":454.17},{"nome":"Raissa Ribeiro","total":450},{"nome":"Wiviane Limiro","total":433.5},{"nome":"Helder Andrade","total":453}],"total":3922.17},"2024-11":{"agents":[{"nome":"Dhonleno Freitas","total":491},{"nome":"Evelyn Souza","total":503},{"nome":"Gabriel de Oliveira","total":455},{"nome":"Lais Medeiros","total":604.5},{"nome":"Lucas Pereira","total":501.5},{"nome":"Maria Eduarda","total":501.5},{"nome":"Raissa Ribeiro","total":501.5},{"nome":"Wiviane Limiro","total":651.5},{"nome":"Helder Andrade","total":503},{"nome":"Sergio","total":252.5},{"nome":"Ana Paula","total":252.5},{"nome":"Reinaldo","total":200}],"total":5417.5},"2024-12":{"agents":[{"nome":"Dhonleno Freitas","total":455},{"nome":"Evelyn Souza","total":504.5},{"nome":"Gabriel de Oliveira","total":455},{"nome":"Lais Medeiros","total":501.5},{"nome":"Lucas Pereira","total":477.5},{"nome":"Maria Eduarda","total":471.5},{"nome":"Raissa Ribeiro","total":477.5},{"nome":"Helder Andrade","total":500},{"nome":"Sergio","total":387.7},{"nome":"Ana Paula","total":287.7}],"total":4517.9},"2025-01":{"agents":[{"nome":"Dhonleno Freitas","total":605},{"nome":"Evelyn Souza","total":491},{"nome":"Gabriel de Oliveira","total":455},{"nome":"Lais Medeiros","total":551.5},{"nome":"Lucas Pereira","total":464},{"nome":"Maria Eduarda","total":501.5},{"nome":"Raissa Ribeiro","total":651.5},{"nome":"Sergio","total":501.5},{"nome":"Ana Paula","total":501.5}],"total":4722.5},"2025-02":{"agents":[{"nome":"Dhonleno Freitas","total":450},{"nome":"Evelyn Souza","total":450},{"nome":"Gabriel de Oliveira","total":405},{"nome":"Lais Medeiros","total":451.5},{"nome":"Lucas Pereira","total":451.5},{"nome":"Maria Mariana","total":378},{"nome":"Raissa Ribeiro","total":451.5},{"nome":"Sergio","total":665.5},{"nome":"Ana Paula","total":436.5}],"total":4139.5},"2025-03":{"agents":[{"nome":"Dhonleno Freitas","total":482},{"nome":"Evelyn Souza","total":513.5},{"nome":"Gabriel de Oliveira","total":455},{"nome":"Lais Medeiros","total":501.5},{"nome":"Lucas Pereira","total":878},{"nome":"Maria Mariana","total":419},{"nome":"Raissa Ribeiro","total":651.5},{"nome":"Sergio","total":750},{"nome":"Ana Paula","total":414.5},{"nome":"Reinaldo","total":150}],"total":5215},"2025-04":{"agents":[{"nome":"Dhonleno Freitas","total":455},{"nome":"Evelyn Souza","total":491},{"nome":"Gabriel de Oliveira","total":468.5},{"nome":"Lais Medeiros","total":501.5},{"nome":"Maria Mariana","total":587},{"nome":"Raissa Ribeiro","total":551.5},{"nome":"Sergio Castro","total":500},{"nome":"Ana Paula","total":473},{"nome":"Julia Almeda","total":477.5},{"nome":"Giovana Borges","total":464},{"nome":"Natalia Vieira","total":446}],"total":5415},"2025-05":{"agents":[{"nome":"Dhonleno Freitas","total":500},{"nome":"Evelyn Souza","total":554.5},{"nome":"Gabriel de Oliveira","total":455},{"nome":"Lais Medeiros","total":501.5},{"nome":"Maria Mariana","total":587},{"nome":"Raissa Ribeiro","total":575},{"nome":"Sergio Castro","total":500},{"nome":"Ana Paula","total":566.5},{"nome":"Julia Almeda","total":482},{"nome":"Natalia Vieira","total":551.5},{"nome":"Wiviane Limiro","total":500}],"total":5773},"2025-06":{"agents":[{"nome":"Dhonleno Freitas","total":500},{"nome":"Evelyn Souza","total":554.5},{"nome":"Gabriel de Oliveira","total":455},{"nome":"Lais Medeiros","total":501.5},{"nome":"Maria Mariana","total":587},{"nome":"Raissa Ribeiro","total":575},{"nome":"Sergio Castro","total":500},{"nome":"Ana Paula","total":566.5},{"nome":"Julia Almeda","total":482},{"nome":"Natalia Vieira","total":551.5},{"nome":"Reinaldo Bueno","total":150}],"total":6376,"diverge":true,"note":"soma=5423 declarado=6376 — Wiviane R$453 pendente mês anterior (nota planilha)"},"2025-07":{"agents":[{"nome":"Dhonleno Freitas","total":500},{"nome":"Evelyn Souza","total":550},{"nome":"Gabriel de Oliveira","total":650},{"nome":"Lais Medeiros","total":700},{"nome":"Maria Mariana","total":500},{"nome":"Raissa Ribeiro","total":650},{"nome":"Sergio Castro","total":500},{"nome":"Ana Paula","total":656},{"nome":"Julia Almeda","total":500},{"nome":"Natalia Vieira","total":557.5},{"nome":"Wiviane Limiro","total":500},{"nome":"Alexandre Lobo","total":441.5},{"nome":"Wanderley Cabral","total":459.5}],"total":7164.5},"2025-08":{"agents":[{"nome":"Dhonleno Freitas","total":500},{"nome":"Evelyn Souza","total":518.5},{"nome":"Gabriel de Oliveira","total":500},{"nome":"Lais Medeiros","total":550},{"nome":"Maria Mariana","total":449},{"nome":"Raissa Ribeiro","total":464},{"nome":"Ana Paula","total":509},{"nome":"Julia Almeda","total":491},{"nome":"Natalia Vieira","total":500},{"nome":"Wiviane Limiro","total":514},{"nome":"Alexandre Lobo","total":480.5},{"nome":"Wanderley Cabral","total":459.5},{"nome":"Reinaldo Bueno","total":50}],"total":5985.5},"2025-09":{"agents":[{"nome":"Dhonleno Freitas","total":500},{"nome":"Evelyn Souza","total":603},{"nome":"Gabriel de Oliveira","total":500},{"nome":"Lais Medeiros","total":625},{"nome":"Raissa Ribeiro","total":578},{"nome":"Ana Paula","total":525},{"nome":"Julia Almeda","total":455},{"nome":"Natalia Vieira","total":509},{"nome":"Wiviane Limiro","total":550},{"nome":"Alexandre Lobo","total":480.5},{"nome":"Wanderley Cabral","total":459.5},{"nome":"Reinaldo Bueno","total":50}],"total":5835},"2025-10":{"agents":[{"nome":"Dhonleno Freitas","total":550},{"nome":"Evelyn Souza","total":656},{"nome":"Gabriel de Oliveira","total":500},{"nome":"Lais Medeiros","total":504.5},{"nome":"Marcelo","total":255.5},{"nome":"Raissa Ribeiro","total":495.5},{"nome":"Ana Paula","total":554.5},{"nome":"Julia Almeda","total":473},{"nome":"Natalia Vieira","total":519.5},{"nome":"Wiviane Limiro","total":607.5},{"nome":"Alexandre Lobo","total":491},{"nome":"Wanderley Cabral","total":459.5}],"total":6066.5},"2025-11":{"agents":[{"nome":"Dhonleno Freitas","total":537},{"nome":"Evelyn Souza","total":550},{"nome":"Gabriel de Oliveira","total":455},{"nome":"Lais Medeiros","total":501.5},{"nome":"Marcelo","total":455},{"nome":"Raissa Ribeiro","total":651.5},{"nome":"Ana Paula","total":40},{"nome":"Julia Almeda","total":477.5},{"nome":"Natalia Vieira","total":501.5},{"nome":"Wiviane Limiro","total":577.5},{"nome":"Alexandre Lobo","total":500},{"nome":"Wanderley Cabral","total":441.5},{"nome":"Beatriz","total":441.5},{"nome":"Gabriel Almeida","total":477.5},{"nome":"Reinaldo Bueno","total":150}],"total":6750.33},"2025-12":{"agents":[{"nome":"Dhonleno Freitas","total":500},{"nome":"Evelyn Souza","total":513.5},{"nome":"Gabriel de Oliveira","total":500},{"nome":"Lais Medeiros","total":515},{"nome":"Marcelo","total":40},{"nome":"Raissa Ribeiro","total":503.75},{"nome":"Ana Paula","total":517.25},{"nome":"Julia Almeda","total":514.25},{"nome":"Natalia Vieira","total":565},{"nome":"Wiviane Limiro","total":532},{"nome":"Alexandre Lobo","total":491},{"nome":"Wanderley Cabral","total":459.5},{"nome":"Beatriz","total":518.75},{"nome":"Gabriel Almeida","total":483.5}],"total":6711},"2026-01":{"agents":[{"nome":"Dhonleno Freitas","total":455},{"nome":"Evelyn Souza","total":506},{"nome":"Gabriel de Oliveira","total":650},{"nome":"Lais Medeiros","total":504.5},{"nome":"Raissa Ribeiro","total":650},{"nome":"Ana Paula","total":667.25},{"nome":"Julia Almeda","total":495.5},{"nome":"Natalia Vieira","total":567},{"nome":"Wiviane Limiro","total":464},{"nome":"Alexandre Lobo","total":477.5},{"nome":"Wanderley Cabral","total":193.75},{"nome":"Beatriz","total":392.75},{"nome":"Gabriel Almeida","total":401}],"total":6424.25},"2026-02":{"agents":[{"nome":"Dhonleno Freitas","total":365},{"nome":"Evelyn Souza","total":636.2},{"nome":"Gabriel de Oliveira","total":500},{"nome":"Lais Medeiros","total":575},{"nome":"Raissa Ribeiro","total":593},{"nome":"Ana Paula","total":511.7},{"nome":"Julia Almeda","total":571.4},{"nome":"Natalia Vieira","total":482.9},{"nome":"Wiviane Limiro","total":473},{"nome":"Alexandre Lobo","total":500},{"nome":"Beatriz","total":495},{"nome":"Gabriel Almeida","total":311}],"total":6014.2},"2026-03":{"agents":[{"nome":"Dhonleno Freitas","total":500},{"nome":"Evelyn Souza","total":519.8},{"nome":"Gabriel de Oliveira","total":500},{"nome":"Lais Medeiros","total":800.9},{"nome":"Marcelo Costa","total":500},{"nome":"Raissa Ribeiro","total":500},{"nome":"Ana Paula","total":511.7},{"nome":"Julia Almeda","total":491.5},{"nome":"Natalia Vieira","total":700},{"nome":"Wiviane Limiro","total":473},{"nome":"Alexandre Lobo","total":464},{"nome":"Marcelo Santos","total":297.5},{"nome":"Beatriz","total":575.2},{"nome":"Marcus","total":311}],"total":7144.6},"2026-04":{"agents":[{"nome":"Dhonleno Freitas","total":338},{"nome":"Evelyn Souza","total":659},{"nome":"Gabriel de Oliveira","total":464},{"nome":"Lais Medeiros","total":428},{"nome":"Marcelo Costa","total":500},{"nome":"Raissa Ribeiro","total":500},{"nome":"Ana Paula","total":457.7},{"nome":"Julia Almeda","total":428},{"nome":"Natalia Vieira","total":551.8},{"nome":"Wiviane Limiro","total":500},{"nome":"Alexandre Lobo","total":482},{"nome":"Marcelo Santos","total":481.1},{"nome":"Beatriz","total":552.7},{"nome":"Marcus","total":511.7}],"total":6854},"2026-05":{"agents":[{"id":1780266530964,"nome":"Lais Medeiros","equipe":"r","nota":0.01,"volume":0,"avalPct":0,"avalTeam":51.5,"metaVol":171.22222222222223,"vtGrp":1541,"nagGrp":9,"demandas":0,"atividades":200,"diasTrab":20,"diasUteis":20,"metaTME":true,"madrinha":false,"reconhece":false,"upgrades":0,"extra":0,"equipeExtra":0,"diarias":0,"overrideNota":180,"overrideVolume":135,"overrideDemandas":null,"overrideAtividades":90,"obs":"Laís não atuou nos atendimentos. Marcos está ciente que a bonificação esse mês será pago o valor teto.","vtSup":1541,"vtInf":322,"nagSup":9,"nagInf":3,"total":500,"breakdown":[{"l":"Nota de Satisfação","v":180,"f":"Ajuste manual","t":"n"},{"l":"Volume","v":135,"f":"Ajuste manual","t":"n"},{"l":"Demandas Indevidas","v":45,"f":"0 demandas → R$ 45,00","t":"n"},{"l":"Atividades Extras","v":90,"f":"Ajuste manual","t":"n"},{"l":"Meta TME zero","v":50,"f":"+R$50","t":"bon"}]},{"id":1780266989686,"nome":"Julia Almeda","equipe":"r","nota":9.66,"volume":100,"avalPct":47,"avalTeam":51.5,"metaVol":85.61111111111111,"vtGrp":1541,"nagGrp":9,"demandas":0,"atividades":150,"diasTrab":10,"diasUteis":20,"metaTME":true,"madrinha":false,"reconhece":false,"upgrades":0,"extra":0,"equipeExtra":0,"diarias":0,"overrideNota":null,"overrideVolume":null,"overrideDemandas":null,"overrideAtividades":null,"obs":"10 dias em viagem no grupo Quagliato","vtSup":1541,"vtInf":322,"nagSup":9,"nagInf":3,"total":383,"breakdown":[{"l":"Nota de Satisfação","v":108,"f":"≥ 9,20 → R$ 108,00","t":"n"},{"l":"Volume","v":108,"f":"Vol. 100 na faixa 10% (77.1–85.6) → R$ 135,00 · avaliados 47.0% \u003c média 51.5%: teto 80% → R$ 108,00","t":"n"},{"l":"Demandas Indevidas","v":45,"f":"0 demandas → R$ 45,00","t":"n"},{"l":"Atividades Extras","v":72,"f":"150 pts (150–199) → R$72.00 fixo","t":"n"},{"l":"Meta TME zero","v":50,"f":"+R$50","t":"bon"}]},{"id":1780267578963,"nome":"Wiviane Limiro","equipe":"e","nota":9.81,"volume":91,"avalPct":45,"avalTeam":51.5,"metaVol":85.61111111111111,"vtGrp":1541,"nagGrp":9,"demandas":0,"atividades":200,"diasTrab":10,"diasUteis":20,"metaTME":true,"madrinha":false,"reconhece":false,"upgrades":0,"extra":0,"equipeExtra":0,"diarias":0,"overrideNota":null,"overrideVolume":null,"overrideDemandas":null,"overrideAtividades":null,"obs":"Wiviane estava parcialmente nos testes, por isso coloquei 10 dias de trabalho. Mas em Junho estará integral nos atendimentos.","vtSup":1541,"vtInf":322,"nagSup":9,"nagInf":3,"total":437,"breakdown":[{"l":"Nota de Satisfação","v":144,"f":"≥ 9,70 → R$ 144,00","t":"n"},{"l":"Volume","v":108,"f":"Vol. 91 na faixa 10% (77.1–85.6) → R$ 135,00 · avaliados 45.0% \u003c média 51.5%: teto 80% → R$ 108,00","t":"n"},{"l":"Demandas Indevidas","v":45,"f":"0 demandas → R$ 45,00","t":"n"},{"l":"Atividades Extras","v":90,"f":"200 pts (≥200) → R$90.00 progressivo","t":"n"},{"l":"Meta TME zero","v":50,"f":"+R$50","t":"bon"}]},{"id":1780267651331,"nome":"Ana Paula","equipe":"e","nota":0.01,"volume":0,"avalPct":0,"avalTeam":51.5,"metaVol":171.22222222222223,"vtGrp":1541,"nagGrp":9,"demandas":0,"atividades":0,"diasTrab":20,"diasUteis":20,"metaTME":false,"madrinha":false,"reconhece":false,"upgrades":0,"extra":0,"equipeExtra":0,"diarias":0,"overrideNota":null,"overrideVolume":null,"overrideDemandas":0,"overrideAtividades":null,"obs":"Ana Paula viajou o mês todo, não vai receber bonificação do suporte","vtSup":1541,"vtInf":322,"nagSup":9,"nagInf":3,"total":0,"breakdown":[{"l":"Nota de Satisfação","v":0,"f":"\u003c 9,20 → R$0","t":"n"},{"l":"Volume","v":-135,"f":"Vol. 0 abaixo da faixa 50% (\u003c85.6) → R$ -135,00","t":"n"},{"l":"Demandas Indevidas","v":0,"f":"Ajuste manual","t":"n"},{"l":"Atividades Extras","v":0,"f":"0 pts → R$0","t":"n"}]},{"id":1780268669983,"nome":"Beatriz","equipe":"e","nota":9.95,"volume":160,"avalPct":58,"avalTeam":51.5,"metaVol":145.5388888888889,"vtGrp":1541,"nagGrp":9,"demandas":0,"atividades":170,"diasTrab":17,"diasUteis":20,"metaTME":true,"madrinha":true,"reconhece":false,"upgrades":0,"extra":0,"equipeExtra":0,"diarias":0,"overrideNota":null,"overrideVolume":null,"overrideDemandas":null,"overrideAtividades":null,"obs":"3 dias em viagem de acompanhamento com Lucas Pereira","vtSup":1541,"vtInf":322,"nagSup":9,"nagInf":3,"total":532,"breakdown":[{"l":"Nota de Satisfação","v":180,"f":"≥ 9,85 → R$ 180,00","t":"n"},{"l":"Volume","v":135,"f":"Vol. 160 na faixa 10% (131.0–145.5) → R$ 135,00","t":"n"},{"l":"Demandas Indevidas","v":45,"f":"0 demandas → R$ 45,00","t":"n"},{"l":"Atividades Extras","v":72,"f":"170 pts (150–199) → R$72.00 fixo","t":"n"},{"l":"Meta TME zero","v":50,"f":"+R$50","t":"bon"},{"l":"Madrinha / Padrinho","v":50,"f":"+R$50","t":"bon"}]},{"id":1780268829190,"nome":"Marcus","equipe":"e","nota":9.93,"volume":158,"avalPct":56,"avalTeam":51.5,"metaVol":171.22222222222223,"vtGrp":1541,"nagGrp":9,"demandas":0,"atividades":260,"diasTrab":20,"diasUteis":20,"metaTME":true,"madrinha":false,"reconhece":false,"upgrades":0,"extra":0,"equipeExtra":0,"diarias":0,"overrideNota":null,"overrideVolume":null,"overrideDemandas":null,"overrideAtividades":null,"obs":"","vtSup":1541,"vtInf":322,"nagSup":9,"nagInf":3,"total":510.8,"breakdown":[{"l":"Nota de Satisfação","v":180,"f":"≥ 9,85 → R$ 180,00","t":"n"},{"l":"Volume","v":135,"f":"Vol. 158 na faixa 10% (154.1–171.2) → R$ 135,00","t":"n"},{"l":"Demandas Indevidas","v":45,"f":"0 demandas → R$ 45,00","t":"n"},{"l":"Atividades Extras","v":100.8,"f":"260 pts (≥200) → R$100.80 progressivo","t":"n"},{"l":"Meta TME zero","v":50,"f":"+R$50","t":"bon"}]},{"id":1780271700699,"nome":"Marcelo Costa","equipe":"i","nota":9.94,"volume":112,"avalPct":48,"avalTeam":51,"metaVol":107.33333333333333,"vtGrp":322,"nagGrp":3,"demandas":0,"atividades":0,"diasTrab":20,"diasUteis":20,"metaTME":true,"madrinha":false,"reconhece":false,"upgrades":0,"extra":0,"equipeExtra":0,"diarias":0,"overrideNota":null,"overrideVolume":null,"overrideDemandas":null,"overrideAtividades":null,"obs":"","vtSup":1541,"vtInf":322,"nagSup":9,"nagInf":3,"total":338,"breakdown":[{"l":"Nota de Satisfação","v":180,"f":"≥ 9,85 → R$ 180,00","t":"n"},{"l":"Volume","v":108,"f":"Vol. 112 na faixa 10% (96.6–107.3) → R$ 135,00 · avaliados 48.0% \u003c média 51.0%: teto 80% → R$ 108,00","t":"n"},{"l":"Atividades Extras","v":0,"f":"0 pts → R$0","t":"n"},{"l":"Meta TME zero","v":50,"f":"+R$50","t":"bon"}]},{"id":1780273419874,"nome":"Evelyn Souza","equipe":"r","nota":9.9,"volume":224,"avalPct":52,"avalTeam":51,"metaVol":171.22222222222223,"vtGrp":1541,"nagGrp":9,"demandas":0,"atividades":270,"diasTrab":20,"diasUteis":20,"metaTME":true,"madrinha":false,"reconhece":false,"naoAplicou":false,"upgrades":0,"extra":0,"equipeExtra":0,"diarias":0,"overrideNota":null,"overrideVolume":null,"overrideDemandas":null,"overrideAtividades":null,"obs":"","vtSup":1541,"vtInf":322,"nagSup":9,"nagInf":3,"total":512.6,"breakdown":[{"l":"Nota de Satisfação","v":180,"f":"≥ 9,85 → R$ 180,00","t":"n"},{"l":"Volume","v":135,"f":"Vol. 224 na faixa 10% (154.1–171.2) → R$ 135,00","t":"n"},{"l":"Demandas Indevidas","v":45,"f":"0 demandas → R$ 45,00","t":"n"},{"l":"Atividades Extras","v":102.6,"f":"270 pts (≥200) → R$102.60 progressivo","t":"n"},{"l":"Meta TME zero","v":50,"f":"+R$50","t":"bon"}]},{"id":1780273606062,"nome":"Gabriel de Oliveira","equipe":"i","nota":9.89,"volume":113,"avalPct":47,"avalTeam":51,"metaVol":107.33333333333333,"vtGrp":322,"nagGrp":3,"demandas":0,"atividades":200,"diasTrab":20,"diasUteis":20,"metaTME":true,"madrinha":false,"reconhece":false,"naoAplicou":false,"upgrades":0,"extra":0,"equipeExtra":0,"diarias":0,"overrideNota":null,"overrideVolume":null,"overrideDemandas":null,"overrideAtividades":null,"obs":"Atividade extra: Subir demanda para fabrica e devolver demanda para o N1","vtSup":1541,"vtInf":322,"nagSup":9,"nagInf":3,"total":473,"breakdown":[{"l":"Nota de Satisfação","v":180,"f":"≥ 9,85 → R$ 180,00","t":"n"},{"l":"Volume","v":108,"f":"Vol. 113 na faixa 10% (96.6–107.3) → R$ 135,00 · avaliados 47.0% \u003c média 51.0%: teto 80% → R$ 108,00","t":"n"},{"l":"Atividades Extras","v":135,"f":"200 pts (≥200) → R$135.00 progressivo","t":"n"},{"l":"Meta TME zero","v":50,"f":"+R$50","t":"bon"}]},{"id":1780273647467,"nome":"Reinaldo Bueno","equipe":"x","nota":0,"volume":0,"avalPct":0,"avalTeam":51,"metaVol":171.22222222222223,"vtGrp":1541,"nagGrp":9,"demandas":0,"atividades":0,"diasTrab":20,"diasUteis":20,"metaTME":false,"madrinha":false,"reconhece":false,"naoAplicou":false,"upgrades":1,"extra":0,"equipeExtra":0,"diarias":0,"overrideNota":null,"overrideVolume":null,"overrideDemandas":null,"overrideAtividades":null,"obs":"Indicação de upgrade: Alexander Duarte Paniago","vtSup":1541,"vtInf":322,"nagSup":9,"nagInf":3,"total":150,"breakdown":[{"l":"Upgrades WEB ×1","v":150,"f":"R$150/un = R$150","t":"bon"}]},{"id":1780273674145,"nome":"Natalia Vieira","equipe":"e","nota":9.9,"volume":196,"avalPct":53,"avalTeam":51,"metaVol":171.22222222222223,"vtGrp":1541,"nagGrp":9,"demandas":0,"atividades":200,"diasTrab":20,"diasUteis":20,"metaTME":true,"madrinha":true,"reconhece":false,"naoAplicou":false,"upgrades":1,"extra":0,"equipeExtra":0,"diarias":0,"overrideNota":null,"overrideVolume":null,"overrideDemandas":null,"overrideAtividades":null,"obs":"Indicação de upgrade: Gustavo Bruno Siciliano","vtSup":1541,"vtInf":322,"nagSup":9,"nagInf":3,"total":700,"breakdown":[{"l":"Nota de Satisfação","v":180,"f":"≥ 9,85 → R$ 180,00","t":"n"},{"l":"Volume","v":135,"f":"Vol. 196 na faixa 10% (154.1–171.2) → R$ 135,00","t":"n"},{"l":"Demandas Indevidas","v":45,"f":"0 demandas → R$ 45,00","t":"n"},{"l":"Atividades Extras","v":90,"f":"200 pts (≥200) → R$90.00 progressivo","t":"n"},{"l":"Meta TME zero","v":50,"f":"+R$50","t":"bon"},{"l":"Madrinha / Padrinho","v":50,"f":"+R$50","t":"bon"},{"l":"Upgrades WEB ×1","v":150,"f":"R$150/un = R$150","t":"bon"}]},{"id":1780275232803,"nome":"Raissa Ribeiro","equipe":"r","nota":9.88,"volume":234,"avalPct":52,"avalTeam":51,"metaVol":171.22222222222223,"vtGrp":1541,"nagGrp":9,"demandas":0,"atividades":200,"diasTrab":20,"diasUteis":20,"metaTME":true,"madrinha":false,"reconhece":false,"naoAplicou":false,"upgrades":0,"extra":0,"equipeExtra":0,"diarias":0,"overrideNota":null,"overrideVolume":null,"overrideDemandas":null,"overrideAtividades":null,"obs":"Atividades extras da Raissa: Subir demandas para Fabrica e processamento de churn","vtSup":1541,"vtInf":322,"nagSup":9,"nagInf":3,"total":500,"breakdown":[{"l":"Nota de Satisfação","v":180,"f":"≥ 9,85 → R$ 180,00","t":"n"},{"l":"Volume","v":135,"f":"Vol. 234 na faixa 10% (154.1–171.2) → R$ 135,00","t":"n"},{"l":"Demandas Indevidas","v":45,"f":"0 demandas → R$ 45,00","t":"n"},{"l":"Atividades Extras","v":90,"f":"200 pts (≥200) → R$90.00 progressivo","t":"n"},{"l":"Meta TME zero","v":50,"f":"+R$50","t":"bon"}]},{"id":1780276546815,"nome":"Dhonleno Freitas","equipe":"i","nota":9.98,"volume":97,"avalPct":47,"avalTeam":51,"metaVol":107.33333333333333,"vtGrp":322,"nagGrp":3,"demandas":0,"atividades":0,"diasTrab":20,"diasUteis":20,"metaTME":true,"madrinha":false,"reconhece":false,"naoAplicou":false,"upgrades":0,"extra":0,"equipeExtra":0,"diarias":0,"overrideNota":null,"overrideVolume":null,"overrideDemandas":null,"overrideAtividades":null,"obs":"Volume está dentro da variável para 100% da meta. Entre 97 e 107,3 no caso da infra.","vtSup":1541,"vtInf":322,"nagSup":9,"nagInf":3,"total":338,"breakdown":[{"l":"Nota de Satisfação","v":180,"f":"≥ 9,85 → R$ 180,00","t":"n"},{"l":"Volume","v":108,"f":"Vol. 97 na faixa 10% (96.6–107.3) → R$ 135,00 · avaliados 47.0% \u003c média 51.0%: teto 80% → R$ 108,00","t":"n"},{"l":"Atividades Extras","v":0,"f":"0 pts → R$0","t":"n"},{"l":"Meta TME zero","v":50,"f":"+R$50","t":"bon"}]},{"id":1780276597398,"nome":"Marcelo Santos","equipe":"e","nota":9.95,"volume":149,"avalPct":51,"avalTeam":51,"metaVol":154.10000000000002,"vtGrp":1541,"nagGrp":9,"demandas":0,"atividades":280,"diasTrab":18,"diasUteis":20,"metaTME":true,"madrinha":false,"reconhece":false,"naoAplicou":false,"upgrades":0,"extra":0,"equipeExtra":0,"diarias":0,"overrideNota":null,"overrideVolume":null,"overrideDemandas":null,"overrideAtividades":null,"obs":"Volume está dentro da variável para 100% da meta. 149 representa 97% está dentro para o valor primário.","vtSup":1541,"vtInf":322,"nagSup":9,"nagInf":3,"total":514.4,"breakdown":[{"l":"Nota de Satisfação","v":180,"f":"≥ 9,85 → R$ 180,00","t":"n"},{"l":"Volume","v":135,"f":"Vol. 149 na faixa 10% (138.7–154.1) → R$ 135,00","t":"n"},{"l":"Demandas Indevidas","v":45,"f":"0 demandas → R$ 45,00","t":"n"},{"l":"Atividades Extras","v":104.4,"f":"280 pts (≥200) → R$104.40 progressivo","t":"n"},{"l":"Meta TME zero","v":50,"f":"+R$50","t":"bon"}]},{"id":1780276708276,"nome":"Alexandre Lobo","equipe":"r","nota":9.91,"volume":228,"avalPct":50,"avalTeam":51,"metaVol":171.22222222222223,"vtGrp":1541,"nagGrp":9,"demandas":0,"atividades":200,"diasTrab":20,"diasUteis":20,"metaTME":true,"madrinha":false,"reconhece":false,"naoAplicou":false,"upgrades":0,"extra":0,"equipeExtra":0,"diarias":0,"overrideNota":null,"overrideVolume":null,"overrideDemandas":null,"overrideAtividades":null,"obs":"","vtSup":1541,"vtInf":322,"nagSup":9,"nagInf":3,"total":473,"breakdown":[{"l":"Nota de Satisfação","v":180,"f":"≥ 9,85 → R$ 180,00","t":"n"},{"l":"Volume","v":108,"f":"Vol. 228 na faixa 10% (154.1–171.2) → R$ 135,00 · avaliados 50.0% \u003c média 51.0%: teto 80% → R$ 108,00","t":"n"},{"l":"Demandas Indevidas","v":45,"f":"0 demandas → R$ 45,00","t":"n"},{"l":"Atividades Extras","v":90,"f":"200 pts (≥200) → R$90.00 progressivo","t":"n"},{"l":"Meta TME zero","v":50,"f":"+R$50","t":"bon"}]}],"total":6361.8,"avgAval":51,"variationNote":"A variação foi considerável devido ao ajuste realizado na métrica. Além da nota de satisfação acima de 9,85, agora também é considerada a % de tickets avaliados do colaborador. Antes dessa alteração, agentes com baixa % de tickets avaliados, mas com nota acima de 9,85, acabavam recebendo o mesmo valor e em alguns casos até mais do que colaboradores com alta % de avaliações e abaixo da média de satisfação."},"2026-06":{"agents":[{"id":1782920935399,"nome":"Marcelo Costa","equipe":"i","nota":9.635,"volume":123,"avalPct":51.2,"avalTeam":47.2,"metaVol":103.66666666666667,"vtGrp":311,"nagGrp":3,"demandas":0,"atividades":250,"diasTrab":21,"diasUteis":21,"metaTME":true,"madrinha":false,"reconhece":false,"naoAplicou":false,"upgrades":0,"extra":0,"equipeExtra":0,"diarias":0,"overrideNota":null,"overrideVolume":null,"overrideDemandas":null,"overrideAtividades":null,"obs":"","vtSup":1483,"vtInf":311,"nagSup":12,"nagInf":3,"total":441.5,"breakdown":[{"l":"Nota de Satisfação","v":108,"f":"≥ 9,20 → R$ 108,00","t":"n"},{"l":"Volume","v":135,"f":"Vol. 123 na faixa 10% (93.3–103.7) → R$ 135,00","t":"n"},{"l":"Atividades Extras","v":148.5,"f":"250 pts (≥200) → R$148.50 progressivo","t":"n"},{"l":"Meta TME zero","v":50,"f":"+R$50","t":"bon"}]},{"id":1782920951778,"nome":"Beatriz","equipe":"e","nota":9.905,"volume":160,"avalPct":46.3,"avalTeam":47.2,"metaVol":111.81349206349205,"vtGrp":1483,"nagGrp":12,"demandas":1,"atividades":190,"diasTrab":19,"diasUteis":21,"metaTME":true,"madrinha":false,"reconhece":false,"naoAplicou":false,"upgrades":1,"extra":0,"equipeExtra":0,"diarias":0,"overrideNota":null,"overrideVolume":null,"overrideDemandas":null,"overrideAtividades":null,"obs":"Indicação - Upgrade web OLIVIO SCAMATTI FILHO (Venda efetivada 5 dias após a indicação)","vtSup":1483,"vtInf":311,"nagSup":12,"nagInf":3,"total":587,"breakdown":[{"l":"Nota de Satisfação","v":180,"f":"≥ 9,85 → R$ 180,00","t":"n"},{"l":"Volume","v":108,"f":"Vol. 160 na faixa 10% (100.6–111.8) → R$ 135,00 · avaliados 46.3% \u003c média 47.2%: teto 80% → R$ 108,00","t":"n"},{"l":"Demandas Indevidas","v":27,"f":"1 demanda → R$ 27,00","t":"n"},{"l":"Atividades Extras","v":72,"f":"190 pts (150–199) → R$72.00 fixo","t":"n"},{"l":"Meta TME zero","v":50,"f":"+R$50","t":"bon"},{"l":"Upgrades WEB ×1","v":150,"f":"R$150/un = R$150","t":"bon"}]},{"id":1782920964034,"nome":"Alexandre Lobo","equipe":"r","nota":9.857,"volume":173,"avalPct":48.6,"avalTeam":47.2,"metaVol":111.81349206349205,"vtGrp":1483,"nagGrp":12,"demandas":0,"atividades":240,"diasTrab":19,"diasUteis":21,"metaTME":true,"madrinha":true,"reconhece":false,"naoAplicou":false,"upgrades":0,"extra":0,"equipeExtra":0,"diarias":0,"overrideNota":null,"overrideVolume":null,"overrideDemandas":null,"overrideAtividades":null,"obs":"Os dias de auência foi devida a implantação estoque de animais durante 5 dias no Paulo Naves. ","vtSup":1483,"vtInf":311,"nagSup":12,"nagInf":3,"total":557.2,"breakdown":[{"l":"Nota de Satisfação","v":180,"f":"≥ 9,85 → R$ 180,00","t":"n"},{"l":"Volume","v":135,"f":"Vol. 173 na faixa 10% (100.6–111.8) → R$ 135,00","t":"n"},{"l":"Demandas Indevidas","v":45,"f":"0 demandas → R$ 45,00","t":"n"},{"l":"Atividades Extras","v":97.2,"f":"240 pts (≥200) → R$97.20 progressivo","t":"n"},{"l":"Meta TME zero","v":50,"f":"+R$50","t":"bon"},{"l":"Madrinha / Padrinho","v":50,"f":"+R$50","t":"bon"}]},{"id":1782920975898,"nome":"Evelyn Souza","equipe":"r","nota":9.884,"volume":83,"avalPct":51.8,"avalTeam":47.2,"metaVol":52.96428571428571,"vtGrp":1483,"nagGrp":12,"demandas":0,"atividades":200,"diasTrab":9,"diasUteis":21,"metaTME":true,"madrinha":false,"reconhece":false,"naoAplicou":false,"upgrades":0,"extra":30,"equipeExtra":0,"diarias":0,"overrideNota":null,"overrideVolume":null,"overrideDemandas":null,"overrideAtividades":null,"obs":"15 dias de férias (15/06/2026 à 29/06/2026) e banco de horas em 12/06/2026 integral. O valor extra é devido a um atendimento especial de um cliente, não tinha alguém do CSI capacitado para realizar.","vtSup":1483,"vtInf":311,"nagSup":12,"nagInf":3,"total":530,"breakdown":[{"l":"Nota de Satisfação","v":180,"f":"≥ 9,85 → R$ 180,00","t":"n"},{"l":"Volume","v":135,"f":"Vol. 83 na faixa 10% (47.7–53.0) → R$ 135,00","t":"n"},{"l":"Demandas Indevidas","v":45,"f":"0 demandas → R$ 45,00","t":"n"},{"l":"Atividades Extras","v":90,"f":"200 pts (≥200) → R$90.00 progressivo","t":"n"},{"l":"Meta TME zero","v":50,"f":"+R$50","t":"bon"},{"l":"Ganhos extras gerais","v":30,"f":"R$30.00","t":"bon"}]},{"id":1782920985441,"nome":"Raissa Ribeiro","equipe":"r","nota":9.916,"volume":200,"avalPct":47.5,"avalTeam":47.2,"metaVol":123.58333333333333,"vtGrp":1483,"nagGrp":12,"demandas":0,"atividades":200,"diasTrab":21,"diasUteis":21,"metaTME":true,"madrinha":false,"reconhece":false,"naoAplicou":false,"upgrades":0,"extra":0,"equipeExtra":0,"diarias":0,"overrideNota":null,"overrideVolume":null,"overrideDemandas":null,"overrideAtividades":null,"obs":"","vtSup":1483,"vtInf":311,"nagSup":12,"nagInf":3,"total":500,"breakdown":[{"l":"Nota de Satisfação","v":180,"f":"≥ 9,85 → R$ 180,00","t":"n"},{"l":"Volume","v":135,"f":"Vol. 200 na faixa 10% (111.2–123.6) → R$ 135,00","t":"n"},{"l":"Demandas Indevidas","v":45,"f":"0 demandas → R$ 45,00","t":"n"},{"l":"Atividades Extras","v":90,"f":"200 pts (≥200) → R$90.00 progressivo","t":"n"},{"l":"Meta TME zero","v":50,"f":"+R$50","t":"bon"}]},{"id":1782921007970,"nome":"Natalia Vieira","equipe":"e","nota":9.982,"volume":104,"avalPct":54.8,"avalTeam":47.2,"metaVol":94.15873015873015,"vtGrp":1483,"nagGrp":12,"demandas":1,"atividades":200,"diasTrab":16,"diasUteis":21,"metaTME":true,"madrinha":false,"reconhece":false,"naoAplicou":false,"upgrades":0,"extra":0,"equipeExtra":0,"diarias":0,"overrideNota":null,"overrideVolume":null,"overrideDemandas":null,"overrideAtividades":null,"obs":"15 dias de férias (24/06/2026 à 08/07/2026) e Demanda indevida: 60645 (redmine)","vtSup":1483,"vtInf":311,"nagSup":12,"nagInf":3,"total":482,"breakdown":[{"l":"Nota de Satisfação","v":180,"f":"≥ 9,85 → R$ 180,00","t":"n"},{"l":"Volume","v":135,"f":"Vol. 104 na faixa 10% (84.7–94.2) → R$ 135,00","t":"n"},{"l":"Demandas Indevidas","v":27,"f":"1 demanda → R$ 27,00","t":"n"},{"l":"Atividades Extras","v":90,"f":"200 pts (≥200) → R$90.00 progressivo","t":"n"},{"l":"Meta TME zero","v":50,"f":"+R$50","t":"bon"}]},{"id":1782921021986,"nome":"Gabriel de Oliveira","equipe":"i","nota":9.87,"volume":173,"avalPct":48.6,"avalTeam":47.2,"metaVol":93.7936507936508,"vtGrp":311,"nagGrp":3,"demandas":0,"atividades":200,"diasTrab":19,"diasUteis":21,"metaTME":true,"madrinha":false,"reconhece":false,"naoAplicou":false,"upgrades":0,"extra":0,"equipeExtra":0,"diarias":0,"overrideNota":null,"overrideVolume":null,"overrideDemandas":null,"overrideAtividades":null,"obs":"","vtSup":1483,"vtInf":311,"nagSup":12,"nagInf":3,"total":500,"breakdown":[{"l":"Nota de Satisfação","v":180,"f":"≥ 9,85 → R$ 180,00","t":"n"},{"l":"Volume","v":135,"f":"Vol. 173 na faixa 10% (84.4–93.8) → R$ 135,00","t":"n"},{"l":"Atividades Extras","v":135,"f":"200 pts (≥200) → R$135.00 progressivo","t":"n"},{"l":"Meta TME zero","v":50,"f":"+R$50","t":"bon"}]},{"id":1782921069280,"nome":"Marcus","equipe":"e","nota":9.79,"volume":139,"avalPct":44.6,"avalTeam":47.2,"metaVol":111.81349206349205,"vtGrp":1483,"nagGrp":12,"demandas":0,"atividades":365,"diasTrab":19,"diasUteis":21,"metaTME":true,"madrinha":false,"reconhece":false,"naoAplicou":false,"upgrades":0,"extra":0,"equipeExtra":0,"diarias":0,"overrideNota":null,"overrideVolume":null,"overrideDemandas":null,"overrideAtividades":null,"obs":"","vtSup":1483,"vtInf":311,"nagSup":12,"nagInf":3,"total":466.7,"breakdown":[{"l":"Nota de Satisfação","v":144,"f":"≥ 9,70 → R$ 144,00","t":"n"},{"l":"Volume","v":108,"f":"Vol. 139 na faixa 10% (100.6–111.8) → R$ 135,00 · avaliados 44.6% \u003c média 47.2%: teto 80% → R$ 108,00","t":"n"},{"l":"Demandas Indevidas","v":45,"f":"0 demandas → R$ 45,00","t":"n"},{"l":"Atividades Extras","v":119.7,"f":"365 pts (≥200) → R$119.70 progressivo","t":"n"},{"l":"Meta TME zero","v":50,"f":"+R$50","t":"bon"}]},{"id":1782921087258,"nome":"Ana Paula","equipe":"e","nota":10,"volume":79,"avalPct":46.8,"avalTeam":47.2,"metaVol":58.84920634920634,"vtGrp":1483,"nagGrp":12,"demandas":0,"atividades":150,"diasTrab":10,"diasUteis":21,"metaTME":true,"madrinha":false,"reconhece":false,"naoAplicou":false,"upgrades":0,"extra":0,"equipeExtra":0,"diarias":0,"overrideNota":null,"overrideVolume":null,"overrideDemandas":null,"overrideAtividades":null,"obs":"15 dias de férias (15/06/2026 à 29/06/2026)","vtSup":1483,"vtInf":311,"nagSup":12,"nagInf":3,"total":455,"breakdown":[{"l":"Nota de Satisfação","v":180,"f":"≥ 9,85 → R$ 180,00","t":"n"},{"l":"Volume","v":108,"f":"Vol. 79 na faixa 10% (53.0–58.8) → R$ 135,00 · avaliados 46.8% \u003c média 47.2%: teto 80% → R$ 108,00","t":"n"},{"l":"Demandas Indevidas","v":45,"f":"0 demandas → R$ 45,00","t":"n"},{"l":"Atividades Extras","v":72,"f":"150 pts (150–199) → R$72.00 fixo","t":"n"},{"l":"Meta TME zero","v":50,"f":"+R$50","t":"bon"}]},{"id":1782921095935,"nome":"Dhonleno Freitas","equipe":"i","nota":10,"volume":47,"avalPct":44.7,"avalTeam":47.2,"metaVol":54.301587301587304,"vtGrp":311,"nagGrp":3,"demandas":0,"atividades":100,"diasTrab":11,"diasUteis":21,"metaTME":true,"madrinha":false,"reconhece":false,"naoAplicou":false,"upgrades":0,"extra":0,"equipeExtra":0,"diarias":0,"overrideNota":null,"overrideVolume":null,"overrideDemandas":null,"overrideAtividades":null,"obs":"15 dias de férias (01/06/2026 à 15/06/2026)","vtSup":1483,"vtInf":311,"nagSup":12,"nagInf":3,"total":419,"breakdown":[{"l":"Nota de Satisfação","v":180,"f":"≥ 9,85 → R$ 180,00","t":"n"},{"l":"Volume","v":108,"f":"Vol. 47 na faixa 15% (46.2–48.9) → R$ 108,00","t":"n"},{"l":"Atividades Extras","v":81,"f":"100 pts (100–149) → R$81.00 fixo","t":"n"},{"l":"Meta TME zero","v":50,"f":"+R$50","t":"bon"}]},{"id":1782921104464,"nome":"Julia Almeda","equipe":"r","nota":9.614,"volume":189,"avalPct":43.9,"avalTeam":47.2,"metaVol":123.58333333333333,"vtGrp":1483,"nagGrp":12,"demandas":0,"atividades":110,"diasTrab":21,"diasUteis":21,"metaTME":true,"madrinha":false,"reconhece":false,"naoAplicou":false,"upgrades":0,"extra":0,"equipeExtra":0,"diarias":0,"overrideNota":null,"overrideVolume":null,"overrideDemandas":null,"overrideAtividades":null,"obs":"","vtSup":1483,"vtInf":311,"nagSup":12,"nagInf":3,"total":365,"breakdown":[{"l":"Nota de Satisfação","v":108,"f":"≥ 9,20 → R$ 108,00","t":"n"},{"l":"Volume","v":108,"f":"Vol. 189 na faixa 10% (111.2–123.6) → R$ 135,00 · avaliados 43.9% \u003c média 47.2%: teto 80% → R$ 108,00","t":"n"},{"l":"Demandas Indevidas","v":45,"f":"0 demandas → R$ 45,00","t":"n"},{"l":"Atividades Extras","v":54,"f":"110 pts (100–149) → R$54.00 fixo","t":"n"},{"l":"Meta TME zero","v":50,"f":"+R$50","t":"bon"}]},{"id":1782921114433,"nome":"Marcelo Santos","equipe":"e","nota":9.734,"volume":141,"avalPct":45.4,"avalTeam":47.2,"metaVol":123.58333333333333,"vtGrp":1483,"nagGrp":12,"demandas":1,"atividades":250,"diasTrab":21,"diasUteis":21,"metaTME":true,"madrinha":false,"reconhece":false,"naoAplicou":false,"upgrades":0,"extra":0,"equipeExtra":0,"diarias":0,"overrideNota":null,"overrideVolume":null,"overrideDemandas":null,"overrideAtividades":null,"obs":"Demanda indevida: 59469 (redmine)","vtSup":1483,"vtInf":311,"nagSup":12,"nagInf":3,"total":428,"breakdown":[{"l":"Nota de Satisfação","v":144,"f":"≥ 9,70 → R$ 144,00","t":"n"},{"l":"Volume","v":108,"f":"Vol. 141 na faixa 10% (111.2–123.6) → R$ 135,00 · avaliados 45.4% \u003c média 47.2%: teto 80% → R$ 108,00","t":"n"},{"l":"Demandas Indevidas","v":27,"f":"1 demanda → R$ 27,00","t":"n"},{"l":"Atividades Extras","v":99,"f":"250 pts (≥200) → R$99.00 progressivo","t":"n"},{"l":"Meta TME zero","v":50,"f":"+R$50","t":"bon"}]},{"id":1782921126076,"nome":"Wiviane Limiro","equipe":"e","nota":9.985,"volume":156,"avalPct":43.6,"avalTeam":47.2,"metaVol":123.58333333333333,"vtGrp":1483,"nagGrp":12,"demandas":1,"atividades":200,"diasTrab":21,"diasUteis":21,"metaTME":true,"madrinha":false,"reconhece":false,"naoAplicou":false,"upgrades":0,"extra":0,"equipeExtra":0,"diarias":0,"overrideNota":null,"overrideVolume":null,"overrideDemandas":null,"overrideAtividades":null,"obs":"Demanda indevida: 60742 (redmine)","vtSup":1483,"vtInf":311,"nagSup":12,"nagInf":3,"total":455,"breakdown":[{"l":"Nota de Satisfação","v":180,"f":"≥ 9,85 → R$ 180,00","t":"n"},{"l":"Volume","v":108,"f":"Vol. 156 na faixa 10% (111.2–123.6) → R$ 135,00 · avaliados 43.6% \u003c média 47.2%: teto 80% → R$ 108,00","t":"n"},{"l":"Demandas Indevidas","v":27,"f":"1 demanda → R$ 27,00","t":"n"},{"l":"Atividades Extras","v":90,"f":"200 pts (≥200) → R$90.00 progressivo","t":"n"},{"l":"Meta TME zero","v":50,"f":"+R$50","t":"bon"}]}],"total":6186.4,"avgAval":47.2,"variationNote":"Houve uma nova queda no valor total. Além da nota de satisfação acima de 9,85, agora também é considerada a % de tickets avaliados do colaborador. Antes dessa alteração, agentes com baixa % de tickets avaliados, mas com nota acima de 9,85, acabavam recebendo o mesmo valor e em alguns casos até mais do que colaboradores com alta % de avaliações eabaixo da média de satisfação. E tivemos 4 demandas indevidas atribuidas para alguns agentes."}};
 
 // ════════════════════════════════════════════════════
 // MAPEAMENTO DE EQUIPES (confirmado pelo gestor + planilha analitico)
@@ -942,6 +949,7 @@ const TEAMS={
   'Lais Medeiros':'r','Lais':'r','Laís':'r',
   'Julia Almeda':'r','Julia':'r',
   'Alexandre Lobo':'r','Alexandre':'r',
+  'Isaac Coelho':'r','Isaac':'r',
   'Raissa Ribeiro':'r','Raíssa':'r','Raissa':'r',
   'Evelyn Souza':'r','Evelyn':'r',
   'Anita Cristina':'r','Rhuan Marques':'r',
@@ -997,10 +1005,88 @@ function backupLoadedDb(reason){
     localStorage.setItem(`bcs4_autobackup_${reason}_${stamp}`,loadedRaw);
   }catch(e){}
 }
-let migratedSeed=false;
-Object.keys(SEED).forEach(m=>{
-  if(!DB.months[m]){DB.months[m]=JSON.parse(JSON.stringify(SEED[m]));migratedSeed=true;}
-});
+const seedMonthClone=m=>JSON.parse(JSON.stringify(SEED[m]));
+const cloneVal=v=>v===undefined?undefined:JSON.parse(JSON.stringify(v));
+const hasDataValue=v=>v!==undefined&&v!==null&&v!=='';
+function applyOfficialJuneCorrections(target){
+  const month=target?.months?.['2026-06']||target?.['2026-06'];
+  if(!month?.agents?.length)return false;
+  let changed=false;
+  const julia=month.agents.find(a=>a?.nome==='Julia Almeda');
+  if(julia){
+    const hasOldNote=Math.abs((Number(julia.nota)||0)-9.614)<0.001;
+    const hasOldTotal=Math.abs((Number(julia.total)||0)-365)<0.01;
+    if(hasOldNote&&hasOldTotal){
+      julia.nota=9.74;
+      julia.total=401;
+      const notaRow=julia.breakdown?.find(r=>r?.l==='Nota de Satisfação');
+      if(notaRow){
+        notaRow.v=144;
+        notaRow.f='≥ 9,70 → R$ 144,00';
+      }
+      changed=true;
+    }
+  }
+  const marcelo=month.agents.find(a=>a?.nome==='Marcelo Santos');
+  if(marcelo){
+    const hasOldNote=Math.abs((Number(marcelo.nota)||0)-9.734)<0.001;
+    const hasOldTotal=Math.abs((Number(marcelo.total)||0)-428)<0.01;
+    if(hasOldNote&&hasOldTotal){
+      marcelo.nota=9.905;
+      marcelo.total=464;
+      const notaRow=marcelo.breakdown?.find(r=>r?.l==='Nota de Satisfação');
+      if(notaRow){
+        notaRow.v=180;
+        notaRow.f='≥ 9,85 → R$ 180,00';
+      }
+      changed=true;
+    }
+  }
+  if(changed){
+    month.total=Math.round((month.agents||[]).reduce((s,a)=>s+(Number(a.total)||0),0)*100)/100;
+  }
+  return changed;
+}
+function monthHasDetails(month){
+  return !!month?.agents?.some(a=>a?.breakdown?.length||a?.nota||a?.volume||a?.atividades||a?.avalPct);
+}
+function mergeSeedMonthDetails(target,m){
+  const cur=target.months?.[m], seed=SEED[m];
+  if(!cur||!seed?.agents?.length)return false;
+  let changed=false;
+  const byName=new Map((cur.agents||[]).map(a=>[a.nome,a]));
+  seed.agents.forEach(sa=>{
+    const ca=byName.get(sa.nome);
+    if(!ca)return;
+    ['equipe','nota','volume','avalPct','avalTeam','metaVol','vtGrp','nagGrp','demandas','atividades','diasTrab','diasUteis','metaTME','madrinha','reconhece','naoAplicou','upgrades','extra','equipeExtra','diarias','overrideNota','overrideVolume','overrideDemandas','overrideAtividades','obs','vtSup','vtInf','nagSup','nagInf'].forEach(k=>{
+      if(!hasDataValue(ca[k])&&hasDataValue(sa[k])){ca[k]=cloneVal(sa[k]);changed=true;}
+    });
+    if((!ca.breakdown||!ca.breakdown.length)&&sa.breakdown?.length){ca.breakdown=cloneVal(sa.breakdown);changed=true;}
+  });
+  ['avgAval','variationNote','note'].forEach(k=>{
+    if(!hasDataValue(cur[k])&&hasDataValue(seed[k])){cur[k]=cloneVal(seed[k]);changed=true;}
+  });
+  return changed;
+}
+function ensureSeedMonths(target){
+  if(!target.months)target.months={};
+  let added=false;
+  Object.keys(SEED).forEach(m=>{
+    if(!target.months[m]){target.months[m]=seedMonthClone(m);added=true;}
+  });
+  ['2026-05','2026-06'].forEach(m=>{
+    if(SEED[m]&&target.months[m]&&!monthHasDetails(target.months[m])&&monthHasDetails(SEED[m])){
+      target.months[m]=seedMonthClone(m);
+      added=true;
+    }else if(mergeSeedMonthDetails(target,m)){
+      added=true;
+    }
+  });
+  return added;
+}
+applyOfficialJuneCorrections(SEED);
+let migratedSeed=ensureSeedMonths(DB);
+if(applyOfficialJuneCorrections(DB))migratedSeed=true;
 if(DB.months['2026-04']?.agents){
   const before=DB.months['2026-04'].agents.length;
   DB.months['2026-04'].agents=DB.months['2026-04'].agents.filter(a=>!(a.nome==='Reinaldo Bueno'&&Number(a.total)===0));
@@ -1013,7 +1099,18 @@ if(!DB.rules)DB.rules=ruleClone();
 if(migratedSeed){backupLoadedDb('migracao');localStorage.setItem('bcs4',JSON.stringify(DB));}
 const save=()=>{backupLoadedDb('save');localStorage.setItem('bcs4',JSON.stringify(DB));loadedRaw=JSON.stringify(DB);};
 const months=()=>Object.keys(DB.months).sort();
-const prevMes=ym=>{const ms=months();const i=ms.indexOf(ym);return i>0?ms[i-1]:null;};
+const monthObj=ym=>DB.months[ym]||SEED[ym]||null;
+const prevCalendarMonth=ym=>{
+  const [y,m]=(ym||'').split('-').map(Number);
+  if(!y||!m)return null;
+  const d=new Date(y,m-2,1);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+};
+const prevMes=ym=>{
+  const cal=prevCalendarMonth(ym);
+  if(cal&&monthObj(cal))return cal;
+  const ms=months();const i=ms.indexOf(ym);return i>0?ms[i-1]:null;
+};
 const rulesFor=eq=>DB.rules?.[eq]||DEFAULT_RULES[eq]||DEFAULT_RULES.r;
 
 // ════════════════════════════════════════════════════
@@ -1255,8 +1352,23 @@ function prevAgent(prevM,a){
   return prevM?.agents?.find(p=>p.nome===a.nome)||null;
 }
 function agentDelta(prevM,a){
+  if(a?._prevOnly)return -Number(a._prevTotal||0);
   const p=prevAgent(prevM,a);
   return p?a.total-p.total:null;
+}
+function previousOnlyAgents(prevM,ags,mes){
+  if(!prevM?.agents?.length)return [];
+  const curNames=new Set(ags.map(a=>a.nome));
+  return prevM.agents
+    .filter(a=>!curNames.has(a.nome)&&Number(a.total)>0)
+    .map(a=>({
+      nome:a.nome,
+      equipe:a.equipe||getEq(a.nome),
+      total:0,
+      obs:'Sem lançamento em '+ML(mes)+'. Valor anterior: '+R(a.total)+'.',
+      _prevOnly:true,
+      _prevTotal:Number(a.total)||0
+    }));
 }
 function sortedAgentsByNucleus(ags){
   const rank=a=>didNotApply(a)?-1:Number(a.total)||0;
@@ -1324,6 +1436,428 @@ function toast(msg,err=false){
 }
 
 // ════════════════════════════════════════════════════
+// INTEGRAÇÃO COM A GESTÃO DE ATENDIMENTO
+// ════════════════════════════════════════════════════
+function normGestaoName(v){
+  return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+}
+const GESTAO_NAME_ALIASES={
+  'evelyn souza':'evelyn goncalves',
+  'julia almeda':'julia almeida',
+  'wiviane limiro':'wiviane borges',
+  'dhonleno freitas':'dhon freitas',
+};
+const AUDIT_MANUAL_VALIDATIONS={
+  '2026-06':{
+    'julia almeda':{nota:9.74,fonte:'NEPPO conferido manualmente'},
+    'marcelo santos':{nota:9.905,fonte:'NEPPO conferido manualmente'},
+  }
+};
+function findGestaoAgent(agents,selected){
+  const wanted=normGestaoName(selected);
+  if(!wanted)return null;
+  const keys=new Set([wanted,GESTAO_NAME_ALIASES[wanted]].filter(Boolean));
+  const exact=agents.find(a=>keys.has(normGestaoName(a.name)));
+  if(exact)return exact;
+  const first=wanted.split(' ')[0];
+  const byFirst=agents.filter(a=>normGestaoName(a.name).split(' ')[0]===first);
+  return byFirst.length===1?byFirst[0]:null;
+}
+function getGestaoBridge(){
+  try{
+    const p=window.parent&&window.parent!==window?window.parent:null;
+    if(!p)return null;
+    const read=name=>{
+      if(p[name]!==undefined)return p[name];
+      try{return p.eval(name);}catch(e){return undefined;}
+    };
+    const D=read('D');
+    const appM=read('appM');
+    if(D)return {win:p,read,D,appM:typeof appM==='number'?appM:null};
+  }catch(e){}
+  return null;
+}
+function ymToGestaoIndex(ym,D,appM){
+  if(ym){
+    const parts=String(ym).split('-');
+    const y=Number(parts[0]),m=Number(parts[1]);
+    if(y===2026&&m>=1&&m<=12)return m-1;
+    if(D?.mesNomes){
+      const idx=D.mesNomes.findIndex(n=>String(n).includes(String(y))&&normGestaoName(n).includes(normGestaoName(['','janeiro','fevereiro','marco','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'][m]||'')));
+      if(idx>=0)return idx;
+    }
+  }
+  if(appM!==null&&appM!==undefined)return appM;
+  if(Number(D?.focusIndex)>=0)return Number(D.focusIndex);
+  if(Number(D?.focusMonth)>0)return Number(D.focusMonth)-1;
+  return Math.max(0,(D?.mesNomes?.length||1)-1);
+}
+function gestaoYmFromIndex(D,idx){
+  const label=String(D?.mesNomes?.[idx]||'');
+  const year=(label.match(/\b(20\d{2})\b/)||[])[1]||'2026';
+  return `${year}-${String(idx+1).padStart(2,'0')}`;
+}
+function businessDaysOfMonth(ym){
+  const [y,m]=String(ym).split('-').map(Number);
+  if(!y||!m)return 22;
+  let count=0;
+  for(let d=new Date(y,m-1,1);d.getMonth()===m-1;d.setDate(d.getDate()+1)){
+    const wd=d.getDay();
+    if(wd!==0&&wd!==6)count++;
+  }
+  return count||22;
+}
+function gestaoAgentTeam(name,bridge){
+  const eq=getEq(name);
+  if(eq)return eq;
+  try{
+    const fn=bridge?.win?.bonusTeam||bridge?.read?.('bonusTeam');
+    const team=fn?.(name);
+    if(team)return team;
+  }catch(e){}
+  try{
+    const fn=bridge?.win?.agentNucleus||bridge?.read?.('agentNucleus');
+    const nuc=fn?.(name);
+    if(nuc==='Infraestrutura')return 'i';
+    if(nuc==='Engorda')return 'e';
+    if(nuc==='Reprodução'||nuc==='Reproducao'||nuc==='Reprodutivo')return 'r';
+  }catch(e){}
+  return '';
+}
+function gestaoAgentsForMonth(bridge,idx){
+  const D=bridge?.D||{};
+  const rows=(D.rows||[]).filter(r=>Array.isArray(r)&&Number(r[0])===idx+1);
+  const byRow={};
+  rows.forEach(r=>{
+    const name=r[2]||'Sem agente';
+    if(/^sem agente$/i.test(name)||/multisoft/i.test(name))return;
+    const key=normGestaoName(name);
+    if(!byRow[key])byRow[key]={name,ratings:[],tmeOver60:0,days:new Set()};
+    const day=String(r[1]??'').trim();
+    if(day)byRow[key].days.add(day);
+    if(r[6]!=null)byRow[key].ratings.push(Number(r[6]));
+    if(Number(r[5])>60)byRow[key].tmeOver60++;
+  });
+  return Object.entries(D.agentes||{}).map(([name,data])=>{
+    const month=Array.isArray(data)?data[idx]:null;
+    const total=Number(month?.[0])||0;
+    const aval=Number(month?.[1])||0;
+    const fromRows=byRow[normGestaoName(name)];
+    const rowCsat=fromRows?.ratings?.length?fromRows.ratings.reduce((s,v)=>s+v,0)/fromRows.ratings.length:0;
+    const csat=rowCsat||Number(month?.[2])||0;
+    const team=gestaoAgentTeam(name,bridge);
+    return {
+      name,total,aval,csat,team,
+      cov:total?aval/total:0,
+      tmeOver60:fromRows?.tmeOver60??null,
+      workedDays:fromRows?.days?.size||0,
+    };
+  }).filter(a=>a.total>0&&!/^sem agente$/i.test(a.name)&&!/multisoft/i.test(a.name));
+}
+function setGestaoStatus(msg,err=false){
+  const el=document.getElementById('gestao-import-status');
+  if(!el)return;
+  el.style.display='flex';
+  el.className='alert '+(err?'warn':'ok');
+  el.innerHTML=`<div class="a-icon">${err?'⚠':'✔'}</div><div class="a-body"><strong>${err?'Atenção':'Dados da Gestão aplicados'}</strong><p>${msg}</p></div>`;
+}
+const auditEsc=v=>String(v??'').replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+const auditClose=(a,b,tol)=>Math.abs((Number(a)||0)-(Number(b)||0))<=tol;
+function auditManualValidation(ym,name){
+  return AUDIT_MANUAL_VALIDATIONS[ym]?.[normGestaoName(name)]||null;
+}
+function savedAgentForGestao(month,gestaoAgent){
+  const probe=[{name:gestaoAgent.name}];
+  return (month?.agents||[]).find(a=>findGestaoAgent(probe,a.nome));
+}
+async function refreshGestaoTreatments(bridge){
+  const readFn=name=>{
+    try{return bridge?.win?.[name]||bridge?.read?.(name);}catch(e){return null;}
+  };
+  let remoteLoaded=false;
+  try{
+    const loadRemote=readFn('loadRemoteManualAdjustments');
+    if(typeof loadRemote==='function'){
+      await loadRemote.call(bridge.win);
+      remoteLoaded=true;
+    }
+  }catch(e){}
+  try{
+    const apply=readFn('applyManualAdjustments');
+    if(typeof apply==='function')apply.call(bridge.win);
+  }catch(e){}
+  try{bridge.D=bridge.read?.('D')||bridge.D;}catch(e){}
+  return remoteLoaded;
+}
+function gestaoTreatmentStats(bridge,idx){
+  const D=bridge?.D||{};
+  const raw=(D.rawRows||D.rows||[]).filter(r=>Array.isArray(r)&&Number(r[0])===idx+1);
+  const treated=(D.rows||[]).filter(r=>Array.isArray(r)&&Number(r[0])===idx+1);
+  const rawByProtocol=new Map(raw.map(r=>[String(r[7]||'').trim().toUpperCase(),r]));
+  const monthAdjustments=(D.manualAdjustments||[]).filter(a=>{
+    const r=rawByProtocol.get(String(a.protocolo||'').trim().toUpperCase());
+    return Array.isArray(r)&&Number(r[0])===idx+1;
+  });
+  return {
+    raw:raw.length,
+    treated:treated.length,
+    adjustments:monthAdjustments.length,
+    csatDiscarded:monthAdjustments.filter(a=>a.desconsiderarCsat===true||a.csat===null).length,
+    csatChanged:monthAdjustments.filter(a=>a.csat!==undefined&&a.csat!==''&&a.csat!==null&&!a.desconsiderarCsat).length,
+    ignored:monthAdjustments.filter(a=>a.ignorarAtendimento===true||a.ignorar===true).length,
+    timeChanged:monthAdjustments.filter(a=>a.tmaSec!==undefined||a.tmeSec!==undefined||a.desconsiderarTme===true).length,
+    autoTma:treated.filter(r=>r._tmaAutoCorrection).length,
+    autoTme:treated.filter(r=>r._tmeAutoCorrection).length,
+  };
+}
+function gestaoAgentCsatEvidence(bridge,idx,agentName){
+  const D=bridge?.D||{};
+  const sameAgent=r=>normGestaoName(r?.[2])===normGestaoName(agentName);
+  const proto=r=>String(r?.[7]||'').trim().toUpperCase();
+  const raw=(D.rawRows||D.rows||[]).filter(r=>Array.isArray(r)&&Number(r[0])===idx+1&&sameAgent(r));
+  const treated=(D.rows||[]).filter(r=>Array.isArray(r)&&Number(r[0])===idx+1&&sameAgent(r));
+  const treatedByProtocol=new Map(treated.map(r=>[proto(r),r]));
+  const counted=treated.filter(r=>r[6]!=null);
+  const lowCounted=counted.filter(r=>Number(r[6])<9).map(r=>`${proto(r)}=${Number(r[6]).toLocaleString('pt-BR')}`);
+  const lowDiscarded=raw.filter(r=>{
+    if(Number(r[6])>=9)return false;
+    const tr=treatedByProtocol.get(proto(r));
+    return !tr||tr[6]==null;
+  }).map(r=>`${proto(r)}=${Number(r[6]).toLocaleString('pt-BR')}`);
+  return {counted:counted.length,raw:raw.length,lowCounted,lowDiscarded};
+}
+function auditSavedAgentAgainstGestao(saved,gestaoAgent,issues,manualOk,ym,evidence){
+  const name=saved.nome;
+  const nota=Number(saved.nota)||0;
+  const vol=Number(saved.volume)||0;
+  const avalPct=Number(saved.avalPct)||0;
+  const csat=Number(gestaoAgent.csat)||0;
+  const covPct=(Number(gestaoAgent.cov)||0)*100;
+  const valid=auditManualValidation(ym,name);
+  if(valid){
+    if(auditClose(nota,valid.nota,0.011)){
+      const low=evidence?.lowCounted?.length?` Ainda contam nota baixa: ${evidence.lowCounted.slice(0,6).join(', ')}.`:' Nenhuma nota baixa abaixo de 9 está contando na média tratada.';
+      const discarded=evidence?.lowDiscarded?.length?` Já desconsiderado: ${evidence.lowDiscarded.slice(0,6).join(', ')}.`:'';
+      manualOk.push(`${name}: nota ${nota.toFixed(3)} validada por ${valid.fonte}; Gestão tratada está ${csat.toFixed(3)}.${low}${discarded}`);
+    }else{
+      issues.push(`${name}: nota salva ${nota.toFixed(3)} difere da validação ${valid.fonte} (${Number(valid.nota).toFixed(3)}).`);
+    }
+  }else if(csat&&!auditClose(nota,csat,0.006)){
+      const low=evidence?.lowCounted?.length?` Notas baixas ainda contadas: ${evidence.lowCounted.slice(0,6).join(', ')}.`:'';
+      issues.push(`${name}: nota salva ${nota.toFixed(3)} difere da Gestão tratada ${csat.toFixed(3)}.${low}`);
+  }
+  if(!auditClose(vol,gestaoAgent.total,0)){
+    issues.push(`${name}: volume salvo ${vol} difere da Gestão tratada ${gestaoAgent.total}.`);
+  }
+  if(covPct&&!auditClose(avalPct,covPct,0.15)){
+    issues.push(`${name}: % avaliado salvo ${avalPct.toFixed(1)}% difere da Gestão tratada ${covPct.toFixed(1)}%.`);
+  }
+  const recalc=calcBonus(saved);
+  if(!auditClose(saved.total,recalc.total,0.01)){
+    issues.push(`${name}: total salvo ${R(saved.total)} difere do recálculo ${R(recalc.total)}.`);
+  }
+  const savedNota=saved.breakdown?.find(r=>r.l==='Nota de Satisfação')?.v;
+  const calcNota=recalc.rows?.find(r=>r.l==='Nota de Satisfação')?.v;
+  if(savedNota!==undefined&&calcNota!==undefined&&!auditClose(savedNota,calcNota,0.01)){
+    issues.push(`${name}: faixa de nota salva ${R(savedNota)} difere do recálculo ${R(calcNota)}.`);
+  }
+  const obs=String(saved.obs||'');
+  if((saved.equipe==='r'||saved.equipe==='e')&&Number(saved.demandas)>0&&!/(redmine|demanda|indevida|\b\d{4,}\b)/i.test(obs)){
+    issues.push(`${name}: demanda indevida lançada sem protocolo/evidência na observação.`);
+  }
+  if(/demanda\s+indevida/i.test(obs)&&!(Number(saved.demandas)>0)){
+    issues.push(`${name}: observação cita demanda indevida, mas o campo Demandas está zerado.`);
+  }
+}
+function applyAuditManualValidations(ym){
+  const vals=AUDIT_MANUAL_VALIDATIONS[ym];
+  const month=DB.months?.[ym];
+  if(!vals||!month?.agents?.length){
+    toast('Sem validações manuais para aplicar neste mês.',true);
+    return false;
+  }
+  let changed=0;
+  month.agents.forEach(a=>{
+    const valid=vals[normGestaoName(a.nome)];
+    if(!valid)return;
+    if(!auditClose(a.nota,valid.nota,0.001)){
+      a.nota=Number(valid.nota);
+      const recalc=calcBonus(a);
+      a.total=recalc.total;
+      a.breakdown=recalc.rows;
+      changed++;
+    }
+  });
+  if(!changed){
+    toast('Validações NEPPO já estavam aplicadas.');
+    return false;
+  }
+  month.total=Math.round(month.agents.reduce((s,a)=>s+(Number(a.total)||0),0)*100)/100;
+  save();
+  renderCurList();
+  updSels();
+  toast(`${changed} validação(ões) NEPPO aplicada(s).`);
+  auditGestaoClosing();
+  return true;
+}
+async function auditGestaoClosing(){
+  const bridge=getGestaoBridge();
+  if(!bridge){
+    setGestaoStatus('Abra a Bonificação dentro da Gestão para auditar com as linhas tratadas, ajustes manuais e CSAT desconsiderado.',true);
+    toast('Auditoria precisa da Gestão aberta.',true);
+    return false;
+  }
+  setGestaoStatus('Auditando fechamento com a base tratada da Gestão...',false);
+  const remoteLoaded=await refreshGestaoTreatments(bridge);
+  const D=bridge.D||{};
+  const ym=gv('f-mes')||gestaoYmFromIndex(D,ymToGestaoIndex('',D,bridge.appM));
+  const idx=ymToGestaoIndex(ym,D,bridge.appM);
+  const month=monthObj(ym);
+  if(idx<0||!month?.agents?.length){
+    setGestaoStatus('Mês sem fechamento salvo para auditar. Selecione o mês correto e salve os lançamentos antes da conferência final.',true);
+    return false;
+  }
+  const agents=gestaoAgentsForMonth(bridge,idx);
+  const stats=gestaoTreatmentStats(bridge,idx);
+  const issues=[];
+  const manualOk=[];
+  const checked=[];
+  (month.agents||[]).forEach(saved=>{
+    if(saved.equipe==='x'||didNotApply(saved))return;
+    const ga=findGestaoAgent(agents,saved.nome);
+    if(!ga){
+      issues.push(`${saved.nome}: não encontrei correspondente na Gestão tratada para validar nota/volume.`);
+      return;
+    }
+    checked.push(saved.nome);
+    const evidence=gestaoAgentCsatEvidence(bridge,idx,ga.name);
+    auditSavedAgentAgainstGestao(saved,ga,issues,manualOk,ym,evidence);
+  });
+  agents.filter(a=>['r','e','i'].includes(a.team)).forEach(ga=>{
+    if(!savedAgentForGestao(month,ga)){
+      issues.push(`${ga.name}: existe na Gestão tratada (${ga.total} atend.) e não está no fechamento salvo.`);
+    }
+  });
+  const cls=issues.length?'warn':'ok';
+  const icon=issues.length?'⚠':'✔';
+  const title=issues.length?'Auditoria encontrou pontos para revisar':'Auditoria aprovada para fechamento';
+  const lines=[
+    `Mês ${ML(ym)} · ${checked.length} colaborador(es) conferidos.`,
+    `Gestão tratada: ${stats.treated}/${stats.raw} atendimento(s) após tratamentos.`,
+    `Ajustes aplicados: ${stats.adjustments} · CSAT desconsiderado ${stats.csatDiscarded} · CSAT corrigido ${stats.csatChanged} · atendimento ignorado ${stats.ignored} · TMA/TE ${stats.timeChanged}.`,
+    `Correções automáticas: TMA ${stats.autoTma} · TE/TME ${stats.autoTme}.`,
+    remoteLoaded?'Ajustes remotos sincronizados antes da auditoria.':'Auditoria executada com os ajustes disponíveis nesta janela.'
+  ];
+  const issueHtml=issues.length
+    ? `<ul style="margin:8px 0 0 16px;padding:0;font-size:12px;line-height:1.55">${issues.slice(0,12).map(i=>`<li>${auditEsc(i)}</li>`).join('')}${issues.length>12?`<li>+${issues.length-12} ponto(s) adicional(is).</li>`:''}</ul>`
+    : '<div style="margin-top:8px;font-size:12px;color:var(--g1);font-weight:700">Nota, volume, % avaliado, total recalculado e demandas com evidência conferidos.</div>';
+  const manualHtml=manualOk.length
+    ? `<div style="margin-top:8px;font-size:12px;color:var(--g1);font-weight:700">Validações manuais aceitas</div><ul style="margin:4px 0 0 16px;padding:0;font-size:12px;line-height:1.55">${manualOk.map(i=>`<li>${auditEsc(i)}</li>`).join('')}</ul>`
+    : '';
+  const manualAction=AUDIT_MANUAL_VALIDATIONS[ym]
+    ? `<div style="margin-top:10px"><button class="btn bp bsm" onclick="applyAuditManualValidations('${auditEsc(ym)}')">Aplicar validações NEPPO</button></div>`
+    : '';
+  const el=document.getElementById('gestao-import-status');
+  if(el){
+    el.style.display='flex';
+    el.className='alert '+cls;
+    el.innerHTML=`<div class="a-icon">${icon}</div><div class="a-body"><strong>${title}</strong><p>${lines.map(auditEsc).join('<br>')}</p>${manualHtml}${issueHtml}${manualAction}</div>`;
+  }
+  toast(issues.length?'Auditoria encontrou pontos para revisar.':'Auditoria aprovada.');
+  return !issues.length;
+}
+function applyCheck(id,value){
+  const el=document.getElementById(id);
+  if(!el)return;
+  el.checked=!!value;
+  el.closest('.ck')?.classList.toggle('on',!!value);
+}
+function useGestaoData(opts={}){
+  const quiet=!!opts.quiet;
+  const bridge=getGestaoBridge();
+  if(!bridge){
+    if(!quiet){
+      toast('Abra a Bonificação dentro da Gestão para usar os dados automáticos.',true);
+      setGestaoStatus('Não encontrei a base da Gestão nesta janela. Abra pelo menu Bonificação do sistema.',true);
+    }
+    return false;
+  }
+  const D=bridge.D;
+  const idx=ymToGestaoIndex(gv('f-mes'),D,bridge.appM);
+  if(idx<0||idx>=(D.mesNomes||[]).length){
+    if(!quiet)toast('Mês não encontrado na Gestão.',true);
+    return false;
+  }
+  const ym=gestaoYmFromIndex(D,idx);
+  const agents=gestaoAgentsForMonth(bridge,idx);
+  if(!agents.length){
+    if(!quiet){
+      toast('Sem atendimentos consolidados para este mês.',true);
+      setGestaoStatus('A Gestão não possui atendimentos consolidados para o mês selecionado.',true);
+    }
+    return false;
+  }
+
+  const du=businessDaysOfMonth(ym);
+  const sup=agents.filter(a=>a.team==='r'||a.team==='e');
+  const inf=agents.filter(a=>a.team==='i');
+  const avgCov=(Number(D.cobert?.[idx])||0)*100 || (agents.reduce((s,a)=>s+a.aval,0)/Math.max(1,agents.reduce((s,a)=>s+a.total,0))*100);
+
+  document.getElementById('f-mes').value=ym;
+  document.getElementById('f-du').value=du;
+  document.getElementById('f-avm').value=avgCov?avgCov.toFixed(1):'';
+  document.getElementById('f-vt-sup').value=sup.reduce((s,a)=>s+a.total,0)||'';
+  document.getElementById('f-nag-sup').value=sup.length||'';
+  document.getElementById('f-vt-inf').value=inf.reduce((s,a)=>s+a.total,0)||'';
+  document.getElementById('f-nag-inf').value=inf.length||'';
+
+  const selected=gv('f-nome');
+  let agent=null;
+  if(selected)agent=findGestaoAgent(agents,selected);
+  const fdt=document.getElementById('f-dt');
+  if(fdt){
+    delete fdt.dataset.gestaoWorkedDays;
+    delete fdt.dataset.gestaoWorkedName;
+  }
+  if(opts.requireAgent&&!agent)return false;
+  if(agent){
+    document.getElementById('f-equipe').value=agent.team||getEq(agent.name)||'';
+    document.getElementById('f-vol').value=agent.total||'';
+    document.getElementById('f-avp').value=agent.cov?Number(agent.cov*100).toFixed(1):'';
+    document.getElementById('f-nota').value=agent.csat?Number(agent.csat).toFixed(3):'';
+    if(fdt){
+      const workedDays=Number(agent.workedDays)||0;
+      fdt.value=workedDays||du;
+      if(workedDays){
+        fdt.dataset.gestaoWorkedDays=String(workedDays);
+        fdt.dataset.gestaoWorkedName=agent.name;
+      }
+    }
+    if((agent.team==='r'||agent.team==='e')&&agent.tmeOver60!==null)applyCheck('cb0',agent.tmeOver60===0);
+    const hn=document.getElementById('h-nome');
+    if(hn&&agent.team){hn.textContent='Equipe: '+EQL[agent.team];hn.className='hint hok';}
+  }
+
+  syncMes();
+  calc();
+  const detail=agent
+    ? `${agent.name}: ${agent.total} atendimentos em ${agent.workedDays||du} dia(s), ${agent.aval} avaliações, cobertura ${(agent.cov*100).toFixed(1)}% e CSAT ${agent.csat?agent.csat.toFixed(3):'—'}.`
+    : `Mês ${D.mesNomes[idx]} preenchido. Selecione um colaborador e clique novamente para preencher os indicadores individuais.`;
+  setGestaoStatus(`${detail} Conferir atividades, demandas indevidas e extras antes de salvar.`);
+  if(!quiet)toast(agent?'Dados do colaborador aplicados.':'Dados do mês aplicados.');
+  return true;
+}
+function resetGestaoData(){
+  clrFields();
+  ['f-du','f-avm','f-vt-sup','f-nag-sup','f-vt-inf','f-nag-inf'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['h-vt-sup','h-nag-sup','h-vt-inf','h-nag-inf','h-avm'].forEach(id=>{const el=document.getElementById(id);if(el){el.textContent='';el.className='hint hmut';}});
+  const st=document.getElementById('gestao-import-status');
+  if(st){st.style.display='none';st.innerHTML='';}
+  calc();
+  toast('Preenchimento resetado para lançamento manual.');
+}
+
+// ════════════════════════════════════════════════════
 // FORM
 // ════════════════════════════════════════════════════
 function togCk(id){const el=document.getElementById(id);el.checked=!el.checked;el.closest('.ck').classList.toggle('on',el.checked);calc();}
@@ -1350,6 +1884,7 @@ function onNomeChange(){
     hn.textContent='Colaborador não encontrado no cadastro — verifique';
     hn.className='hint hwarn';
   }
+  if(nome&&useGestaoData({quiet:true,requireAgent:true}))return;
   calc();
 }
 
@@ -1397,8 +1932,14 @@ function calc(){
   if(du){hdu.textContent=du+' dias úteis';hdu.className='hint hmut';}
 
   const hdt=document.getElementById('h-dt');
+  const dtEl=document.getElementById('f-dt');
+  const autoWorkedDays=Number(dtEl?.dataset?.gestaoWorkedDays)||0;
   if(dt&&du){
-    if(dt<du){hdt.textContent=`⚠ Proporcional: ${dt}/${du} = ${(dt/du*100).toFixed(0)}%`;hdt.className='hint hwarn';}
+    if(autoWorkedDays&&dt===autoWorkedDays){
+      if(dt<du){hdt.textContent=`Gestão: ${dt} dia(s) com atendimento (${(dt/du*100).toFixed(0)}% do mês útil)`;hdt.className='hint hwarn';}
+      else{hdt.textContent=`Gestão: ${dt} dia(s) com atendimento`;hdt.className='hint hok';}
+    }
+    else if(dt<du){hdt.textContent=`⚠ Proporcional: ${dt}/${du} = ${(dt/du*100).toFixed(0)}%`;hdt.className='hint hwarn';}
     else{hdt.textContent='Mês integral ✓';hdt.className='hint hok';}
   }
 
@@ -1553,6 +2094,11 @@ function saveAg(){
 
 function clrFields(){
   ['f-nota','f-vol','f-dem','f-ati','f-dt','f-obs','f-avp'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const fdt=document.getElementById('f-dt');
+  if(fdt){
+    delete fdt.dataset.gestaoWorkedDays;
+    delete fdt.dataset.gestaoWorkedName;
+  }
   // Note: f-du, f-vt-sup, f-vt-inf, f-nag-sup, f-nag-inf are month-level — keep them across agents
   ['f-up','f-dia'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='0';});
   ['f-extra','f-equipe-extra'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='0';});
@@ -1645,7 +2191,7 @@ function renderCurList(){
 // ════════════════════════════════════════════════════
 function genInsights(mes,ags,tot,delta,prevTot,tms,prev){
   var ins=[];
-  var prevM=prev?DB.months[prev]:null;
+  var prevM=prev?monthObj(prev):null;
   var prevLabel=prev?ML(prev):'anterior';
   if(delta!==null){
     var pct=(delta/prevTot*100).toFixed(1);
@@ -1703,7 +2249,7 @@ function renderExec(){
   if(!mes||!DB.months[mes])return;
   const m=DB.months[mes];
   const ags=[...m.agents].sort((a,b)=>b.total-a.total);
-  const prev=prevMes(mes);const prevM=prev?DB.months[prev]:null;
+  const prev=prevMes(mes);const prevM=prev?monthObj(prev):null;
   const tot=m.total||ags.reduce((s,a)=>s+a.total,0);
   const prevTot=prevM?(prevM.total||prevM.agents.reduce((s,a)=>s+a.total,0)):null;
   const delta=prevTot!==null?tot-prevTot:null;
@@ -1826,7 +2372,7 @@ function renderDash(){
   if(!mes||!DB.months[mes]){document.getElementById('dash-empty').style.display='block';document.getElementById('dash-content').style.display='none';return;}
   document.getElementById('dash-empty').style.display='none';document.getElementById('dash-content').style.display='block';
   const m=DB.months[mes];const ags=[...m.agents].sort((a,b)=>b.total-a.total);
-  const prev=prevMes(mes);const prevM=prev?DB.months[prev]:null;
+  const prev=prevMes(mes);const prevM=prev?monthObj(prev):null;
   const co={responsive:true,maintainAspectRatio:false};
   const font={family:'Inter',size:10};const tc='#7a9b87';const gc2='#ecf5ef';
 
@@ -1942,7 +2488,7 @@ function gerarPDF(origem='auto'){
   const ags=[...m.agents].sort((a,b)=>b.total-a.total);
   const tot=m.total||ags.reduce((s,a)=>s+a.total,0);
   const prev=prevMes(mes);
-  const prevM=prev?DB.months[prev]:null;
+  const prevM=prev?monthObj(prev):null;
   const prevTot=prevM?(prevM.total||prevM.agents.reduce((s,a)=>s+a.total,0)):null;
   const delta=prevTot!==null?tot-prevTot:null;
   const tms={r:0,e:0,i:0,x:0};
@@ -2020,7 +2566,8 @@ body{font-family:'Inter',sans-serif;color:#0d1f16;font-size:10.5px;background:#f
 h2{font-family:'Georgia',serif;font-size:20px;font-weight:700;color:#245f3f}
 .hm{text-align:right;font-size:11px;color:#7a9b87}
 .hm strong{display:block;font-size:16px;font-weight:600;color:#2e7d52;font-family:'Courier New',monospace}
-.sec{margin-bottom:16px;page-break-inside:avoid}
+.sec{margin-bottom:16px}
+.avoid{page-break-inside:avoid;break-inside:avoid}
 .sec-t{font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.8px;color:#0f6b3d;margin-bottom:12px;padding:8px 10px 7px;border-left:5px solid #2e7d52;border-bottom:1px solid #c3dece;background:#f2faf5}
 .krow{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
 .kpi{background:#f2faf5;border:1px solid #dae8e0;border-radius:8px;padding:12px}
@@ -2028,9 +2575,21 @@ h2{font-family:'Georgia',serif;font-size:20px;font-weight:700;color:#245f3f}
 .kv{font-size:15px;font-weight:600;color:#245f3f;font-family:'Courier New',monospace}
 .ks{font-size:10px;color:#7a9b87;margin-top:3px}
 table{width:100%;border-collapse:collapse;font-size:10px;table-layout:fixed}
+table.individual-table{page-break-inside:auto;break-inside:auto}
+table.individual-table th:nth-child(1){width:3%}
+table.individual-table th:nth-child(2){width:13%}
+table.individual-table th:nth-child(3){width:11%}
+table.individual-table th:nth-child(4){width:10%}
+table.individual-table th:nth-child(5){width:10%}
+table.individual-table th:nth-child(6){width:8%}
+table.individual-table th:nth-child(7){width:10%}
+table.individual-table th:nth-child(8){width:20%}
+table.individual-table th:nth-child(9){width:8%}
+table.individual-table th:nth-child(10){width:7%}
 thead tr{background:#f2faf5}
 th{padding:6px 6px;text-align:left;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:#2e7d52;border-bottom:1px solid #dae8e0}
 td{padding:6px 6px;border-bottom:1px solid #ecf5ef;word-break:normal;overflow-wrap:anywhere}
+tr{page-break-inside:avoid;break-inside:avoid}
 tbody tr:last-child td{border-bottom:none}
 .tfoot{background:#f2faf5}
 .tfoot td{font-weight:700;color:#245f3f;border-top:2px solid #2e7d52!important;font-family:'Courier New',monospace}
@@ -2054,7 +2613,7 @@ tbody tr:last-child td{border-bottom:none}
 .vok{color:#1a7a3a;font-weight:700}.verr{color:#c0392b;font-weight:700}
 .footer{margin-top:32px;padding-top:14px;border-top:1px solid #dae8e0;display:flex;justify-content:space-between;font-size:10px;color:#7a9b87}
 .sign{border-top:1px solid #c3dece;width:220px;padding-top:5px;font-size:10px;color:#245f3f;margin-top:42px;text-align:center;font-weight:700}.sign span{display:block;color:#7a9b87;font-weight:500;margin-top:2px}
-@media print{body{padding:0}button{display:none!important}.sec{break-inside:avoid}}`;
+@media print{body{padding:0}button{display:none!important}thead{display:table-header-group}.individual-sec{page-break-inside:auto;break-inside:auto}}`;
 
   let doc='<!DOCTYPE html><html><head><meta charset="UTF-8">';
   doc+='<title>Fechamento CS — '+ML(mes)+'</title>';
@@ -2086,8 +2645,8 @@ tbody tr:last-child td{border-bottom:none}
   }
 
   // Individuais
-  doc+='<div class="sec"><div class="sec-t">Valores Individuais — '+ML(mes)+'</div>';
-  doc+='<table><thead><tr><th>#</th><th>Colaborador</th><th>Equipe</th><th>Nota<br><span class="mini">Meta / Realizado</span></th><th>Volume<br><span class="mini">Meta / Realizado</span></th><th>% Aval.</th><th>Ativ.<br><span class="mini">Meta / Realizado</span></th><th>Obs</th><th>Δ vs '+prevLabel+'</th><th>Total</th></tr></thead>';
+  doc+='<div class="sec individual-sec"><div class="sec-t">Valores Individuais — '+ML(mes)+'</div>';
+  doc+='<table class="individual-table"><thead><tr><th>#</th><th>Colaborador</th><th>Equipe</th><th>Nota<br><span class="mini">Meta / Realizado</span></th><th>Volume<br><span class="mini">Meta / Realizado</span></th><th>% Aval.</th><th>Ativ.<br><span class="mini">Meta / Realizado</span></th><th>Obs</th><th>Δ individual vs '+prevLabel+'</th><th>Total</th></tr></thead>';
   doc+='<tbody>'+agRows+'</tbody>';
   doc+='<tfoot class="tfoot"><tr><td colspan="9" style="text-align:right;padding-right:14px">Total Geral</td><td class="tval" style="font-size:14px">'+R(tot)+'</td></tr></tfoot>';
   doc+='</table></div>';
@@ -2132,7 +2691,7 @@ function gerarPDFAgentes(mesArg='',idArg=null){
   saveMonthNotes();
   const m=DB.months[mes];
   const prev=prevMes(mes);
-  const prevM=prev?DB.months[prev]:null;
+  const prevM=prev?monthObj(prev):null;
   const now=new Date();
   const emitDate=now.toLocaleDateString('pt-BR');
   const emitTime=now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
@@ -2342,7 +2901,7 @@ function expCSV(){
   dl('bonificacao_cs.csv',csv,'text/csv');toast('CSV exportado!');
 }
 function expJSON(){saveMonthNotes();dl('bonificacao_backup.json',JSON.stringify(DB,null,2),'application/json');toast('Backup exportado!');}
-function impJSON(inp){const r=new FileReader();r.onload=e=>{try{const i=JSON.parse(e.target.result);if(!i.months)throw 0;if(!i.rules)i.rules=ruleClone();DB=i;save();renderAll();toast('Backup importado!');}catch{toast('Arquivo inválido.',true);}};r.readAsText(inp.files[0]);}
+function impJSON(inp){const r=new FileReader();r.onload=e=>{try{const i=JSON.parse(e.target.result);if(!i.months)throw 0;if(!i.rules)i.rules=ruleClone();const added=ensureSeedMonths(i);DB=i;save();renderAll();toast(added?'Backup importado e histórico oficial completado!':'Backup importado!');}catch{toast('Arquivo inválido.',true);}};r.readAsText(inp.files[0]);}
 function dl(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();}
 
 // ════════════════════════════════════════════════════
@@ -2379,6 +2938,5 @@ function renderAll(){loadRulesForm();updSels();loadMonthNotes();renderExec();ren
 </script>
 </body>
 </html>
-
 
 

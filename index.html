@@ -1062,8 +1062,8 @@ canvas{cursor:pointer;}
   <div class="fbar">
     <span class="fl">Recorte:</span>
     <select class="fs" id="flux-scope" onchange="renderFluxMonth(appM)">
-      <option value="month">Mês inteiro</option>
       <option value="week">Semana selecionada</option>
+      <option value="month">Mês inteiro</option>
       <option value="day">Dia selecionado</option>
     </select>
     <span class="fl flux-week-filter" style="margin-left:8px;display:none;">Semana:</span>
@@ -340061,7 +340061,7 @@ function syncFluxWeekOptions(m,days){
 }
 function renderFluxMonth(m){
   const pack=bm(m), dowLabels=['Seg','Ter','Qua','Qui','Sex'];
-  const scope=$('flux-scope')?.value||'month';
+  const scope=$('flux-scope')?.value||'week';
   const daySel=$('flux-day');
   document.querySelectorAll('.flux-week-filter').forEach(el=>{el.style.display=scope==='week'?'':'none';});
   document.querySelectorAll('.flux-day-filter').forEach(el=>{el.style.display=scope==='day'?'':'none';});
@@ -340111,8 +340111,10 @@ function renderFluxMonth(m){
   $('flux-grp-v').textContent=gTop?(gTop.g.length>13?gTop.g.slice(0,13)+'...':gTop.g):'—';
   const hdMx=Math.max(1,...hourDow.flatMap(r=>r));
   const heatColor=v=>{const p=v/hdMx;return p<.1?'#eef1e9':p<.25?'#c8dece':p<.5?'#9ec4a8':p<.75?'#4f8562':'#3d6b47';};
-  let hh=`<div class="hour-row">${['<div style="width:28px"></div>',...dowLabels.map(d=>`<div class="dow-lbl">${d}</div>`)].join('')}</div>`;
-  hourDow.forEach((row,hi)=>{hh+=`<div class="hour-row"><div class="hour-lbl">${D.hours[hi]}h</div>${row.map((v,di)=>`<div class="hour-cell" data-hour="${D.hours[hi]}" data-dow="${di}" style="background:${heatColor(v)};cursor:pointer" title="${dowLabels[di]} ${D.hours[hi]}h: ${v} atend."><span style="font-family:'Geist Mono',monospace;font-size:.55rem;color:${v>hdMx*.5?'#fff':'#2d5038'};pointer-events:none">${v}</span></div>`).join('')}</div>`;});
+  const activeDowIndexes=dowLabels.map((_,i)=>i).filter(i=>hourDow.some(row=>row[i]>0));
+  const heatDowIndexes=(scope==='month'||!activeDowIndexes.length)?dowLabels.map((_,i)=>i):activeDowIndexes;
+  let hh=`<div class="hour-row">${['<div style="width:28px"></div>',...heatDowIndexes.map(i=>`<div class="dow-lbl">${dowLabels[i]}</div>`)].join('')}</div>`;
+  hourDow.forEach((row,hi)=>{hh+=`<div class="hour-row"><div class="hour-lbl">${D.hours[hi]}h</div>${heatDowIndexes.map(di=>{const v=row[di]||0;return`<div class="hour-cell" data-hour="${D.hours[hi]}" data-dow="${di}" style="background:${heatColor(v)};cursor:pointer" title="${dowLabels[di]} ${D.hours[hi]}h: ${v} atend."><span style="font-family:'Geist Mono',monospace;font-size:.55rem;color:${v>hdMx*.5?'#fff':'#2d5038'};pointer-events:none">${v}</span></div>`;}).join('')}</div>`;});
   $('hour-heatmap').innerHTML=hh;
   $('hour-heatmap').querySelectorAll('.hour-cell').forEach(cell=>cell.onclick=()=>{const hour=Number(cell.dataset.hour),dow=Number(cell.dataset.dow);chartDrill(`${dowLabels[dow]} · ${hour}h`,`${D.mesNomes[m]} · ${scopeLabel}`,scopedRows.filter(r=>{const dt=parseBrDate(r[10]||'');if(!dt)return false;const jsDow=new Date(dt).getDay(), rowDow=jsDow===0?6:jsDow-1;return Number(r[9])===hour&&rowDow===dow;}));});
   const hourTotals=hourDow.map(r=>r.reduce((s,v)=>s+v,0));

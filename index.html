@@ -340410,7 +340410,7 @@ function dashboardNumbersSignature(data){
   const focusMonth=Number(data.focusMonth||0);
   const statusRows=rows
     .filter(r=>Array.isArray(r)&&(!focusMonth||Number(r[0])===focusMonth))
-    .map(r=>[r[7]||'',r[10]||'',r[11]||'',r[15]||'',r[4]||0,r[5]||0,r[6]??null])
+    .map(r=>[r[7]||'',r[10]||'',r[11]||'',r[15]||'',r[13]||'',r[18]||'',r[4]||0,r[5]||0,r[6]??null])
     .sort((a,b)=>String(a[0]).localeCompare(String(b[0])));
   return JSON.stringify({atend:data.atend||[],open:data.open||[],closed:data.closed||[],aval:data.aval||[],focusMonth,rowCount:rows.length,statusRows});
 }

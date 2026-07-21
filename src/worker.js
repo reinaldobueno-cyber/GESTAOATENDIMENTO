@@ -13,6 +13,8 @@ const NEPPO_LIVE_STALE_MS = 30 * 60 * 1000;
 const NEPPO_LIVE_KV_EXPIRATION_TTL = 2 * 24 * 60 * 60;
 const NEPPO_LIVE_HISTORY_ENRICH_LIMIT = 60;
 const NEPPO_LIVE_HISTORY_ENRICH_CONCURRENCY = 4;
+const NEPPO_CONTACT_CACHE_KEY = 'neppo-attendance-contact-cache-v1';
+const NEPPO_CONTACT_CACHE_MAX_ITEMS = 8000;
 const NEPPO_BUSINESS_START_HOUR = 8;
 const NEPPO_BUSINESS_END_HOUR = 18;
 const DASHBOARD_RELEASE_MARKER = 'gestaoatendimento-20260720-release-guard';
@@ -621,6 +623,15 @@ async function getAttendanceHistoryData(protocol, env) {
       },
     };
   }
+  const info = conversationInfoFromMessages(history.messages || []);
+  if (info.caller || info.phone) {
+    await mergeNeppoContactCache(env, [{
+      protocol,
+      sessionId,
+      user: info.caller,
+      phone: info.phone,
+    }]).catch(() => null);
+  }
 
   return {
     status: 200,
@@ -628,6 +639,7 @@ async function getAttendanceHistoryData(protocol, env) {
       ok: true,
       protocol,
       sessionId,
+      contactInfo: info,
       messages: history.messages || [],
       text: history.text || '',
     },
@@ -936,6 +948,129 @@ function conversationInfoFromMessages(messages) {
   return info;
 }
 
+function normalizeNeppoContactProtocol(value) {
+  const protocol = String(value || '').trim().toUpperCase();
+  return /^(WA|VC)\d{8,}$/.test(protocol) ? protocol : '';
+}
+
+function neppoContactUserFromRow(row) {
+  if (!Array.isArray(row)) return '';
+  const direct = String(row[18] || '').trim();
+  if (direct && !isGenericNeppoCaller(direct)) return direct;
+  const parts = splitNeppoClientName(row[12] || '');
+  return parts.usuario && !isGenericNeppoCaller(parts.usuario) ? parts.usuario : '';
+}
+
+function neppoContactEntryFromRow(row) {
+  if (!Array.isArray(row)) return null;
+  const protocol = normalizeNeppoContactProtocol(row[7]);
+  if (!protocol) return null;
+  const phone = neppoPhoneFromValues(row[13], row[14], row[23]);
+  const user = neppoContactUserFromRow(row);
+  if (!phone && !user) return null;
+  return {
+    protocol,
+    user,
+    phone,
+    sessionId: Number(row[16] || 0) || '',
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function normalizeNeppoContactEntry(entry = {}) {
+  const protocol = normalizeNeppoContactProtocol(entry.protocol || entry.protocolo);
+  if (!protocol) return null;
+  const user = String(entry.user || entry.usuario || '').trim();
+  const phone = neppoPhoneFromValues(entry.phone || entry.telefone);
+  if (!user && !phone) return null;
+  return {
+    protocol,
+    user: user && !isGenericNeppoCaller(user) ? user : '',
+    phone,
+    sessionId: Number(entry.sessionId || entry.session_id || 0) || '',
+    updatedAt: String(entry.updatedAt || entry.updated_at || new Date().toISOString()),
+  };
+}
+
+async function readNeppoContactCache(env) {
+  if (!env.ADJUSTMENTS) return { items: {} };
+  const stored = await env.ADJUSTMENTS.get(NEPPO_CONTACT_CACHE_KEY, 'json').catch(() => null);
+  const items = stored && typeof stored.items === 'object' && stored.items ? stored.items : {};
+  return { items };
+}
+
+async function writeNeppoContactCache(env, cache) {
+  if (!env.ADJUSTMENTS) return false;
+  const items = cache && typeof cache.items === 'object' && cache.items ? cache.items : {};
+  const limited = Object.fromEntries(
+    Object.entries(items)
+      .sort((a, b) => String(b[1]?.updatedAt || '').localeCompare(String(a[1]?.updatedAt || '')))
+      .slice(0, NEPPO_CONTACT_CACHE_MAX_ITEMS),
+  );
+  await env.ADJUSTMENTS.put(NEPPO_CONTACT_CACHE_KEY, JSON.stringify({ items: limited, updatedAt: new Date().toISOString() }));
+  return true;
+}
+
+async function mergeNeppoContactCache(env, entries = []) {
+  const normalized = entries.map(normalizeNeppoContactEntry).filter(Boolean);
+  if (!normalized.length || !env.ADJUSTMENTS) return { ok: false, saved: 0, cache: await readNeppoContactCache(env) };
+  const cache = await readNeppoContactCache(env);
+  let saved = 0;
+  for (const entry of normalized) {
+    const current = cache.items[entry.protocol] || {};
+    const next = {
+      protocol: entry.protocol,
+      user: entry.user || current.user || '',
+      phone: entry.phone || current.phone || '',
+      sessionId: entry.sessionId || current.sessionId || '',
+      updatedAt: new Date().toISOString(),
+    };
+    if ((next.user && next.user !== current.user) || (next.phone && next.phone !== current.phone) || (!current.protocol && (next.user || next.phone))) {
+      cache.items[entry.protocol] = next;
+      saved += 1;
+    }
+  }
+  if (saved) await writeNeppoContactCache(env, cache);
+  return { ok: true, saved, total: Object.keys(cache.items).length, cache };
+}
+
+async function persistNeppoContactRows(env, rows = []) {
+  return mergeNeppoContactCache(env, rows.map(neppoContactEntryFromRow).filter(Boolean));
+}
+
+function applyNeppoContactCacheToRows(data, cache) {
+  if (!data || !Array.isArray(data.rows) || !cache?.items) return 0;
+  let changed = 0;
+  for (const row of data.rows) {
+    if (!Array.isArray(row)) continue;
+    const protocol = normalizeNeppoContactProtocol(row[7]);
+    const item = protocol ? cache.items[protocol] : null;
+    if (!item) continue;
+    if (!row[13] && item.phone) {
+      row[13] = item.phone;
+      changed += 1;
+    }
+    if ((!row[18] || isGenericNeppoCaller(row[18])) && item.user) {
+      row[18] = item.user;
+      changed += 1;
+    }
+  }
+  return changed;
+}
+
+async function withNeppoContactCache(env, body) {
+  if (!body?.data || !env.ADJUSTMENTS) return body;
+  const next = cloneDashboardDataForWorker(body);
+  const cache = await readNeppoContactCache(env);
+  const applied = applyNeppoContactCacheToRows(next.data, cache);
+  if (applied) {
+    recalculateDashboardMetricsFromRows(next.data);
+    next.signature = dashboardLiveSignature(next.data, next.meta || {});
+    next.contactCacheApplied = applied;
+  }
+  return next;
+}
+
 function neppoClientKey(clientName, cpfCnpj, externalCode, contract) {
   if (cpfCnpj) return `DOC:${cpfCnpj}`;
   if (externalCode) return `EXT:${externalCode}`;
@@ -1032,7 +1167,7 @@ function dashboardLiveSignature(data, meta = {}) {
   const focusMonth = Number(data.focusMonth || meta.month || 0);
   const statusRows = rows
     .filter((row) => Array.isArray(row) && (!focusMonth || Number(row[0]) === focusMonth))
-    .map((row) => [row[7] || '', row[10] || '', row[11] || '', row[15] || '', row[4] || 0, row[5] || 0, row[6] ?? null])
+    .map((row) => [row[7] || '', row[10] || '', row[11] || '', row[15] || '', row[13] || '', row[18] || '', row[4] || 0, row[5] || 0, row[6] ?? null])
     .sort((a, b) => String(a[0]).localeCompare(String(b[0])));
   return JSON.stringify({
     source: 'neppo-live',
@@ -1488,6 +1623,8 @@ async function enrichLiveRowsFromNeppoHistory(liveRows, env) {
 
 async function buildLiveNeppoDashboard(request, env, month, year) {
   const baseData = await readPublishedDashboardData(request, env);
+  const initialContactCache = await readNeppoContactCache(env).catch(() => ({ items: {} }));
+  const initialContactApplied = applyNeppoContactCacheToRows(baseData, initialContactCache);
   const auth = await getNeppoApiToken(env);
   if (!auth.ok) return { ok: false, status: auth.status, body: auth };
 
@@ -1586,6 +1723,13 @@ async function buildLiveNeppoDashboard(request, env, month, year) {
     phones: 0,
     message: error.message || String(error),
   }));
+  const contactPersist = await persistNeppoContactRows(env, liveRows).catch((error) => ({
+    ok: false,
+    saved: 0,
+    total: 0,
+    message: error.message || String(error),
+    cache: initialContactCache,
+  }));
 
   const rows = [
     ...((baseData.rows || []).filter((row) => Array.isArray(row) && !(
@@ -1594,6 +1738,7 @@ async function buildLiveNeppoDashboard(request, env, month, year) {
     ...liveRows,
   ];
   baseData.rows = rows;
+  const finalContactApplied = applyNeppoContactCacheToRows(baseData, contactPersist.cache || initialContactCache);
   baseData.focusMonth = month;
   baseData.focusIndex = Array.isArray(baseData.meses) ? Math.max(0, Math.min(baseData.meses.length - 1, month - 1)) : 0;
   recalculateDashboardMetricsFromRows(baseData);
@@ -1610,6 +1755,11 @@ async function buildLiveNeppoDashboard(request, env, month, year) {
     },
     liveRows: liveRows.length,
     historyEnrichment,
+    contactCache: {
+      saved: contactPersist.saved || 0,
+      total: contactPersist.total || Object.keys((contactPersist.cache || initialContactCache).items || {}).length,
+      applied: initialContactApplied + finalContactApplied,
+    },
     ratings: ratingBySession.size,
     pages: {
       agents: Math.ceil(agents.length / 200) || 1,
@@ -1639,19 +1789,21 @@ async function handleNeppoLiveDashboard(request, env, ctx) {
   const cacheKey = `${year}-${month}`;
   const cached = NEPPO_LIVE_CACHE.get(cacheKey);
   if (!force && cached && cached.expiresAt > Date.now()) {
-    const body = await cached.promise;
+    const body = await withNeppoContactCache(env, await cached.promise);
     return jsonResponse({ ...body, cached: true, cache: 'memory' });
   }
 
   const kvBody = await readNeppoLiveKv(env, year, month);
   if (!force && neppoLiveIsFresh(kvBody)) {
-    return jsonResponse({ ...kvBody, cached: true, cache: 'kv', ageMs: neppoLiveAgeMs(kvBody), schedule });
+    const body = await withNeppoContactCache(env, kvBody);
+    return jsonResponse({ ...body, cached: true, cache: 'kv', ageMs: neppoLiveAgeMs(kvBody), schedule });
   }
 
   if (!force && !schedule.open) {
     const age = neppoLiveAgeMs(kvBody);
     if (kvBody && age <= NEPPO_LIVE_KV_EXPIRATION_TTL * 1000) {
-      return jsonResponse({ ...kvBody, cached: true, cache: 'kv-outside-hours', outsideHours: true, ageMs: age, schedule });
+      const body = await withNeppoContactCache(env, kvBody);
+      return jsonResponse({ ...body, cached: true, cache: 'kv-outside-hours', outsideHours: true, ageMs: age, schedule });
     }
     return jsonResponse({
       ok: false,
@@ -1668,8 +1820,9 @@ async function handleNeppoLiveDashboard(request, env, ctx) {
   } catch (error) {
     NEPPO_LIVE_CACHE.delete(cacheKey);
     if (kvBody && neppoLiveAgeMs(kvBody) <= NEPPO_LIVE_STALE_MS) {
+      const body = await withNeppoContactCache(env, kvBody);
       const staleBody = {
-        ...kvBody,
+        ...body,
         cached: true,
         cache: 'kv-stale',
         stale: true,
@@ -1836,9 +1989,10 @@ async function injectLiveDashboardIntoHtml(env, response) {
   const { year, month } = currentSaoPauloYearMonth();
   const liveBody = await readNeppoLiveKv(env, year, month).catch(() => null);
   if (!liveBody?.data) return response;
+  const body = await withNeppoContactCache(env, liveBody);
 
   const html = await response.text();
-  const nextHtml = replaceDashboardDataInHtml(html, liveBody.data);
+  const nextHtml = replaceDashboardDataInHtml(html, body.data);
   if (!nextHtml || nextHtml === html) {
     return new Response(html, {
       status: response.status,
@@ -1850,7 +2004,7 @@ async function injectLiveDashboardIntoHtml(env, response) {
   const headers = new Headers(response.headers);
   headers.delete('Content-Length');
   headers.set('X-Gestao-Dashboard-Source', 'neppo-live-kv');
-  headers.set('X-Gestao-Dashboard-Checked-At', liveBody.meta?.checkedAt || liveBody.checkedAt || '');
+  headers.set('X-Gestao-Dashboard-Checked-At', body.meta?.checkedAt || body.checkedAt || '');
   headers.set('X-Gestao-Dashboard-Rows', String(Array.isArray(liveBody.data.rows) ? liveBody.data.rows.length : 0));
   return new Response(nextHtml, {
     status: response.status,

@@ -335819,9 +335819,11 @@ function parseBrDateTime(value){
 function validatedTmaSec(row){
   const raw=Number(row?.[4]||0);
   const start=parseBrDateTime(row?.[10]), end=parseBrDateTime(row?.[11]);
-  if(!start||!end||raw<=8*3600)return raw;
+  if(!start||!end)return raw;
   const sameDay=start.toDateString()===end.toDateString();
   const diff=(end-start)/1000;
+  if(raw<=0&&sameDay&&diff>0&&diff<=8*3600)return Math.round(diff);
+  if(raw<=8*3600)return raw;
   if(sameDay&&diff>=0&&diff<=4*3600)return Math.round(diff);
   return raw;
 }
@@ -335907,7 +335909,7 @@ function applyManualAdjustments(){
     const copy=r.slice();
     const checkedTma=validatedTmaSec(copy);
     if(checkedTma!==Number(copy[4]||0)){
-      copy._tmaAutoCorrection={from:Number(copy[4]||0),to:checkedTma,reason:'TMA bruto acima de 8h com início e encerramento no mesmo dia'};
+      copy._tmaAutoCorrection={from:Number(copy[4]||0),to:checkedTma,reason:Number(copy[4]||0)<=0?'TMA bruto zerado com início e encerramento válidos':'TMA bruto acima de 8h com início e encerramento no mesmo dia'};
       copy[4]=checkedTma;
     }
     const checkedTme=validatedTmeSec(copy);

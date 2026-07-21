@@ -1092,6 +1092,18 @@ function brDatePartsFromNeppo(value) {
   };
 }
 
+function neppoSessionTmaSeconds(session, created, closed) {
+  const raw = Math.round(Number(session?.tma || 0));
+  if (raw > 0) return raw;
+  if (!created?.br || !closed?.br) return raw;
+  const sameDay = created.br.getUTCFullYear() === closed.br.getUTCFullYear()
+    && created.br.getUTCMonth() === closed.br.getUTCMonth()
+    && created.br.getUTCDate() === closed.br.getUTCDate();
+  const diff = Math.round((closed.br.getTime() - created.br.getTime()) / 1000);
+  if (sameDay && diff > 0 && diff <= 8 * 60 * 60) return diff;
+  return raw;
+}
+
 function dashboardDataRangeFromHtmlForWorker(html) {
   const marker = 'const D =';
   const markerIndex = html.indexOf(marker);
@@ -1717,7 +1729,7 @@ async function buildLiveNeppoDashboard(request, env, month, year) {
       created.day,
       agent,
       group,
-      Math.round(Number(session.tma || 0)),
+      neppoSessionTmaSeconds(session, created, closed),
       Math.round(Number(session.tme || 0)),
       ratingBySession.has(Number(session.id)) ? ratingBySession.get(Number(session.id)) : null,
       protocol,

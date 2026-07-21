@@ -3958,10 +3958,26 @@ function whatsappSessionWindowMatches(session, record) {
   const lastTime = new Date(lastAt).getTime();
   const messageDay = whatsappSessionDateKey(messageAt);
   const sessionDay = whatsappSessionDateKey(firstAt || lastAt);
-  if (messageDay && sessionDay && messageDay !== sessionDay) return false;
+  const businessContinuation = whatsappSameParticipantBusinessContinuation(session, record);
+  if (messageDay && sessionDay && messageDay !== sessionDay && !businessContinuation) return false;
   if (Number.isFinite(firstTime) && messageTime < firstTime - WHATSAPP_SESSION_BACKFILL_GRACE_MS) return false;
-  if (Number.isFinite(lastTime) && messageTime > lastTime + WHATSAPP_SESSION_MAX_IDLE_MS) return false;
+  if (Number.isFinite(lastTime) && messageTime > lastTime + WHATSAPP_SESSION_MAX_IDLE_MS && !businessContinuation) return false;
   return true;
+}
+
+function whatsappSameParticipantBusinessContinuation(left = {}, right = {}) {
+  if (!whatsappSameParticipant(left, right)) return false;
+  const leftAt = left.last_message_at || left.messageDatetime || left.message_datetime || left.updated_at || left.first_message_at || left.started_at || left.created_at || '';
+  const rightAt = right.messageDatetime || right.message_datetime || right.last_message_at || right.updated_at || right.first_message_at || right.started_at || right.created_at || '';
+  const leftTime = new Date(leftAt).getTime();
+  const rightTime = new Date(rightAt).getTime();
+  if (!Number.isFinite(leftTime) || !Number.isFinite(rightTime)) return false;
+  const start = leftTime <= rightTime ? leftAt : rightAt;
+  const end = leftTime <= rightTime ? rightAt : leftAt;
+  const calendarGap = Math.abs(rightTime - leftTime);
+  if (calendarGap <= WHATSAPP_SESSION_MAX_IDLE_MS) return true;
+  const businessGap = whatsappBusinessSecondsBetween(start, end);
+  return businessGap >= 0 && businessGap <= Math.round(WHATSAPP_SESSION_MAX_IDLE_MS / 1000);
 }
 
 function whatsappSessionSameParticipantDayMatches(session, record) {
@@ -3974,7 +3990,7 @@ function whatsappSessionSameParticipantDayMatches(session, record) {
   const lastAt = session.last_message_at || session.updated_at || firstAt;
   const messageDay = whatsappSessionDateKey(messageAt);
   const sessionDay = whatsappSessionDateKey(firstAt || lastAt);
-  if (messageDay && sessionDay && messageDay !== sessionDay) return false;
+  if (messageDay && sessionDay && messageDay !== sessionDay && !whatsappSameParticipantBusinessContinuation(session, record)) return false;
   const messageTime = new Date(messageAt).getTime();
   const firstTime = new Date(firstAt).getTime();
   if (Number.isFinite(messageTime) && Number.isFinite(firstTime) && messageTime < firstTime - WHATSAPP_SESSION_BACKFILL_GRACE_MS) return false;
@@ -4019,7 +4035,19 @@ function whatsappSessionsShareParticipantDay(left, right) {
   const rightLast = right.last_message_at || right.updated_at || rightFirst;
   const leftDay = whatsappSessionDateKey(leftFirst || leftLast);
   const rightDay = whatsappSessionDateKey(rightFirst || rightLast);
-  return Boolean(leftDay && rightDay && leftDay === rightDay);
+  if (leftDay && rightDay && leftDay === rightDay) return true;
+  return whatsappSameParticipantBusinessContinuation(left, right);
+}
+
+function whatsappDuplicateSessionClusters(rows) {
+  const sorted = rows.slice().sort((a, b) => String(a.first_message_at || a.started_at || a.created_at || '').localeCompare(String(b.first_message_at || b.started_at || b.created_at || '')));
+  const clusters = [];
+  for (const row of sorted) {
+    const cluster = clusters.find((group) => group.some((item) => whatsappSessionsShareParticipantDay(row, item) || whatsappSessionsShareWindow(row, item)));
+    if (cluster) cluster.push(row);
+    else clusters.push([row]);
+  }
+  return clusters;
 }
 
 function chooseWhatsappSessionMergeTarget(rows, preferredId = '') {
@@ -4076,31 +4104,32 @@ async function mergeRecentWhatsappGroupSessionDuplicates(env, limit = 250) {
   const rows = Array.isArray(result?.results) ? result.results : [];
   const buckets = new Map();
   for (const row of rows) {
-    const day = whatsappSessionDateKey(row.first_message_at || row.started_at || row.created_at || row.last_message_at);
     const participant = String(row.remetente_id || '').trim() || normalizeWhatsappName(row.remetente_nome || '');
-    if (!day || !participant) continue;
-    const key = [row.instance || '', row.grupo_id || '', participant, day].join('|');
+    if (!participant) continue;
+    const key = [row.instance || '', row.grupo_id || '', participant].join('|');
     if (!buckets.has(key)) buckets.set(key, []);
     buckets.get(key).push(row);
   }
   let merged = 0;
-  for (const group of buckets.values()) {
-    if (group.length < 2) continue;
-    const target = chooseWhatsappSessionMergeTarget(
-      group.sort((a, b) => String(a.first_message_at || a.started_at || a.created_at || '').localeCompare(String(b.first_message_at || b.started_at || b.created_at || ''))),
-    );
-    if (!target?.id) continue;
-    for (const duplicate of group) {
-      if (duplicate.id === target.id) continue;
-      await env.REVIEWS_DB.prepare(`
-        UPDATE whatsapp_group_attendances
-        SET session_id = ?, session_protocol = ?, session_status = ?
-        WHERE session_id = ?
-      `).bind(target.id, target.protocol || '', target.status || WHATSAPP_SESSION_UNANSWERED, duplicate.id).run();
-      await env.REVIEWS_DB.prepare('DELETE FROM whatsapp_group_sessions WHERE id = ?').bind(duplicate.id).run();
-      merged += 1;
+  for (const bucket of buckets.values()) {
+    for (const group of whatsappDuplicateSessionClusters(bucket)) {
+      if (group.length < 2) continue;
+      const target = chooseWhatsappSessionMergeTarget(
+        group.sort((a, b) => String(a.first_message_at || a.started_at || a.created_at || '').localeCompare(String(b.first_message_at || b.started_at || b.created_at || ''))),
+      );
+      if (!target?.id) continue;
+      for (const duplicate of group) {
+        if (duplicate.id === target.id) continue;
+        await env.REVIEWS_DB.prepare(`
+          UPDATE whatsapp_group_attendances
+          SET session_id = ?, session_protocol = ?, session_status = ?
+          WHERE session_id = ?
+        `).bind(target.id, target.protocol || '', target.status || WHATSAPP_SESSION_UNANSWERED, duplicate.id).run();
+        await env.REVIEWS_DB.prepare('DELETE FROM whatsapp_group_sessions WHERE id = ?').bind(duplicate.id).run();
+        merged += 1;
+      }
+      await recalculateWhatsappSessionTiming(env, target.id).catch(() => null);
     }
-    await recalculateWhatsappSessionTiming(env, target.id).catch(() => null);
   }
   return merged;
 }

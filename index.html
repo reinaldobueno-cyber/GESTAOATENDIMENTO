@@ -337918,12 +337918,17 @@ function buildAgentes(m){
 
   // Agente × Grupo radar-like
   if($('ch-ag-grp')._ch)$('ch-ag-grp')._ch.destroy();
-  const grpNames=['Estoque Animais','Reprodução','Infraestrutura','Confinamento','SISBOV'];
-  const topAgs5=ags.slice(0,5).map(a=>a.nm);
+  const grpLabel=g=>String(g||'').replace(/^Reproducao$/,'Reprodução').replace(/^Configuracao de balanca e bastao$/,'Config. balança/bastão').replace(/^PMG e Comunicacao para Associacao$/,'PMG/Comunicação');
+  const agGrpPack=bm(m).agGrp||{};
+  const chartAgents=ags.map(a=>a.nm).filter(nm=>agGrpPack[nm]&&Object.values(agGrpPack[nm]).some(v=>Number(v)>0));
+  const grpNames=[...new Set([
+    ...(D.groupList||D.grupos?.nomes||[]),
+    ...chartAgents.flatMap(nm=>Object.keys(agGrpPack[nm]||{}))
+  ])].filter(g=>chartAgents.some(nm=>Number(agGrpPack[nm]?.[g]||0)>0));
   const rk=new Chart($('ch-ag-grp'),{type:'bar',data:{
-    labels:grpNames,
-    datasets:topAgs5.map((nm,i)=>({label:nm.split(' ')[0],data:grpNames.map(g=>D.agGrp[nm]?D.agGrp[nm][g]||0:0),backgroundColor:APAL[i]+'bb',borderRadius:4}))
-  },options:{...cDef,onClick:chartClick(el=>{const agent=topAgs5[el.datasetIndex],group=grpNames[el.index];if(agent&&group)chartDrill(`${agent} · ${group}`,`${D.mesNomes[m]} · especialização por grupo`,drillRows(m,{agent,group}));})}});
+    labels:grpNames.map(grpLabel),
+    datasets:chartAgents.map((nm,i)=>({label:nm.split(' ')[0],data:grpNames.map(g=>Number(agGrpPack[nm]?.[g]||0)),backgroundColor:APAL[i%APAL.length],borderRadius:3,maxBarThickness:16,agent:nm}))
+  },options:{...cDef,plugins:{...cDef.plugins,legend:{display:true,position:'top',labels:{boxWidth:10,boxHeight:10,color:'#8fa28a',font:{family:'Geist Mono',size:9}}},tooltip:{...cDef.plugins.tooltip,callbacks:{label:ctx=>`${ctx.dataset.agent||ctx.dataset.label}: ${ctx.parsed.y} atendimento(s)`}}},onClick:chartClick(el=>{const agent=chartAgents[el.datasetIndex],group=grpNames[el.index];if(agent&&group)chartDrill(`${agent} · ${grpLabel(group)}`,`${D.mesNomes[m]} · especialização por grupo`,drillRows(m,{agent,group}));})}});
   $('ch-ag-grp')._ch=rk;
 }
 buildAgentes(agM);
@@ -338914,7 +338919,7 @@ function syncMonthControls(m){
   if($('cal-mes'))$('cal-mes').value=String(m+1);
   $('title-top-groups').textContent=`Grupos Detalhados — ${D.meses[m]}`;
   $('title-tma-ag').textContent=`TMA Médio por Agente — ${D.mesNomes[m]}`;
-  $('title-ag-grp-sub').textContent=`Cada agente no seu grupo principal · ${D.meses[m]}`;
+  $('title-ag-grp-sub').textContent=`Todos os agentes ativos por grupo · ${D.meses[m]}`;
   $('title-grp-pie').textContent=`Distribuição ${D.meses[m]}`;
   $('title-grp-hm').textContent=`Agentes × Grupos (${D.meses[m]})`;
   $('title-av-dist').textContent=`Distribuição de Notas — ${D.meses[m]}`;

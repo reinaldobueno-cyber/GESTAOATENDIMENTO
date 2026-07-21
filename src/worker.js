@@ -3979,6 +3979,15 @@ function whatsappIsAgentAttendance(row = {}) {
   return Number(row.from_me || 0) === 1 || !!String(row.agent_name || '').trim();
 }
 
+function whatsappSessionHasTreatmentStarted(row = {}) {
+  const status = String(row.status || '').toUpperCase();
+  return !!String(row.first_response_at || '').trim()
+    || !!String(row.agente_id || '').trim()
+    || !!String(row.agente_nome || '').trim()
+    || Number(row.from_me_count || 0) > 0
+    || [WHATSAPP_SESSION_IN_PROGRESS, WHATSAPP_SESSION_ANSWERED, WHATSAPP_SESSION_RESPONDED].includes(status);
+}
+
 async function recalculateWhatsappSessionTiming(env, sessionId) {
   const id = cleanWebhookText(sessionId, 160);
   if (!id || !env.REVIEWS_DB) return null;
@@ -4012,7 +4021,7 @@ async function recalculateWhatsappSessionTiming(env, sessionId) {
   const fromMeCount = rows.filter((row) => Number(row.from_me || 0) === 1).length;
   const nextStatus = String(session.status || '').toUpperCase() === WHATSAPP_SESSION_CLOSED
     ? WHATSAPP_SESSION_CLOSED
-    : firstResponseAt ? WHATSAPP_SESSION_IN_PROGRESS : WHATSAPP_SESSION_UNANSWERED;
+    : (firstResponseAt || whatsappSessionHasTreatmentStarted(session)) ? WHATSAPP_SESSION_IN_PROGRESS : WHATSAPP_SESSION_UNANSWERED;
   const now = new Date().toISOString();
 
   await env.REVIEWS_DB.prepare(`
@@ -4363,7 +4372,8 @@ async function touchWhatsappGroupSession(env, session, record, actor = {}) {
   const hasFirstResponse = !!session.first_response_at;
   const agentMessage = actor?.isAgent || record.fromMe;
   const firstResponseAt = agentMessage && !hasFirstResponse ? messageAt : (session.first_response_at || '');
-  const nextStatus = isOlderThanLast ? (session.status || WHATSAPP_SESSION_UNANSWERED) : (agentMessage ? WHATSAPP_SESSION_IN_PROGRESS : WHATSAPP_SESSION_UNANSWERED);
+  const keepInProgress = whatsappSessionHasTreatmentStarted(session) || agentMessage;
+  const nextStatus = isOlderThanLast ? (session.status || WHATSAPP_SESSION_UNANSWERED) : (keepInProgress ? WHATSAPP_SESSION_IN_PROGRESS : WHATSAPP_SESSION_UNANSWERED);
   const nextLastMessageAt = isOlderThanLast ? (session.last_message_at || messageAt) : messageAt;
   const firstResponseStartAt = session.first_message_at || session.started_at || messageAt;
   const firstResponseSeconds = agentMessage && !hasFirstResponse

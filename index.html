@@ -435,6 +435,7 @@ canvas{cursor:pointer;}
 .wg-ticket.unanswered{border-left-color:var(--amber);background:rgba(154,107,26,.05);}
 .wg-ticket.own-start{border-left-color:var(--moss2);background:rgba(61,107,71,.045);}
 .wg-ticket.progress{border-left-color:#356999;}
+.wg-ticket.needs-reply{border-left-color:var(--amber);background:linear-gradient(90deg,rgba(154,107,26,.08),#fff 58%);}
 .wg-ticket-title{font-family:'Fraunces',serif;font-size:.9rem;font-weight:800;color:var(--ink);line-height:1.25;}
 .wg-ticket-meta{font-family:'Geist Mono',monospace;font-size:.59rem;color:var(--ghost);line-height:1.45;overflow-wrap:anywhere;}
 .wg-ticket-actions{display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;}
@@ -336497,7 +336498,26 @@ function whatsappSessionOutsideUnanswered(session){
   return first&&!whatsappBusinessOpen(first);
 }
 function whatsappSessionCountsAsOpen(session){
-  return whatsappIsUnansweredStatus(session?.status)&&!whatsappSessionOutsideUnanswered(session)&&!whatsappIsExcludedMetricGroup(session);
+  return whatsappIsUnansweredStatus(session?.status)&&!whatsappSessionHasTreatmentStarted(session)&&!whatsappSessionOutsideUnanswered(session)&&!whatsappIsExcludedMetricGroup(session);
+}
+function whatsappSessionHasTreatmentStarted(session){
+  return !!String(session?.firstResponseAt||'').trim()
+    || !!String(session?.agenteId||'').trim()
+    || !!String(session?.agenteNome||'').trim()
+    || Number(session?.fromMeCount||0)>0
+    || whatsappIsProgressStatus(session?.status);
+}
+function whatsappSessionStatusGroup(session){
+  if(whatsappIsClosedStatus(session?.status))return 'closed';
+  if(whatsappSessionCountsAsOpen(session))return 'unanswered';
+  return 'progress';
+}
+function whatsappSessionNeedsTeamReply(session){
+  if(!whatsappSessionHasTreatmentStarted(session)||whatsappIsClosedStatus(session?.status))return false;
+  const rows=whatsappSessionMessages(session);
+  const last=rows[rows.length-1];
+  if(!last)return whatsappIsUnansweredStatus(session?.status);
+  return !last.fromMe&&!String(last.agentName||last.agenteNome||'').trim();
 }
 function whatsappIsUnansweredStatus(value){
   const status=whatsappStatusKey(value);
@@ -336518,11 +336538,21 @@ function whatsappSessionStatusLabel(value){
   if(whatsappIsUnansweredStatus(status))return 'Sem resposta';
   return status||'Sem sessão';
 }
+function whatsappSessionEffectiveStatusLabel(session){
+  if(whatsappIsClosedStatus(session?.status))return 'Encerrado';
+  if(whatsappSessionCountsAsOpen(session))return 'Sem resposta';
+  return whatsappSessionNeedsTeamReply(session)?'Em atendimento · cliente respondeu':'Em atendimento';
+}
 function whatsappSessionStatusClass(value){
   const status=whatsappStatusKey(value);
   if(whatsappIsClosedStatus(status))return 'manual-status-closed';
   if(whatsappIsProgressStatus(status))return '';
   return 'manual-status-open';
+}
+function whatsappSessionEffectiveStatusClass(session){
+  if(whatsappIsClosedStatus(session?.status))return 'manual-status-closed';
+  if(whatsappSessionCountsAsOpen(session))return 'manual-status-open';
+  return whatsappSessionNeedsTeamReply(session)?'manual-status-open':'';
 }
 function whatsappDuration(seconds){
   const value=Number(seconds||0);
@@ -336701,9 +336731,7 @@ function whatsappDateKey(value){
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 function whatsappProtocolStatusGroup(session){
-  if(whatsappIsClosedStatus(session?.status))return 'closed';
-  if(whatsappIsUnansweredStatus(session?.status))return 'unanswered';
-  return 'progress';
+  return whatsappSessionStatusGroup(session);
 }
 function renderWhatsappSessionRows(sessions){
   const lanes={
@@ -336715,24 +336743,27 @@ function renderWhatsappSessionRows(sessions){
   const buckets={unanswered:[],progress:[],closed:[]};
   const todayKey=whatsappDateKey(new Date());
   (sessions||[]).forEach(s=>{
-    if(whatsappIsClosedStatus(s.status)){
+    if(whatsappSessionStatusGroup(s)==='closed'){
       if(whatsappDateKey(s.closedAt||s.updatedAt||s.startedAt)===todayKey)buckets.closed.push(s);
       return;
     }
-    if(whatsappSessionCountsAsOpen(s))buckets.unanswered.push(s);
+    if(whatsappSessionStatusGroup(s)==='unanswered')buckets.unanswered.push(s);
     else buckets.progress.push(s);
   });
   const card=s=>{
     const ownStart=Number(s.fromMeCount||0)>0&&Number(s.participantCount||0)===0;
-    const cls=whatsappIsUnansweredStatus(s.status)?'unanswered':ownStart?'own-start':whatsappIsProgressStatus(s.status)?'progress':'';
-    const assignButton=whatsappIsUnansweredStatus(s.status)?`<button class="rel-action" type="button" onclick="event.stopPropagation();assignWhatsappGroupSession('${esc(s.id||'')}')">Assumir</button>`:'';
+    const needsReply=whatsappSessionNeedsTeamReply(s);
+    const statusGroup=whatsappSessionStatusGroup(s);
+    const cls=statusGroup==='unanswered'?'unanswered':needsReply?'needs-reply':ownStart?'own-start':statusGroup==='progress'?'progress':'';
+    const assignButton=statusGroup==='unanswered'?`<button class="rel-action" type="button" onclick="event.stopPropagation();assignWhatsappGroupSession('${esc(s.id||'')}')">Assumir</button>`:'';
     const closeButton=!whatsappIsClosedStatus(s.status)?`<button class="rel-action" type="button" onclick="event.stopPropagation();closeWhatsappGroupSessionFromPanel('${esc(s.id||'')}','${esc(s.protocol||'')}')">Encerrar</button>`:'';
     const first=whatsappSessionFirstResponseSeconds(s);
     const startBadge=ownStart?'<span class="op-badge manual-status-closed">Iniciado pelo time</span>':'';
+    const pendingBadge=needsReply?'<span class="op-badge manual-status-open">Nova msg cliente</span>':'';
     return `<div class="wg-ticket ${cls}" role="button" tabindex="0" onclick="openWhatsappSessionDetail('${esc(s.id||'')}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openWhatsappSessionDetail('${esc(s.id||'')}')}">
       <div class="wg-ticket-title">${esc(s.protocol||'Sem protocolo')}</div>
       <div class="wg-ticket-meta">${esc(whatsappGroupLabel(s))}<br>${esc(s.remetenteNome||'Participante')} · ${esc(whatsappGroupLocalDate(s.startedAt||s.firstMessageAt))}<br>Agente: ${esc(s.agenteNome||'Sem agente')} · 1ª resposta: ${esc(first==null?'--':whatsappDuration(first))} · ${fN(Number(s.messageCount||0))} msg</div>
-      <div class="wg-ticket-actions"><span class="op-badge ${whatsappSessionStatusClass(s.status)}">${esc(whatsappSessionStatusLabel(s.status))}</span>${startBadge}${assignButton}${closeButton}</div>
+      <div class="wg-ticket-actions"><span class="op-badge ${whatsappSessionEffectiveStatusClass(s)}">${esc(whatsappSessionEffectiveStatusLabel(s))}</span>${pendingBadge}${startBadge}${assignButton}${closeButton}</div>
     </div>`;
   };
   Object.entries(buckets).forEach(([key,list])=>{
@@ -336773,7 +336804,7 @@ function openWhatsappAllProtocols(){
         const first=whatsappSessionFirstResponseSeconds(s);
         const statusGroup=whatsappProtocolStatusGroup(s);
         const search=[s.protocol,s.status,s.tituloAtendimento,s.grupoNome,s.grupoId,s.clienteNome,s.remetenteNome,s.agenteNome,s.instance].join(' ');
-        return `<button class="wg-protocol-row" type="button" data-wg-all-protocol="1" data-status="${statusGroup}" data-search="${esc(search)}" onclick="openWhatsappSessionDetail('${esc(s.id||'')}')"><div><div class="wg-protocol-title">${esc(s.protocol||'Sem protocolo')}</div><div class="wg-protocol-meta">${esc(whatsappGroupLabel(s))} · ${esc(whatsappSessionStatusLabel(s.status))} · Agente: ${esc(s.agenteNome||'Sem agente')} · 1ª resposta: ${esc(first==null?'--':whatsappDuration(first))}<br>Início: ${esc(whatsappGroupLocalDate(s.startedAt||s.firstMessageAt))}${s.closedAt?` · Encerrado: ${esc(whatsappGroupLocalDate(s.closedAt))}`:''}</div></div><span class="wg-group-count">${fN(Number(s.messageCount||0))}</span></button>`;
+        return `<button class="wg-protocol-row" type="button" data-wg-all-protocol="1" data-status="${statusGroup}" data-search="${esc(search)}" onclick="openWhatsappSessionDetail('${esc(s.id||'')}')"><div><div class="wg-protocol-title">${esc(s.protocol||'Sem protocolo')}</div><div class="wg-protocol-meta">${esc(whatsappGroupLabel(s))} · ${esc(whatsappSessionEffectiveStatusLabel(s))} · Agente: ${esc(s.agenteNome||'Sem agente')} · 1ª resposta: ${esc(first==null?'--':whatsappDuration(first))}<br>Início: ${esc(whatsappGroupLocalDate(s.startedAt||s.firstMessageAt))}${s.closedAt?` · Encerrado: ${esc(whatsappGroupLocalDate(s.closedAt))}`:''}</div></div><span class="wg-group-count">${fN(Number(s.messageCount||0))}</span></button>`;
       }).join('')||'<div class="op-empty">Nenhum protocolo registrado.</div>'}
     </div>`;
   $('rel-modal').classList.add('open');
@@ -337120,7 +337151,7 @@ function openWhatsappSessionDetail(id,encodedInstance='',encodedGroupId=''){
       </div>
     </div>`:'';
   $('rel-title').textContent=session.protocol||'Atendimento WhatsApp Grupo';
-  $('rel-sub').textContent=`${whatsappGroupLabel(session)} · ${whatsappSessionStatusLabel(session.status)} · ${fN(rows.length)} mensagem(ns)`;
+  $('rel-sub').textContent=`${whatsappGroupLabel(session)} · ${whatsappSessionEffectiveStatusLabel(session)} · ${fN(rows.length)} mensagem(ns)`;
   $('rel-body').innerHTML=`
     ${backButton}
     <div class="g2" style="margin-bottom:1rem">
@@ -337132,7 +337163,7 @@ function openWhatsappSessionDetail(id,encodedInstance='',encodedGroupId=''){
     ${closeReasonBlock}
     <div class="ctx-actions" style="justify-content:flex-start;margin:1rem 0">
       <button class="rel-action" type="button" onclick="saveWhatsappSessionDetails('${esc(session.id||'')}')">Salvar detalhes</button>
-      ${whatsappIsUnansweredStatus(session.status)?`<button class="rel-action" type="button" onclick="assignWhatsappGroupSession('${esc(session.id||'')}')">Assumir atendimento</button>`:''}
+      ${whatsappSessionStatusGroup(session)==='unanswered'?`<button class="rel-action" type="button" onclick="assignWhatsappGroupSession('${esc(session.id||'')}')">Assumir atendimento</button>`:''}
       ${!whatsappIsClosedStatus(session.status)?`<button class="rel-action" type="button" onclick="closeWhatsappGroupSessionFromPanel('${esc(session.id||'')}','${esc(session.protocol||'')}')">Encerrar</button>`:''}
     </div>
     <div class="ct" style="margin:.7rem 0">Histórico do protocolo</div>
@@ -337362,7 +337393,7 @@ function renderWhatsappGroupRecords(){
   const openGroups=new Set(rows.map(r=>r.grupoId).filter(Boolean));
   const sessions=filteredSessions;
   const open=sessions.filter(whatsappSessionCountsAsOpen).length;
-  const progress=sessions.filter(s=>whatsappIsProgressStatus(s.status)).length;
+  const progress=sessions.filter(s=>whatsappSessionStatusGroup(s)==='progress').length;
   const closed=sessions.filter(s=>whatsappIsClosedStatus(s.status)).length;
   const responseTimes=sessions
     .filter(s=>s.firstResponseAt||whatsappSessionMessages(s).some(r=>r.fromMe||String(r.agentName||r.agenteNome||'').trim()))

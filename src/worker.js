@@ -1192,15 +1192,34 @@ function workerRowCsat(row) {
   return Array.isArray(row) ? workerCsatValue(row[6]) : null;
 }
 
+const EXCLUDED_NEPPO_OPERATIONAL_AGENT_KEYS = new Set(['gabriel simaes']);
+
+function isExcludedOperationalAgent(agent) {
+  const key = String(agent || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pt-BR')
+    .replace(/[_\s]+/g, ' ')
+    .trim();
+  return (
+    EXCLUDED_NEPPO_OPERATIONAL_AGENT_KEYS.has(key) ||
+    key.includes('gabriel sim') ||
+    key.includes('pesquisa') ||
+    key.includes('botserver') ||
+    key.includes('fluxo')
+  );
+}
+
 function recalculateDashboardMetricsFromRows(data) {
   if (!data || !Array.isArray(data.rows)) return data;
-  const rows = data.rows.filter(Array.isArray);
+  const rows = data.rows.filter(Array.isArray).map((row) => row.slice());
   for (const row of rows) {
     row[2] = normalizeNeppoAgent(row[2]) || 'Sem agente';
     row[3] = normalizeNeppoGroup(row[3]);
   }
-  data.rows = rows;
-  data.agentList = [...new Set(rows.map((row) => row[2] || 'Sem agente'))]
+  const operationalRows = rows.filter((row) => !isExcludedOperationalAgent(row[2]));
+  data.rows = operationalRows;
+  data.agentList = [...new Set(operationalRows.map((row) => row[2] || 'Sem agente'))]
     .sort((a, b) => String(a).localeCompare(String(b), 'pt-BR'));
   const months = Array.isArray(data.meses) && data.meses.length ? data.meses.length : 12;
   const avg = (arr) => (arr.length ? arr.reduce((sum, value) => sum + value, 0) / arr.length : null);
@@ -1231,7 +1250,7 @@ function recalculateDashboardMetricsFromRows(data) {
     ['3º Período da tarde', '16-17h', 16, 17],
     ['4º Período da tarde', '17-18:30h', 17, 19],
   ];
-  const groupNames = [...new Set([...(data.grupos?.nomes || []), ...rows.map((row) => row[3] || 'Sem grupo')])];
+  const groupNames = [...new Set([...(data.grupos?.nomes || []), ...operationalRows.map((row) => row[3] || 'Sem grupo')])];
   data.grupos = { nomes: groupNames };
   data.atend = [];
   data.aval = [];
@@ -1246,7 +1265,7 @@ function recalculateDashboardMetricsFromRows(data) {
   for (let mi = 0; mi < months; mi += 1) {
     const monthNo = mi + 1;
     const mk = short[mi] || String(monthNo);
-    const monthRows = rows.filter((row) => Number(row[0]) === monthNo);
+    const monthRows = operationalRows.filter((row) => Number(row[0]) === monthNo);
     const rated = monthRows.filter((row) => workerRowCsat(row) !== null);
     data.atend[mi] = monthRows.length;
     data.aval[mi] = rated.length;

@@ -335856,8 +335856,8 @@ function validatedTmeSec(row){
 }
 const EXCLUDED_OPERATIONAL_AGENTS=new Set(['gabriel simaes']);
 function isExcludedOperationalAgent(agent){
-  const key=String(agent||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
-  return EXCLUDED_OPERATIONAL_AGENTS.has(key)||key.includes('gabriel sim');
+  const key=String(agent||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[_\s]+/g,' ').trim();
+  return EXCLUDED_OPERATIONAL_AGENTS.has(key)||key.includes('gabriel sim')||key.includes('pesquisa')||key.includes('botserver')||key.includes('fluxo');
 }
 function csatValue(value){
   if(value===null||value===undefined||value==='')return null;

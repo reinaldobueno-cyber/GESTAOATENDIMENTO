@@ -38,9 +38,11 @@ body{background:var(--paper);color:var(--text);font-family:'Geist',sans-serif;li
 .live-dot::before{content:'';width:6px;height:6px;background:var(--moss);border-radius:50%;animation:pulse 2s infinite;}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
 .top-date{font-family:'Geist Mono',monospace;font-size:.63rem;color:var(--ghost);}
+.top-partner-logo{height:34px;width:auto;max-width:116px;object-fit:contain;display:block;flex:0 0 auto;}
 .sync-btn{height:24px;border:1px solid var(--border);border-radius:999px;background:var(--foam);color:var(--moss);padding:0 10px;font-family:'Geist Mono',monospace;font-size:.57rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;line-height:1;text-align:center;white-space:nowrap;}
 .sync-btn:hover{border-color:var(--moss);background:#fff;}
 .sync-btn:disabled{opacity:.55;cursor:wait;}
+@media(max-width:980px){.top-partner-logo{height:28px;max-width:92px}.top-meta{gap:9px}}
 
 /* ——— NAV ——— */
 .nav{background:var(--w);border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none;}
@@ -609,6 +611,7 @@ canvas{cursor:pointer;}
       </button>
       <button class="sync-btn" id="adjustment-sync-btn" type="button" onclick="forceAdjustmentSync()">Sincronizar</button>
       <button class="sync-btn admin-only" id="users-top-btn" type="button" onclick="openUsersAdmin()">Usuários</button>
+      <img class="top-partner-logo" src="/assets/multsoft-mb-logo.png" alt="Multsoft MB" loading="eager" decoding="async">
       <span class="live-dot">Ao vivo</span>
     </div>
   </div>

@@ -1062,10 +1062,12 @@ canvas{cursor:pointer;}
   <div class="fbar">
     <span class="fl">Recorte:</span>
     <select class="fs" id="flux-scope" onchange="renderFluxMonth(appM)">
+      <option value="month">Mês inteiro</option>
       <option value="week">Semana selecionada</option>
+      <option value="day">Dia selecionado</option>
     </select>
-    <span class="fl" style="margin-left:8px;">Semana:</span>
-    <select class="fs" id="flux-week" onchange="renderFluxMonth(appM)">
+    <span class="fl flux-week-filter" style="margin-left:8px;display:none;">Semana:</span>
+    <select class="fs flux-week-filter" id="flux-week" onchange="renderFluxMonth(appM)" style="display:none;">
       <option value="1">Sem. 1</option><option value="2">Sem. 2</option><option value="3">Sem. 3</option><option value="4">Sem. 4</option><option value="5">Sem. 5</option>
     </select>
     <span class="fl flux-day-filter" style="margin-left:8px;display:none;">Dia:</span>
@@ -1079,7 +1081,7 @@ canvas{cursor:pointer;}
     <div class="sband"><div class="sband-ico">📌</div><div><div class="sband-v" id="flux-grp-v">—</div><div class="sband-l">Grupo mais demandado</div></div></div>
   </div>
 
-  <div class="g6040" style="margin-bottom:1rem;">
+  <div class="g6040" style="align-items:start;margin-bottom:1rem;">
     <div class="card">
       <div class="ch"><div class="ct">Heatmap Hora × Dia da Semana</div><div class="cs" id="title-flux-sub">Cada célula = volume de atendimentos · Abril 2026</div></div>
       <div id="hour-heatmap" style="margin-top:.5rem;"></div>
@@ -340059,8 +340061,10 @@ function syncFluxWeekOptions(m,days){
 }
 function renderFluxMonth(m){
   const pack=bm(m), dowLabels=['Seg','Ter','Qua','Qui','Sex'];
-  const scope=$('flux-scope')?.value||'week';
+  const scope=$('flux-scope')?.value||'month';
   const daySel=$('flux-day');
+  document.querySelectorAll('.flux-week-filter').forEach(el=>{el.style.display=scope==='week'?'':'none';});
+  document.querySelectorAll('.flux-day-filter').forEach(el=>{el.style.display=scope==='day'?'':'none';});
   const monthRows=(D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===m+1);
   const days=[...new Set(monthRows.map(r=>r[1]).filter(Boolean))].sort((a,b)=>a-b);
   if(daySel){

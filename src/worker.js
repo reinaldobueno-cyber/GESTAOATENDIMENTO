@@ -1370,16 +1370,22 @@ function neppoLiveRangeForRequest(year, month) {
   const now = saoPauloDateParts();
   const isCurrentMonth = Number(year) === now.year && Number(month) === now.month;
   if (isCurrentMonth) {
+    const mondayOffset = now.dayOfWeek === 0 ? 6 : now.dayOfWeek - 1;
+    const startDay = Math.max(1, now.day - mondayOffset);
     return {
-      mode: 'today',
+      mode: 'week_to_date',
       day: now.day,
-      start: new Date(Date.UTC(year, month - 1, now.day, 3, 0, 0)),
+      startDay,
+      endDay: now.day,
+      start: new Date(Date.UTC(year, month - 1, startDay, 3, 0, 0)),
       end: new Date(Date.UTC(year, month - 1, now.day + 1, 3, 0, 0)),
     };
   }
   return {
     mode: 'month',
     day: 0,
+    startDay: 1,
+    endDay: new Date(year, month, 0).getDate(),
     start: new Date(Date.UTC(year, month - 1, 1, 3, 0, 0)),
     end: new Date(Date.UTC(year, month, 1, 3, 0, 0)),
   };
@@ -1752,7 +1758,7 @@ async function buildLiveNeppoDashboard(request, env, month, year) {
 
   const rows = [
     ...((baseData.rows || []).filter((row) => Array.isArray(row) && !(
-      Number(row[0]) === month && (range.mode === 'month' || Number(row[1]) === range.day)
+      Number(row[0]) === month && (range.mode === 'month' || (Number(row[1]) >= range.startDay && Number(row[1]) <= range.endDay))
     ))),
     ...liveRows,
   ];

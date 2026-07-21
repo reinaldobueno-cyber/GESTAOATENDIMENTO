@@ -869,7 +869,7 @@ canvas{cursor:pointer;}
       <div class="h300"><canvas id="ch-ag-scatter"></canvas></div>
     </div>
     <div class="card">
-      <div class="ch"><div class="ct">Especialização por Grupo</div><div class="cs" id="title-ag-grp-sub">Cada agente no seu grupo principal · Abril</div></div>
+      <div class="ch"><div><div class="ct">Especialização por Grupo</div><div class="cs" id="title-ag-grp-sub">Cada agente no seu grupo principal · Abril</div></div><select class="fs" id="ag-grp-nucleus" onchange="buildAgentes(appM)" style="max-width:190px"></select></div>
       <div class="h300"><canvas id="ch-ag-grp"></canvas></div>
     </div>
   </div>
@@ -336035,6 +336035,36 @@ const csatScale=vals=>{const clean=(vals||[]).filter(v=>typeof v==='number'&&v>0
 const monthMaxDay=m=>Math.max(...Object.keys(D.daily[m]||{}).map(Number));
 const monthIsPartial=m=>m===FM;
 const bm=(m=appM)=>D.byMonth?.[mKey(m+1)]||{};
+const ALL_MONTHS=-1;
+const isAllMonths=m=>Number(m)===ALL_MONTHS;
+const periodMonthName=m=>isAllMonths(m)?'Todos os meses':D.mesNomes[m];
+const periodMonthShort=m=>isAllMonths(m)?'Todos':D.meses[m];
+const rowsForPeriod=m=>(D.rows||[]).filter(r=>Array.isArray(r)&&(isAllMonths(m)||r[0]===m+1));
+function agentStatsForPeriod(m){
+  const map={};
+  rowsForPeriod(m).forEach(r=>{
+    const nm=r[2]||'Sem agente';
+    if(!map[nm])map[nm]={nm,at:0,av:0,ratings:[],tmaSec:[]};
+    const a=map[nm];
+    a.at++;
+    const cs=rowCsat(r);
+    if(cs!=null){a.av++;a.ratings.push(cs);}
+    if(r[4]!=null)a.tmaSec.push(r[4]);
+  });
+  return Object.values(map).map(a=>{
+    const tma=avgArr(a.tmaSec);
+    return {...a,sat:avgArr(a.ratings)||0,tma:tma==null?'—':fmtDur(tma),tmaAvgSec:tma};
+  }).filter(a=>a.at>0).sort((a,b)=>b.at-a.at||a.nm.localeCompare(b.nm,'pt-BR'));
+}
+function agentGroupPackForPeriod(m){
+  if(!isAllMonths(m))return bm(m).agGrp||{};
+  return rowsForPeriod(m).reduce((acc,r)=>{
+    const agent=r[2]||'Sem agente', group=r[3]||'Sem grupo';
+    if(!acc[agent])acc[agent]={};
+    acc[agent][group]=(acc[agent][group]||0)+1;
+    return acc;
+  },{});
+}
 const chart=(id,cfg)=>{const el=$(id);Chart.getChart(el)?.destroy();if(cfg?.options?.onClick){cfg.options.onHover=(evt,els)=>{evt.native.target.style.cursor=els.length?'pointer':'default';};}return new Chart(el,cfg);};
 const setText=(selector,starts,text)=>{const el=[...document.querySelectorAll(selector)].find(x=>x.textContent.trim().startsWith(starts));if(el)el.textContent=text;};
 const NUCLEOS=[
@@ -337847,8 +337877,18 @@ function agentNucleus(agent){
   const n=NUCLEOS.find(nu=>(nu.a||[]).map(normName).includes(normName(agent)));
   return n?n.n.replace('Núcleo ',''):'Sem núcleo';
 }
+function syncAgentGroupNucleusFilter(agentNames){
+  const sel=$('ag-grp-nucleus');
+  if(!sel)return'all';
+  const current=sel.value||'all';
+  const nuclei=[...new Set((agentNames||[]).map(agentNucleus).filter(Boolean))]
+    .sort((a,b)=>a==='Sem núcleo'?1:b==='Sem núcleo'?-1:a.localeCompare(b,'pt-BR'));
+  sel.innerHTML=`<option value="all">Todos os núcleos</option>${nuclei.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('')}`;
+  sel.value=[...sel.options].some(o=>o.value===current)?current:'all';
+  return sel.value;
+}
 function renderAgentSummary(m){
-  const rows=(D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===m+1);
+  const rows=rowsForPeriod(m);
   const map={};
   rows.forEach(r=>{
     const agent=r[2]||'Sem agente';
@@ -337869,20 +337909,20 @@ function renderAgentSummary(m){
     const status=csat==null?'Sem avaliação':(csat<9.8?'Atenção CSAT':cov<.45?'Baixa cobertura':sla<.98?'Atenção espera':'Ok');
     return {...a,total,aval,csat,tma,tme,cov,sla,status,nuc:agentNucleus(a.agent)};
   }).filter(a=>a.total>0).sort((a,b)=>b.total-a.total||a.agent.localeCompare(b.agent,'pt-BR'));
-  $('ag-summary-title').textContent=`Fechamento Sintético por Agente — ${D.meses[m]}`;
+  $('ag-summary-title').textContent=`Fechamento Sintético por Agente — ${periodMonthShort(m)}`;
   $('ag-summary-tbody').innerHTML=data.map(a=>{
     const cs=a.csat==null?'':a.csat<9.8?'color:var(--rust);font-weight:800':a.csat<9.9?'color:var(--amber);font-weight:800':'color:var(--moss);font-weight:800';
     const st=a.status==='Ok'?'kup':a.status==='Sem avaliação'?'knt':'kdn';
-    return `<tr onclick="chartDrill('${esc(a.agent)}','${D.mesNomes[m]} · fechamento sintético',drillRows(${m},{agent:'${esc(a.agent)}'}))" style="cursor:pointer"><td><b>${esc(a.agent)}</b><br><span class="op-mono">${esc(a.nuc)}</span></td><td class="th">${fN(a.total)}</td><td class="tn">${fN(a.aval)}</td><td class="tn">${pct1(a.cov)}</td><td class="tn" style="${cs}">${a.csat!=null?fS(a.csat):'—'}</td><td class="tn">${fmtDur(a.tma)}</td><td class="tn">${fmtDur(a.tme)}</td><td class="tn">${fN(a.le120)} · ${pct1(a.sla)}</td><td class="tn">${fN(a.gt300)}</td><td><span class="kd ${st}">${a.status}</span></td></tr>`;
+    return `<tr onclick="chartDrill('${esc(a.agent)}','${periodMonthName(m)} · fechamento sintético',drillRows(${m},{agent:'${esc(a.agent)}'}))" style="cursor:pointer"><td><b>${esc(a.agent)}</b><br><span class="op-mono">${esc(a.nuc)}</span></td><td class="th">${fN(a.total)}</td><td class="tn">${fN(a.aval)}</td><td class="tn">${pct1(a.cov)}</td><td class="tn" style="${cs}">${a.csat!=null?fS(a.csat):'—'}</td><td class="tn">${fmtDur(a.tma)}</td><td class="tn">${fmtDur(a.tme)}</td><td class="tn">${fN(a.le120)} · ${pct1(a.sla)}</td><td class="tn">${fN(a.gt300)}</td><td><span class="kd ${st}">${a.status}</span></td></tr>`;
   }).join('');
 }
 function buildAgentes(m){
-  const ags=Object.entries(D.agentes).map(([nm,d])=>({nm,at:d[m][0],av:d[m][1],sat:d[m][2],tma:d[m][3]})).filter(a=>a.at>0).sort((a,b)=>b.at-a.at);
-  const mx=Math.max(...ags.map(a=>a.at));
-  $('ag-k1').textContent=ags.length;$('ag-k2').textContent=Math.round(ags.reduce((s,a)=>s+a.at,0)/ags.length);
+  const ags=agentStatsForPeriod(m);
+  const mx=Math.max(1,...ags.map(a=>a.at));
+  $('ag-k1').textContent=ags.length;$('ag-k2').textContent=ags.length?Math.round(ags.reduce((s,a)=>s+a.at,0)/ags.length):0;
   const tv=ags[0];$('ag-k3').textContent=tv?.at;$('ag-k3n').textContent=tv?.nm;
   const ts=[...ags].filter(a=>a.sat>0).sort((a,b)=>b.sat-a.sat)[0];$('ag-k4').textContent=fS(ts?.sat||0);$('ag-k4n').textContent=ts?.nm;
-  const tf=Object.entries(bm(m).tmaAg||{}).sort((a,b)=>a[1][0]-b[1][0])[0];$('ag-k5').textContent=(tf?tf[1][0].toFixed(0):'—')+'min';$('ag-k5n').textContent=tf?tf[0].split(' ')[0]:'—';
+  const tf=[...ags].filter(a=>a.tmaAvgSec!=null).sort((a,b)=>a.tmaAvgSec-b.tmaAvgSec)[0];$('ag-k5').textContent=tf?`${(tf.tmaAvgSec/60).toFixed(0)}min`:'—';$('ag-k5n').textContent=tf?tf.nm.split(' ')[0]:'—';
 
   $('ag-cards').innerHTML=ags.map((a,i)=>{
     const ini=a.nm.split(' ').slice(0,2).map(n=>n[0]).join('').toUpperCase();
@@ -337894,12 +337934,20 @@ function buildAgentes(m){
 
   // Heatmap agente × dia
   {
-    const monthNo=m+1;
-    const byDay=D.agDay[monthNo]||{};
-    const ags2=Object.keys(byDay);
-    const days=[...new Set(ags2.flatMap(a=>Object.keys(byDay[a]).map(Number)))].sort((a,b)=>a-b);
+    const byDay={};
+    if(isAllMonths(m)){
+      rowsForPeriod(m).forEach(r=>{
+        const agent=r[2]||'Sem agente', month=D.meses[(Number(r[0])||1)-1]||String(r[0]||'');
+        if(!byDay[agent])byDay[agent]={};
+        byDay[agent][month]=(byDay[agent][month]||0)+1;
+      });
+    }else{
+      Object.assign(byDay,D.agDay[m+1]||{});
+    }
+    const ags2=Object.keys(byDay).sort((a,b)=>a.localeCompare(b,'pt-BR'));
+    const days=isAllMonths(m)?D.meses.filter(mon=>ags2.some(a=>byDay[a][mon])):[...new Set(ags2.flatMap(a=>Object.keys(byDay[a]).map(Number)))].sort((a,b)=>a-b);
     const allV=[];ags2.forEach(a=>days.forEach(d=>{if(byDay[a][d])allV.push(byDay[a][d]);}));
-    const hmMx=Math.max(...allV);
+    const hmMx=Math.max(1,...allV);
     function hmc(v){if(!v||v===0)return'#f6f8f3';const p=v/hmMx;return p<.2?'#e4ead0':p<.4?'#c8dece':p<.6?'#9ec4a8':p<.8?'#4f8562':'#3d6b47';}
     function hmtc(v){if(!v||v===0)return'#c8dece';const p=v/hmMx;return p>.5?'#fff':'#2d5038';}
     let html=`<tr><th class="hm-ag">Agente</th>${days.map(d=>`<th>${d}</th>`).join('')}</tr>`;
@@ -337913,22 +337961,25 @@ function buildAgentes(m){
     datasets:[{label:'Agentes',data:ags.filter(a=>a.sat>0).map(a=>({x:a.at,y:a.sat,nm:a.nm.split(' ')[0],agent:a.nm})),
       backgroundColor:ags.filter(a=>a.sat>0).map(a=>a.sat>=9.95?'#3d6b47':a.sat>=9.8?'#9a6b1a':'#a83232'),
       pointRadius:9,pointHoverRadius:12}]
-  },options:{...cDef,plugins:{...cDef.plugins,legend:{display:false},tooltip:{...cDef.plugins.tooltip,callbacks:{label:ctx=>`${ctx.raw.nm}: ${ctx.raw.x} atend · CSAT ${ctx.raw.y.toFixed(2)}`}}},onClick:chartClick((el,ch)=>{const raw=ch.data.datasets[el.datasetIndex].data[el.index];if(raw?.agent)chartDrill(`${raw.agent}`,`${D.mesNomes[m]} · volume e CSAT`,drillRows(m,{agent:raw.agent}));}),scales:{...cDef.scales,x:{...cDef.scales.x,title:{display:true,text:'Volume',color:'#8fa28a',font:{family:'Geist Mono',size:9}}},y:{...cDef.scales.y,min:9.75,max:10.05,title:{display:true,text:'CSAT',color:'#8fa28a',font:{family:'Geist Mono',size:9}}}}}});
+  },options:{...cDef,plugins:{...cDef.plugins,legend:{display:false},tooltip:{...cDef.plugins.tooltip,callbacks:{label:ctx=>`${ctx.raw.nm}: ${ctx.raw.x} atend · CSAT ${ctx.raw.y.toFixed(2)}`}}},onClick:chartClick((el,ch)=>{const raw=ch.data.datasets[el.datasetIndex].data[el.index];if(raw?.agent)chartDrill(`${raw.agent}`,`${periodMonthName(m)} · volume e CSAT`,drillRows(m,{agent:raw.agent}));}),scales:{...cDef.scales,x:{...cDef.scales.x,title:{display:true,text:'Volume',color:'#8fa28a',font:{family:'Geist Mono',size:9}}},y:{...cDef.scales.y,min:9.75,max:10.05,title:{display:true,text:'CSAT',color:'#8fa28a',font:{family:'Geist Mono',size:9}}}}}});
   $('ch-ag-scatter')._ch=sc2;
 
-  // Agente × Grupo radar-like
+  // Agente × Grupo
   if($('ch-ag-grp')._ch)$('ch-ag-grp')._ch.destroy();
   const grpLabel=g=>String(g||'').replace(/^Reproducao$/,'Reprodução').replace(/^Configuracao de balanca e bastao$/,'Config. balança/bastão').replace(/^PMG e Comunicacao para Associacao$/,'PMG/Comunicação');
-  const agGrpPack=bm(m).agGrp||{};
-  const chartAgents=ags.map(a=>a.nm).filter(nm=>agGrpPack[nm]&&Object.values(agGrpPack[nm]).some(v=>Number(v)>0));
+  const agGrpPack=agentGroupPackForPeriod(m);
+  const chartAgentsAll=ags.map(a=>a.nm).filter(nm=>agGrpPack[nm]&&Object.values(agGrpPack[nm]).some(v=>Number(v)>0));
+  const selectedNucleus=syncAgentGroupNucleusFilter(chartAgentsAll);
+  const chartAgents=selectedNucleus==='all'?chartAgentsAll:chartAgentsAll.filter(nm=>agentNucleus(nm)===selectedNucleus);
   const grpNames=[...new Set([
     ...(D.groupList||D.grupos?.nomes||[]),
     ...chartAgents.flatMap(nm=>Object.keys(agGrpPack[nm]||{}))
   ])].filter(g=>chartAgents.some(nm=>Number(agGrpPack[nm]?.[g]||0)>0));
+  $('title-ag-grp-sub').textContent=`${selectedNucleus==='all'?'Todos os núcleos':selectedNucleus} · ${periodMonthShort(m)}`;
   const rk=new Chart($('ch-ag-grp'),{type:'bar',data:{
     labels:grpNames.map(grpLabel),
-    datasets:chartAgents.map((nm,i)=>({label:nm.split(' ')[0],data:grpNames.map(g=>Number(agGrpPack[nm]?.[g]||0)),backgroundColor:APAL[i%APAL.length],borderRadius:3,maxBarThickness:16,agent:nm}))
-  },options:{...cDef,plugins:{...cDef.plugins,legend:{display:true,position:'top',labels:{boxWidth:10,boxHeight:10,color:'#8fa28a',font:{family:'Geist Mono',size:9}}},tooltip:{...cDef.plugins.tooltip,callbacks:{label:ctx=>`${ctx.dataset.agent||ctx.dataset.label}: ${ctx.parsed.y} atendimento(s)`}}},onClick:chartClick(el=>{const agent=chartAgents[el.datasetIndex],group=grpNames[el.index];if(agent&&group)chartDrill(`${agent} · ${grpLabel(group)}`,`${D.mesNomes[m]} · especialização por grupo`,drillRows(m,{agent,group}));})}});
+    datasets:chartAgents.map((nm,i)=>({label:nm.split(' ')[0],data:grpNames.map(g=>Number(agGrpPack[nm]?.[g]||0)),backgroundColor:APAL[i%APAL.length],borderRadius:4,maxBarThickness:30,agent:nm}))
+  },options:{...cDef,indexAxis:'y',plugins:{...cDef.plugins,legend:{display:true,position:'bottom',labels:{boxWidth:10,boxHeight:10,color:'#8fa28a',font:{family:'Geist Mono',size:9}}},tooltip:{...cDef.plugins.tooltip,callbacks:{label:ctx=>`${ctx.dataset.agent||ctx.dataset.label}: ${ctx.parsed.x} atendimento(s)`}}},onClick:chartClick(el=>{const agent=chartAgents[el.datasetIndex],group=grpNames[el.index];if(agent&&group)chartDrill(`${agent} · ${grpLabel(group)}`,`${periodMonthName(m)} · especialização por grupo`,drillRows(m,{agent,group}));}),scales:{x:{...cDef.scales.x,stacked:true,beginAtZero:true,title:{display:true,text:'Atendimentos',color:'#8fa28a',font:{family:'Geist Mono',size:9}}},y:{...cDef.scales.y,stacked:true,ticks:{...cDef.scales.y.ticks,autoSkip:false}}}}});
   $('ch-ag-grp')._ch=rk;
 }
 buildAgentes(agM);
@@ -337972,7 +338023,7 @@ function initGroupPeriodFilter(){
 function currentGroupPeriod(){return $('grp-period')?.value||'';}
 function groupScopeRows(m){
   const period=currentGroupPeriod();
-  return (D.rows||[]).filter(r=>Array.isArray(r)&&r[0]===m+1&&(!period||r[8]===period));
+  return rowsForPeriod(m).filter(r=>!period||r[8]===period);
 }
 function groupDrillRows(m,opts={}){
   const period=currentGroupPeriod();
@@ -338413,6 +338464,7 @@ function updateAtendimentoSortHeaders(){
 }
 function initAtendimentos(){
   if($('op-mes').options.length===0){
+    const all=document.createElement('option');all.value='0';all.textContent='Todos os meses';$('op-mes').appendChild(all);
     D.meses.forEach((m,i)=>{const o=document.createElement('option');o.value=String(i+1);o.textContent=D.mesNomes[i];if(i===appM)o.selected=true;$('op-mes').appendChild(o);});
   }
   if($('op-agent').options.length<=1){
@@ -338580,7 +338632,7 @@ function atendimentoRows(){
   initAtendimentos();
   const m=parseInt($('op-mes').value||String(appM+1),10), ag=$('op-agent').value, gp=$('op-group').value, av=$('op-av').value, q=($('op-q').value||'').trim().toLowerCase();
   return (D.rows||[]).filter(r=>{
-    if(!Array.isArray(r)||r[0]!==m)return false;
+    if(!Array.isArray(r)||(m>0&&r[0]!==m))return false;
     if(ag&&r[2]!==ag)return false;
     if(gp&&r[3]!==gp)return false;
     const cs=rowCsat(r);
@@ -338907,25 +338959,26 @@ initTreatments();
 function buildGlobalMonthSelect(){
   const sel=$('global-month');
   if(!sel)return;
-  sel.innerHTML=D.mesNomes.map((name,i)=>`<option value="${i}">${esc(name)}${monthIsPartial(i+1)?' · parcial':''}</option>`).join('');
+  sel.innerHTML=`<option value="${ALL_MONTHS}">Todos os meses</option>`+D.mesNomes.map((name,i)=>`<option value="${i}">${esc(name)}${monthIsPartial(i+1)?' · parcial':''}</option>`).join('');
 }
 function syncMonthControls(m){
   appM=m;ovM=m;agM=m;
   if($('global-month'))$('global-month').value=String(m);
-  if($('op-mes'))$('op-mes').value=String(m+1);
-  if($('tr-mes'))$('tr-mes').value=String(m+1);
+  if($('op-mes'))$('op-mes').value=isAllMonths(m)?'0':String(m+1);
+  if($('tr-mes'))$('tr-mes').value=String((isAllMonths(m)?F:m)+1);
   document.querySelectorAll('#ov-ms .mb').forEach((b,i)=>b.classList.toggle('active',i===m));
   document.querySelectorAll('#ag-ms .mb').forEach((b,i)=>b.classList.toggle('active',i===m));
-  if($('cal-mes'))$('cal-mes').value=String(m+1);
-  $('title-top-groups').textContent=`Grupos Detalhados — ${D.meses[m]}`;
-  $('title-tma-ag').textContent=`TMA Médio por Agente — ${D.mesNomes[m]}`;
-  $('title-ag-grp-sub').textContent=`Todos os agentes ativos por grupo · ${D.meses[m]}`;
-  $('title-grp-pie').textContent=`Distribuição ${D.meses[m]}`;
-  $('title-grp-hm').textContent=`Agentes × Grupos (${D.meses[m]})`;
-  $('title-av-dist').textContent=`Distribuição de Notas — ${D.meses[m]}`;
-  $('title-csat-ag').textContent=`CSAT por Agente — ${D.meses[m]}`;
-  $('title-baixa-ag').textContent=`Notas Baixas (< 9) por Agente — ${D.meses[m]}`;
-  $('title-flux-sub').textContent=`Cada célula = volume de atendimentos · ${D.mesNomes[m]}`;
+  if($('cal-mes'))$('cal-mes').value=String((isAllMonths(m)?F:m)+1);
+  const label=periodMonthShort(m), name=periodMonthName(m);
+  $('title-top-groups').textContent=`Grupos Detalhados — ${label}`;
+  $('title-tma-ag').textContent=`TMA Médio por Agente — ${name}`;
+  $('title-ag-grp-sub').textContent=`Todos os agentes ativos por grupo · ${label}`;
+  $('title-grp-pie').textContent=`Distribuição ${label}`;
+  $('title-grp-hm').textContent=`Agentes × Grupos (${label})`;
+  $('title-av-dist').textContent=`Distribuição de Notas — ${label}`;
+  $('title-csat-ag').textContent=`CSAT por Agente — ${label}`;
+  $('title-baixa-ag').textContent=`Notas Baixas (< 9) por Agente — ${label}`;
+  $('title-flux-sub').textContent=`Cada célula = volume de atendimentos · ${name}`;
 }
 
 function updateBandsForMonth(m){
@@ -339350,7 +339403,7 @@ function showTempoPopup(title,subtitle,rows){
 
 function drillRows(m,{day=null,agent='',group='',rating=null,low=false,rated=null,dow=null,hour=null,period='',week=null,unrated=false}={}){
   return (D.rows||[]).filter(r=>{
-    if(!Array.isArray(r)||r[0]!==m+1)return false;
+    if(!Array.isArray(r)||(!isAllMonths(m)&&r[0]!==m+1))return false;
     if(day!=null&&r[1]!==day)return false;
     if(agent&&r[2]!==agent)return false;
     if(group&&r[3]!==group)return false;
@@ -339374,6 +339427,9 @@ function drillRows(m,{day=null,agent='',group='',rating=null,low=false,rated=nul
 }
 function showAgentDetails(agent,m=appM){
   const rows=drillRows(m,{agent}).sort((a,b)=>{
+    if(isAllMonths(m)){
+      return String(b[10]||b[11]||'').localeCompare(String(a[10]||a[11]||''),'pt-BR');
+    }
     const dayDiff=(Number(b[1])||0)-(Number(a[1])||0);
     if(dayDiff)return dayDiff;
     return String(b[10]||b[11]||'').localeCompare(String(a[10]||a[11]||''),'pt-BR');
@@ -339391,14 +339447,18 @@ function showAgentDetails(agent,m=appM){
     return {group,items,total:items.length,csat:groupRated.length?avgArr(groupRated.map(rowCsat)):null,tma:avgArr(items.filter(r=>r[4]!=null).map(r=>r[4])),tme:avgArr(items.filter(r=>r[5]!=null).map(r=>r[5]))};
   }).sort((a,b)=>b.total-a.total||a.group.localeCompare(b.group,'pt-BR'));
   const byDay=Object.entries(rows.reduce((acc,r)=>{
-    const day=Number(r[1])||0;
-    if(!acc[day])acc[day]=[];
-    acc[day].push(r);
+    const key=isAllMonths(m)?`${String(r[1]).padStart(2,'0')}/${String(r[0]).padStart(2,'0')}`:String(Number(r[1])||0);
+    if(!acc[key])acc[key]=[];
+    acc[key].push(r);
     return acc;
-  },{})).sort((a,b)=>Number(b[0])-Number(a[0]));
+  },{})).sort((a,b)=>{
+    if(!isAllMonths(m))return Number(b[0])-Number(a[0]);
+    const [bd,bm]=String(b[0]).split('/').map(Number), [ad,am]=String(a[0]).split('/').map(Number);
+    return (bm*100+bd)-(am*100+ad);
+  });
 
   $('rel-title').textContent=agent;
-  $('rel-sub').textContent=`${D.mesNomes[m]} · atendimentos ordenados por dia`;
+  $('rel-sub').textContent=`${periodMonthName(m)} · atendimentos ordenados por dia`;
   $('rel-body').innerHTML=`
     <div class="rel-grid">
       <div class="rel-k"><div class="rel-kv">${fN(rows.length)}</div><div class="rel-kl">Atendimentos</div></div>
@@ -339416,7 +339476,7 @@ function showAgentDetails(agent,m=appM){
     ${byDay.map(([day,items])=>`
       <div class="rel-group">
         <div class="rel-group-head">
-          <div><div class="rel-group-title">Dia ${String(day).padStart(2,'0')}/${String(m+1).padStart(2,'0')}</div><div class="rel-group-meta">${fN(items.length)} atendimento(s) · mais recentes primeiro</div></div>
+          <div><div class="rel-group-title">${isAllMonths(m)?`Dia ${esc(day)}`:`Dia ${String(day).padStart(2,'0')}/${String(m+1).padStart(2,'0')}`}</div><div class="rel-group-meta">${fN(items.length)} atendimento(s) · mais recentes primeiro</div></div>
         </div>
         <div class="rel-list">
           ${items.map(r=>`<div class="rel-item"><div class="rel-main"><b>${esc(r[7]||'Sem protocolo')}</b><br>${esc(r[3]||'Sem grupo')} · ${clientButton(r)}${r[10]?`<br><span style="color:var(--ghost)">Início ${esc(r[10])}${r[11]?` · encerramento ${esc(r[11])}`:''}</span>`:''}</div><div class="rel-actions">${r[7]?`<button class="rel-action" onclick="showAttendanceDetail('','${esc(r[7])}')">Ler</button>`:''}${attendanceProtocol(r)?`<button class="rel-action" onclick="openNeppoPdf('${esc(attendanceProtocol(r))}')">Abrir PDF</button>`:`<button class="rel-action disabled">PDF indisponível</button>`}<span class="rel-tag">TMA ${fmtDur(r[4])}</span><span class="rel-tag">TME ${fmtDur(r[5])}</span><span class="rel-tag">CSAT ${fmtCsat(r[6])}</span></div></div>`).join('')}
@@ -339559,7 +339619,7 @@ function renderGroupFractions(m){
     const agentCount=agentRows.length;
     agentRows.forEach(([agent,total],idx)=>{
       const pct=g.total?total/g.total:0, frac=agentCount?1/agentCount:0;
-      html.push(`<tr onclick="chartDrill('${esc(group)} · ${esc(agent)}','${D.mesNomes[m]} · fração por grupo',groupDrillRows(${m},{agent:'${esc(agent)}',group:'${esc(group)}'}))" style="cursor:pointer;${idx===0?'border-top:2px solid var(--mist)':''}"><td><b>${esc(group)}</b></td><td>${esc(agent)}</td><td class="th">${fN(total)}</td><td class="tn">${pct1(pct)}</td><td class="tn">1/${agentCount} · ${pct1(frac)}</td></tr>`);
+      html.push(`<tr onclick="chartDrill('${esc(group)} · ${esc(agent)}','${periodMonthName(m)} · fração por grupo',groupDrillRows(${m},{agent:'${esc(agent)}',group:'${esc(group)}'}))" style="cursor:pointer;${idx===0?'border-top:2px solid var(--mist)':''}"><td><b>${esc(group)}</b></td><td>${esc(agent)}</td><td class="th">${fN(total)}</td><td class="tn">${pct1(pct)}</td><td class="tn">1/${agentCount} · ${pct1(frac)}</td></tr>`);
     });
     html.push(`<tr style="background:var(--foam);border-bottom:2px solid var(--mist)"><td><b>${esc(group)}</b></td><td class="op-mono">Total do grupo</td><td class="th">${fN(g.total)}</td><td class="tn"><b>100,0%</b></td><td class="tn">${agentCount}/${agentCount} · 100,0%</td></tr>`);
   });
@@ -340357,21 +340417,23 @@ async function initBonusPrivate(){
 }
 
 function setGlobalMonth(m){
-  m=Number.isFinite(m)?Math.max(0,Math.min(D.meses.length-1,m)):F;
+  m=Number.isFinite(m)?(m===ALL_MONTHS?ALL_MONTHS:Math.max(0,Math.min(D.meses.length-1,m))):F;
   syncMonthControls(m);
-  updateOvKPIs(m);
-  updateDailyChart(m);
-  renderOverviewMonth(m);
-  renderTempoMonth(m);
+  const monthlyM=isAllMonths(m)?F:m;
+  updateOvKPIs(monthlyM);
+  updateDailyChart(monthlyM);
+  renderOverviewMonth(monthlyM);
+  renderTempoMonth(monthlyM);
   buildAgentes(m);
-  renderGroupsMonth(m);
-  renderClientsMonth(m);
-  renderAvalMonth(m);
-  updateBandsForMonth(m);
-  renderFluxMonth(m);
+  renderGroupsMonth(monthlyM);
+  renderClientsMonth(monthlyM);
+  renderAvalMonth(monthlyM);
+  updateBandsForMonth(monthlyM);
+  renderFluxMonth(monthlyM);
   renderBonus();
   renderCal();
   renderDiary();
+  if(activeDashboardPaneId()==='atendimentos')renderAtendimentos();
 }
 
 // Atualiza os números quando a rotina NEPPO publicar uma nova versão do painel.
@@ -340472,7 +340534,7 @@ function rebuildMonthButtons(){
   buildGlobalMonthSelect();
 }
 function renderCurrentDashboardPane(paneId){
-  const month=Math.max(0,Math.min(appM,D.meses.length-1));
+  const month=isAllMonths(appM)?ALL_MONTHS:Math.max(0,Math.min(appM,D.meses.length-1));
   rebuildMonthButtons();
   setGlobalMonth(month);
   if(paneId==='historico')renderHistorico();

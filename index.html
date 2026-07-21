@@ -340080,15 +340080,24 @@ function renderFluxMonth(m){
     if(scope==='day')return Number(r[1])===day;
     return true;
   });
+  const fluxRowDow=r=>{
+    const rowDay=Number(r[1]||0);
+    if(rowDay>0){
+      const jsDow=new Date(2026,m,rowDay).getDay();
+      return jsDow===0?6:jsDow-1;
+    }
+    const dt=parseBrDate(r[10]||'');
+    if(!dt)return -1;
+    const jsDow=new Date(dt).getDay();
+    return jsDow===0?6:jsDow-1;
+  };
   const hourDow=D.hours.map(()=>[0,0,0,0,0]);
   const tmeBuckets=D.hours.map(()=>[]);
   const grpHora={};
   scopedRows.forEach(r=>{
     const hour=D.hours.indexOf(Number(r[9]));
-    const dt=parseBrDate(r[10]||'');
-    if(hour<0||!dt)return;
-    const jsDow=new Date(dt).getDay();
-    const dow=jsDow===0?6:jsDow-1;
+    if(hour<0)return;
+    const dow=fluxRowDow(r);
     if(dow>=0&&dow<5)hourDow[hour][dow]++;
     if(r[5]!=null)tmeBuckets[hour].push(r[5]);
     const group=r[3]||'Sem grupo';
@@ -340114,7 +340123,7 @@ function renderFluxMonth(m){
   let hh=`<div class="hour-row">${['<div style="width:28px"></div>',...dowLabels.map(d=>`<div class="dow-lbl">${d}</div>`)].join('')}</div>`;
   hourDow.forEach((row,hi)=>{hh+=`<div class="hour-row"><div class="hour-lbl">${D.hours[hi]}h</div>${row.map((v,di)=>`<div class="hour-cell" data-hour="${D.hours[hi]}" data-dow="${di}" style="background:${heatColor(v)};cursor:pointer" title="${dowLabels[di]} ${D.hours[hi]}h: ${v} atend."><span style="font-family:'Geist Mono',monospace;font-size:.55rem;color:${v>hdMx*.5?'#fff':'#2d5038'};pointer-events:none">${v}</span></div>`).join('')}</div>`;});
   $('hour-heatmap').innerHTML=hh;
-  $('hour-heatmap').querySelectorAll('.hour-cell').forEach(cell=>cell.onclick=()=>{const hour=Number(cell.dataset.hour),dow=Number(cell.dataset.dow);chartDrill(`${dowLabels[dow]} · ${hour}h`,`${D.mesNomes[m]} · ${scopeLabel}`,scopedRows.filter(r=>{const dt=parseBrDate(r[10]||'');if(!dt)return false;const jsDow=new Date(dt).getDay(), rowDow=jsDow===0?6:jsDow-1;return Number(r[9])===hour&&rowDow===dow;}));});
+  $('hour-heatmap').querySelectorAll('.hour-cell').forEach(cell=>cell.onclick=()=>{const hour=Number(cell.dataset.hour),dow=Number(cell.dataset.dow);chartDrill(`${dowLabels[dow]} · ${hour}h`,`${D.mesNomes[m]} · ${scopeLabel}`,scopedRows.filter(r=>Number(r[9])===hour&&fluxRowDow(r)===dow));});
   const hourTotals=hourDow.map(r=>r.reduce((s,v)=>s+v,0));
   chart('ch-hora-vol',{type:'bar',data:{labels:D.hours.map(h=>h+'h'),datasets:[{label:'Total Atend.',data:hourTotals,backgroundColor:hourTotals.map(t=>{const p=t/Math.max(1,...hourTotals);return p>.75?'#3d6b47':p>.5?'#4f8562':p>.25?'#6a9e78':p>0?'#c8dece':'#eef1e9';}),borderRadius:5}]},options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}},onClick:chartClick(el=>{const hour=D.hours[el.index];chartDrill(`${hour}h`,`${D.mesNomes[m]} · ${scopeLabel}`,scopedRows.filter(r=>Number(r[9])===hour));})}});
   chart('ch-hora-tme',{type:'line',data:{labels:D.hours.map(h=>h+'h'),datasets:[{label:'TME (segundos)',data:tmeHora,borderColor:'#a83232',backgroundColor:'rgba(168,50,50,.08)',tension:.4,pointRadius:5,pointBackgroundColor:tmeHora.map(v=>v>5?'#a83232':v>2?'#9a6b1a':'#3d6b47'),fill:true}]},options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}},onClick:chartClick(el=>{const hour=D.hours[el.index];chartDrill(`TME · ${hour}h`,`${D.mesNomes[m]} · ${scopeLabel}`,scopedRows.filter(r=>Number(r[9])===hour));})}});

@@ -336068,6 +336068,35 @@ function agentGroupPackForPeriod(m){
     return acc;
   },{});
 }
+const medianArr=arr=>{const a=(arr||[]).slice().sort((x,y)=>x-y);if(!a.length)return 0;const mid=Math.floor(a.length/2);return a.length%2?a[mid]:(a[mid-1]+a[mid])/2;};
+function tempoPack(m){
+  if(!isAllMonths(m))return bm(m)||{};
+  const rows=rowsForPeriod(m);
+  const rated=rows.filter(isRatedRow);
+  const byAgent={};
+  rows.forEach(r=>{
+    const agent=r[2]||'Sem agente';
+    if(!byAgent[agent])byAgent[agent]=[];
+    byAgent[agent].push(r);
+  });
+  const tmaAg={};
+  Object.entries(byAgent).forEach(([agent,items])=>{
+    const tmas=items.map(r=>r[4]).filter(v=>v!=null);
+    if(items.length)tmaAg[agent]=[((avgArr(tmas)||0)/60),medianArr(tmas)/60,avgArr(items.map(r=>r[5]).filter(v=>v!=null))||0,items.length];
+  });
+  const avDist={};
+  rated.forEach(r=>{const k=String(Math.round(rowCsat(r)));avDist[k]=(avDist[k]||0)+1;});
+  const tmaDist=[0,0,0,0,0,0];
+  rows.forEach(r=>{const min=(r[4]||0)/60;const i=min<10?0:min<20?1:min<30?2:min<45?3:min<60?4:5;tmaDist[i]++;});
+  const periodos=TEMPO_PERIOD_DEFS.map(([n,h,start,end])=>{
+    const pr=rows.filter(r=>Number(r[9])>=start&&Number(r[9])<end);
+    const rv=pr.filter(isRatedRow);
+    return {n,h,at:pr.length,pct:rows.length?pr.length/rows.length:0,av:rv.length,cob:pr.length?rv.length/pr.length:0,sat:avgArr(rv.map(rowCsat))||0,tma:fmtDur(avgArr(pr.map(r=>r[4]).filter(v=>v!=null))||0),tme:fmtDur(avgArr(pr.map(r=>r[5]).filter(v=>v!=null))||0)};
+  });
+  const tmeHora=D.hours.map(()=>[]);
+  rows.forEach(r=>{const h=Number(r[9]);if(h>=0&&h<tmeHora.length&&r[5]!=null)tmeHora[h].push(r[5]);});
+  return {tmaAg,avDist,tmaDist,periodos,tmeHora:tmeHora.map(avgArr).map(v=>v||0)};
+}
 const chart=(id,cfg)=>{const el=$(id);Chart.getChart(el)?.destroy();if(cfg?.options?.onClick){cfg.options.onHover=(evt,els)=>{evt.native.target.style.cursor=els.length?'pointer':'default';};}return new Chart(el,cfg);};
 const setText=(selector,starts,text)=>{const el=[...document.querySelectorAll(selector)].find(x=>x.textContent.trim().startsWith(starts));if(el)el.textContent=text;};
 const NUCLEOS=[
@@ -336092,6 +336121,11 @@ const groupCountHtml=rows=>{
   return byGroup.length?byGroup.map(([g,v])=>`<div class="nuc-row"><span>${g}</span><b>${fN(v)}</b></div>`).join(''):'<div class="nuc-row"><span>Sem atendimentos</span><b>0</b></div>';
 };
 const PERIODOS_RAW=['1º Periodo da manhã','2º Periodo da manhã','3º Periodo da manhã','4º Periodo da manhã','Almoço 1','Almoço 2','1º Periodo da tarde','2º Periodo da tarde','3º Periodo da tarde','4º Periodo da tarde'];
+const TEMPO_PERIOD_DEFS=[
+  ['1º Período da manhã','07–09h',7,9],['2º Período da manhã','09–10h',9,10],['3º Período da manhã','10–11h',10,11],['4º Período da manhã','11–12h',11,12],
+  ['Almoço 1','12–13h',12,13],['Almoço 2','13–14h',13,14],['1º Período da tarde','14–15h',14,15],['2º Período da tarde','15–16h',15,16],
+  ['3º Período da tarde','16–17h',16,17],['4º Período da tarde','17–18:30h',17,19]
+];
 
 const cDef={responsive:true,maintainAspectRatio:false,
   plugins:{legend:{labels:{color:'#8fa28a',font:{family:'Geist Mono',size:10},boxWidth:10,padding:10}},
@@ -339015,22 +339049,24 @@ function syncMonthControls(m){
 }
 
 function updateBandsForMonth(m){
-  const pack=bm(m), tmaAg=Object.entries(pack.tmaAg||{}).sort((a,b)=>a[1][0]-b[1][0]);
+  const pack=tempoPack(m), periodRows=rowsForPeriod(m), ratedRows=periodRows.filter(isRatedRow), tmaAg=Object.entries(pack.tmaAg||{}).sort((a,b)=>a[1][0]-b[1][0]);
   const fast=tmaAg[0], slow=tmaAg[tmaAg.length-1];
   if(fast){$('tempo-fast-v').textContent=shortName(fast[0]);$('tempo-fast-l').textContent=`TMA mais rápido · ${fast[1][0].toFixed(0)}min`;}
   if(slow){$('tempo-slow-v').textContent=shortName(slow[0]);$('tempo-slow-l').textContent=`TMA mais lento · ${slow[1][0].toFixed(0)}min`;}
-  $('tempo-tma-v').textContent=D.tma[m];$('tempo-tma-l').textContent=`TMA geral ${D.meses[m]}`;
+  const tmaLabel=isAllMonths(m)?fmtDur(avgArr(periodRows.map(r=>r[4]).filter(v=>v!=null))||0):D.tma[m];
+  $('tempo-tma-v').textContent=tmaLabel;$('tempo-tma-l').textContent=`TMA geral ${periodMonthShort(m)}`;
   const peakTmeIdx=(pack.tmeHora||[]).reduce((bi,v,i)=>v>(pack.tmeHora||[])[bi]?i:bi,0);
   $('tempo-tme-v').textContent=(D.hours[peakTmeIdx]??'—')+'h';
-  $('tempo-sla-v').textContent=pct1(D.sla[m]);
+  const sla=isAllMonths(m)?(periodRows.length?periodRows.filter(r=>Number(r[5]||0)<=120).length/periodRows.length:0):D.sla[m];
+  $('tempo-sla-v').textContent=pct1(sla);
 
-  const avDist=pack.avDist||{}, ten=+(avDist['10']||0), total=D.aval[m];
+  const avDist=pack.avDist||{}, ten=+(avDist['10']||0), total=isAllMonths(m)?ratedRows.length:D.aval[m];
   const low=Object.entries(avDist).filter(([k])=>+k<9).reduce((s,[,v])=>s+v,0);
   $('av-k10').textContent=total?pct1(ten/total):'—';
   $('av-ktotal').textContent=fN(total);
   $('av-klow').textContent=total?pct1(low/total):'—';
-  $('av-kcov').textContent=pct1(D.cobert[m]);
-  $('av-knone').textContent=fN(D.atend[m]-D.aval[m]);
+  $('av-kcov').textContent=pct1(periodRows.length?total/periodRows.length:0);
+  $('av-knone').textContent=fN(Math.max(0,periodRows.length-total));
 
   const dows=['Seg','Ter','Qua','Qui','Sex'];
   const cells=[];
@@ -339066,7 +339102,7 @@ function renderOverviewMonth(m){
 
 function tempoRows(m,{agent='',bin=null,period='' }={}){
   return (D.rows||[]).filter(r=>{
-    if(!Array.isArray(r)||r[0]!==m+1)return false;
+    if(!Array.isArray(r)||(!isAllMonths(m)&&r[0]!==m+1))return false;
     if(agent&&r[2]!==agent)return false;
     if(period&&r[8]!==period)return false;
     if(bin!=null){
@@ -339578,13 +339614,13 @@ function diaryPopup(title,subtitle,items){
 }
 
 function renderTempoMonth(m){
-  const pack=bm(m), tmaAgs=Object.entries(pack.tmaAg||{}).sort((a,b)=>a[1][0]-b[1][0]);
-  chart('ch-tma-ag',{type:'bar',data:{labels:tmaAgs.map(([n])=>n.split(' ')[0]),datasets:[{label:'TMA Médio (min)',data:tmaAgs.map(([,v])=>v[0]),backgroundColor:tmaAgs.map(([,v])=>v[0]<22?'#3d6b47':v[0]<27?'#6a9e78':v[0]<32?'#9a6b1a':'#a83232'),borderRadius:5},{label:'Mediana',data:tmaAgs.map(([,v])=>v[1]),type:'scatter',backgroundColor:'#2d5038',pointRadius:5,showLine:false}]},options:{...cDef,plugins:{...cDef.plugins},onClick:(evt,els)=>{if(!els.length)return;const agent=tmaAgs[els[0].index]?.[0];if(agent)showTempoPopup(`Atendimentos de ${agent}`,`${D.mesNomes[m]} · clique no agente`,tempoRows(m,{agent}));}}});
+  const pack=tempoPack(m), labelLong=periodMonthName(m), labelShort=periodMonthShort(m), tmaAgs=Object.entries(pack.tmaAg||{}).sort((a,b)=>a[1][0]-b[1][0]);
+  chart('ch-tma-ag',{type:'bar',data:{labels:tmaAgs.map(([n])=>n.split(' ')[0]),datasets:[{label:'TMA Médio (min)',data:tmaAgs.map(([,v])=>v[0]),backgroundColor:tmaAgs.map(([,v])=>v[0]<22?'#3d6b47':v[0]<27?'#6a9e78':v[0]<32?'#9a6b1a':'#a83232'),borderRadius:5},{label:'Mediana',data:tmaAgs.map(([,v])=>v[1]),type:'scatter',backgroundColor:'#2d5038',pointRadius:5,showLine:false}]},options:{...cDef,plugins:{...cDef.plugins},onClick:(evt,els)=>{if(!els.length)return;const agent=tmaAgs[els[0].index]?.[0];if(agent)showTempoPopup(`Atendimentos de ${agent}`,`${labelLong} · clique no agente`,tempoRows(m,{agent}));}}});
   const binLabels=['0–10 min','10–20 min','20–30 min','30–45 min','45–60 min','+60 min'];
-  chart('ch-tma-dist',{type:'bar',data:{labels:binLabels,datasets:[{label:'Atendimentos — '+D.meses[m],data:pack.tmaDist||[],backgroundColor:['#c8dece','#9ec4a8','#6a9e78','#4f8562','#9a6b1a','#a83232'],borderRadius:6}]},options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}},indexAxis:'y',onClick:(evt,els)=>{if(!els.length)return;const bin=els[0].index;showTempoPopup(`Faixa ${binLabels[bin]}`,`${D.mesNomes[m]} · relação por agentes`,tempoRows(m,{bin}));}}});
-  chart('ch-tma-per',{type:'bar',data:{labels:(pack.periodos||[]).map(p=>p.h),datasets:[{label:'TMA (minutos)',data:(pack.periodos||[]).map(p=>+minFromTime(p.tma).toFixed(1)),backgroundColor:['#3d6b47','#4f8562','#6a9e78','#9ec4a8','#c8dece','#4f8562','#3d6b47','#6a9e78','#9a6b1a','#c8dece'],borderRadius:5}]},options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}},onClick:(evt,els)=>{if(!els.length)return;const i=els[0].index;showTempoPopup(`Período ${(pack.periodos||[])[i]?.h||''}`,`${D.mesNomes[m]} · relação por agentes`,tempoRows(m,{period:PERIODOS_RAW[i]}));}}});
-  const sc=Object.entries(D.agentes).filter(([,d])=>d[m][0]>0).map(([nm,d])=>({nm,at:d[m][0],tma:pack.tmaAg?.[nm]?.[0]||null})).filter(a=>a.tma);
-  chart('ch-scatter',{type:'scatter',data:{datasets:[{label:'Agentes — '+D.meses[m],data:sc.map(a=>({x:a.at,y:a.tma,label:a.nm.split(' ')[0],agent:a.nm})),backgroundColor:sc.map(a=>a.tma<22?'#3d6b47':a.tma<28?'#6a9e78':'#a83232'),pointRadius:8,pointHoverRadius:10}]},options:{...cDef,plugins:{...cDef.plugins,legend:{display:false},tooltip:{...cDef.plugins.tooltip,callbacks:{label:ctx=>`${ctx.raw.label} · ${ctx.raw.x} atend. · ${ctx.raw.y.toFixed(1)}min`}}},onClick:(evt,els,chartRef)=>{if(!els.length)return;const raw=chartRef.data.datasets[els[0].datasetIndex].data[els[0].index];if(raw?.agent)showTempoPopup(`Volume × TMA · ${raw.agent}`,`${D.mesNomes[m]} · ${raw.x} atendimentos`,tempoRows(m,{agent:raw.agent}));},scales:{...cDef.scales,x:{...cDef.scales.x,title:{display:true,text:'Volume de Atendimentos',color:'#8fa28a',font:{family:'Geist Mono',size:9}}},y:{...cDef.scales.y,title:{display:true,text:'TMA (min)',color:'#8fa28a',font:{family:'Geist Mono',size:9}}}}}});
+  chart('ch-tma-dist',{type:'bar',data:{labels:binLabels,datasets:[{label:'Atendimentos — '+labelShort,data:pack.tmaDist||[],backgroundColor:['#c8dece','#9ec4a8','#6a9e78','#4f8562','#9a6b1a','#a83232'],borderRadius:6}]},options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}},indexAxis:'y',onClick:(evt,els)=>{if(!els.length)return;const bin=els[0].index;showTempoPopup(`Faixa ${binLabels[bin]}`,`${labelLong} · relação por agentes`,tempoRows(m,{bin}));}}});
+  chart('ch-tma-per',{type:'bar',data:{labels:(pack.periodos||[]).map(p=>p.h),datasets:[{label:'TMA (minutos)',data:(pack.periodos||[]).map(p=>+minFromTime(p.tma).toFixed(1)),backgroundColor:['#3d6b47','#4f8562','#6a9e78','#9ec4a8','#c8dece','#4f8562','#3d6b47','#6a9e78','#9a6b1a','#c8dece'],borderRadius:5}]},options:{...cDef,plugins:{...cDef.plugins,legend:{display:false}},onClick:(evt,els)=>{if(!els.length)return;const i=els[0].index;showTempoPopup(`Período ${(pack.periodos||[])[i]?.h||''}`,`${labelLong} · relação por agentes`,tempoRows(m,{period:PERIODOS_RAW[i]}));}}});
+  const sc=Object.entries(pack.tmaAg||{}).map(([nm,v])=>({nm,at:v[3]||0,tma:v[0]||null})).filter(a=>a.tma);
+  chart('ch-scatter',{type:'scatter',data:{datasets:[{label:'Agentes — '+labelShort,data:sc.map(a=>({x:a.at,y:a.tma,label:a.nm.split(' ')[0],agent:a.nm})),backgroundColor:sc.map(a=>a.tma<22?'#3d6b47':a.tma<28?'#6a9e78':'#a83232'),pointRadius:8,pointHoverRadius:10}]},options:{...cDef,plugins:{...cDef.plugins,legend:{display:false},tooltip:{...cDef.plugins.tooltip,callbacks:{label:ctx=>`${ctx.raw.label} · ${ctx.raw.x} atend. · ${ctx.raw.y.toFixed(1)}min`}}},onClick:(evt,els,chartRef)=>{if(!els.length)return;const raw=chartRef.data.datasets[els[0].datasetIndex].data[els[0].index];if(raw?.agent)showTempoPopup(`Volume × TMA · ${raw.agent}`,`${labelLong} · ${raw.x} atendimentos`,tempoRows(m,{agent:raw.agent}));},scales:{...cDef.scales,x:{...cDef.scales.x,title:{display:true,text:'Volume de Atendimentos',color:'#8fa28a',font:{family:'Geist Mono',size:9}}},y:{...cDef.scales.y,title:{display:true,text:'TMA (min)',color:'#8fa28a',font:{family:'Geist Mono',size:9}}}}}});
 }
 
 function renderGroupsMonth(m){
@@ -340467,12 +340503,12 @@ function setGlobalMonth(m){
   updateOvKPIs(monthlyM);
   updateDailyChart(monthlyM);
   renderOverviewMonth(monthlyM);
-  renderTempoMonth(monthlyM);
+  renderTempoMonth(m);
   buildAgentes(m);
   renderGroupsMonth(monthlyM);
   renderClientsMonth(monthlyM);
   renderAvalMonth(monthlyM);
-  updateBandsForMonth(monthlyM);
+  updateBandsForMonth(m);
   renderFluxMonth(monthlyM);
   renderBonus();
   renderCal();

@@ -2,6 +2,9 @@ name: Acionar atualizacao NEPPO Worker
 
 on:
   workflow_dispatch:
+  schedule:
+    # Redundância independente do Cloudflare Cron: 08:00–18:50 em Brasília.
+    - cron: '*/10 11-21 * * 1-5'
   # Acionador sem estado local: chama o Worker/KV e nunca regenera index.html,
   # nunca commita e nunca publica Cloudflare.
   # Rotina oficial: Cloudflare Worker Cron em wrangler.jsonc.

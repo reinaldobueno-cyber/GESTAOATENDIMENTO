@@ -1,5 +1,6 @@
 import { BONUS_HTML_BASE64 } from './bonus-html.js';
 import { PRIVATE_CLIENT_MAP } from './private-client-map.js';
+import webpush from 'web-push';
 
 const NEPPO_LIVE_CACHE = new Map();
 const NEPPO_API_BASE = 'https://api.neppo.com.br';
@@ -10,13 +11,14 @@ const NEPPO_LIVE_FRESH_MS = 15 * 1000;
 const NEPPO_LIVE_CRON_FRESH_MS = 90 * 1000;
 const NEPPO_LIVE_RUNNING_LOCK_MS = 3 * 60 * 1000;
 const NEPPO_LIVE_STALE_MS = 30 * 60 * 1000;
-const NEPPO_LIVE_KV_EXPIRATION_TTL = 2 * 24 * 60 * 60;
+const NEPPO_LIVE_KV_EXPIRATION_TTL = 45 * 24 * 60 * 60;
 const NEPPO_LIVE_HISTORY_ENRICH_LIMIT = 60;
 const NEPPO_LIVE_HISTORY_ENRICH_CONCURRENCY = 4;
 const NEPPO_CONTACT_CACHE_KEY = 'neppo-attendance-contact-cache-v1';
 const NEPPO_CONTACT_CACHE_MAX_ITEMS = 8000;
 const NEPPO_BUSINESS_START_HOUR = 8;
 const NEPPO_BUSINESS_END_HOUR = 18;
+const NEPPO_BUSINESS_END_MINUTE = 30;
 const DASHBOARD_RELEASE_MARKER = 'gestaoatendimento-20260720-release-guard';
 
 function setupRequired() {
@@ -173,7 +175,7 @@ async function derivePrivateMapKeys(password, salt, iterations) {
 
 async function decryptPrivateMap(request, env) {
   try {
-    const assetUrl = new URL('/private-client-map.enc.json', request.url);
+    const assetUrl = new URL('/data/private-client-map.enc.json', request.url);
     const asset = await env.ASSETS.fetch(new Request(assetUrl, request));
     if (!asset.ok) {
       return 'window.CLIENTE_PRIVADO = {}; window.CLIENTE_PRIVADO_STATUS = "arquivo_privado_nao_encontrado";';
@@ -1378,10 +1380,20 @@ function recalculateDashboardMetricsFromRows(data) {
   return data;
 }
 
-function neppoLiveRangeForRequest(year, month) {
+function neppoLiveRangeForRequest(year, month, options = {}) {
   const now = saoPauloDateParts();
   const isCurrentMonth = Number(year) === now.year && Number(month) === now.month;
   if (isCurrentMonth) {
+    if (options.fullMonth === true) {
+      return {
+        mode: 'month_to_date',
+        day: now.day,
+        startDay: 1,
+        endDay: now.day,
+        start: new Date(Date.UTC(year, month - 1, 1, 3, 0, 0)),
+        end: new Date(Date.UTC(year, month - 1, now.day + 1, 3, 0, 0)),
+      };
+    }
     const mondayOffset = now.dayOfWeek === 0 ? 6 : now.dayOfWeek - 1;
     const startDay = Math.max(1, now.day - mondayOffset);
     return {
@@ -1401,6 +1413,62 @@ function neppoLiveRangeForRequest(year, month) {
     start: new Date(Date.UTC(year, month - 1, 1, 3, 0, 0)),
     end: new Date(Date.UTC(year, month, 1, 3, 0, 0)),
   };
+}
+
+function neppoLiveMonthRows(body, month) {
+  return (body?.data?.rows || []).filter((row) => Array.isArray(row) && Number(row[0]) === Number(month));
+}
+
+function neppoLiveNeedsFullMonthRecovery(body, year, month) {
+  const now = saoPauloDateParts();
+  if (!body?.data || Number(year) !== now.year || Number(month) !== now.month || now.day <= 3) return false;
+  const populatedDays = new Set(neppoLiveMonthRows(body, month).map((row) => Number(row[1])));
+  let missingBusinessDays = 0;
+  let longestGap = 0;
+  const firstDay = Math.max(1, now.day - 14);
+  for (let day = firstDay; day < now.day; day += 1) {
+    const dayOfWeek = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+    if (dayOfWeek === 0 || dayOfWeek === 6) continue;
+    if (populatedDays.has(day)) {
+      missingBusinessDays = 0;
+      continue;
+    }
+    missingBusinessDays += 1;
+    longestGap = Math.max(longestGap, missingBusinessDays);
+  }
+  return longestGap >= 3;
+}
+
+function neppoLiveRowIdentity(row) {
+  const protocol = String(row?.[7] || '').trim();
+  if (protocol) return `protocol:${protocol}`;
+  return `fallback:${[row?.[0], row?.[1], row?.[2], row?.[3], row?.[10], row?.[12]].join('|')}`;
+}
+
+function reconcileNeppoLiveSnapshot(previousBody, candidateBody, month) {
+  if (!previousBody?.data || !candidateBody?.data) return candidateBody;
+  const previousMonthRows = neppoLiveMonthRows(previousBody, month);
+  const candidateMonthRows = neppoLiveMonthRows(candidateBody, month);
+  const mergedMonthRows = new Map(previousMonthRows.map((row) => [neppoLiveRowIdentity(row), row]));
+  for (const row of candidateMonthRows) mergedMonthRows.set(neppoLiveRowIdentity(row), row);
+
+  const mergedBody = cloneDashboardDataForWorker(candidateBody);
+  mergedBody.data.rows = [
+    ...(candidateBody.data.rows || []).filter((row) => !Array.isArray(row) || Number(row[0]) !== Number(month)),
+    ...mergedMonthRows.values(),
+  ];
+  recalculateDashboardMetricsFromRows(mergedBody.data);
+  mergedBody.meta = {
+    ...(mergedBody.meta || {}),
+    reconciliation: {
+      previousRows: previousMonthRows.length,
+      collectedRows: candidateMonthRows.length,
+      preservedRows: Math.max(0, mergedMonthRows.size - candidateMonthRows.length),
+      finalRows: mergedMonthRows.size,
+    },
+  };
+  mergedBody.signature = dashboardLiveSignature(mergedBody.data, mergedBody.meta);
+  return mergedBody;
 }
 
 function neppoLiveCacheKey(year, month) {
@@ -1428,7 +1496,6 @@ async function writeNeppoLiveKv(env, year, month, body) {
   await env.ADJUSTMENTS.put(
     neppoLiveCacheKey(year, month),
     JSON.stringify(body),
-    { expirationTtl: NEPPO_LIVE_KV_EXPIRATION_TTL },
   );
   return true;
 }
@@ -1472,11 +1539,14 @@ function requestSecret(request) {
   ).trim();
 }
 
-async function refreshNeppoLiveDashboard(request, env, year, month) {
-  const result = await buildLiveNeppoDashboard(request, env, month, year);
+async function refreshNeppoLiveDashboard(request, env, year, month, options = {}) {
+  const previousBody = options.previousBody || await readNeppoLiveKv(env, year, month);
+  const fullMonth = options.fullMonth === true || neppoLiveNeedsFullMonthRecovery(previousBody, year, month);
+  const result = await buildLiveNeppoDashboard(request, env, month, year, { previousBody, fullMonth });
   if (!result.ok) throw Object.assign(new Error(result.body?.message || 'Falha NEPPO live.'), { status: result.status, body: result.body });
-  await writeNeppoLiveKv(env, year, month, result.body);
-  return result.body;
+  const reconciled = reconcileNeppoLiveSnapshot(previousBody, result.body, month);
+  await writeNeppoLiveKv(env, year, month, reconciled);
+  return reconciled;
 }
 
 async function refreshNeppoLiveDashboardForCron(env) {
@@ -1484,14 +1554,21 @@ async function refreshNeppoLiveDashboardForCron(env) {
   const schedule = neppoBusinessSchedule();
   const missing = missingNeppoApiConfig(env);
   if (!env.ADJUSTMENTS) return;
-  if (!schedule.open) {
+  const [cached, currentHealth] = await Promise.all([
+    readNeppoLiveKv(env, year, month),
+    readNeppoLiveHealth(env),
+  ]);
+  if (!schedule.open && cached) {
     const status = {
       ok: true,
       stage: 'outside-hours',
       year,
       month,
       schedule,
-      message: 'Fora do expediente NEPPO. Atualizacao automatica pausada ate a proxima janela.',
+      liveRows: cached?.meta?.liveRows || 0,
+      ratings: cached?.meta?.ratings || 0,
+      ageMs: neppoLiveAgeMs(cached),
+      message: 'Fora do expediente NEPPO. Base mensal preservada no KV.',
     };
     await writeNeppoLiveHealth(env, status);
     return status;
@@ -1508,10 +1585,6 @@ async function refreshNeppoLiveDashboardForCron(env) {
     await writeNeppoLiveHealth(env, status);
     return status;
   }
-  const [cached, currentHealth] = await Promise.all([
-    readNeppoLiveKv(env, year, month),
-    readNeppoLiveHealth(env),
-  ]);
   if (neppoLiveIsFresh(cached, NEPPO_LIVE_CRON_FRESH_MS)) {
     const status = {
       ok: true,
@@ -1545,10 +1618,24 @@ async function refreshNeppoLiveDashboardForCron(env) {
     }
     return currentHealth;
   }
-  await writeNeppoLiveHealth(env, { ok: null, stage: 'running', year, month, schedule, message: 'Atualizacao NEPPO em andamento no Worker.' });
+  const recoveryOutsideHours = !schedule.open && !cached;
+  await writeNeppoLiveHealth(env, {
+    ok: null,
+    stage: 'running',
+    year,
+    month,
+    schedule,
+    recoveryOutsideHours,
+    message: recoveryOutsideHours
+      ? 'Base NEPPO ausente. Recuperacao emergencial em andamento fora do expediente.'
+      : 'Atualizacao NEPPO em andamento no Worker.',
+  });
   const request = new Request('https://gestaoatendimento.reinaldo-bueno.workers.dev/');
   try {
-    const body = await refreshNeppoLiveDashboard(request, env, year, month);
+    const body = await refreshNeppoLiveDashboard(request, env, year, month, {
+      previousBody: cached,
+      fullMonth: neppoLiveNeedsFullMonthRecovery(cached, year, month),
+    });
     const status = {
       ok: true,
       stage: 'success',
@@ -1557,7 +1644,10 @@ async function refreshNeppoLiveDashboardForCron(env) {
       schedule,
       liveRows: body?.meta?.liveRows || 0,
       ratings: body?.meta?.ratings || 0,
-      message: 'Base NEPPO atualizada no Worker/KV.',
+      recoveryOutsideHours,
+      message: recoveryOutsideHours
+        ? 'Base NEPPO recuperada e preservada no Worker/KV.'
+        : 'Base NEPPO atualizada no Worker/KV.',
     };
     await writeNeppoLiveHealth(env, status);
     return status;
@@ -1613,13 +1703,17 @@ function nextNeppoBusinessStart(date = new Date()) {
 function neppoBusinessSchedule(date = new Date()) {
   const parts = saoPauloDateParts(date);
   const isWeekday = parts.dayOfWeek >= 1 && parts.dayOfWeek <= 5;
-  const open = isWeekday && parts.hour >= NEPPO_BUSINESS_START_HOUR && parts.hour < NEPPO_BUSINESS_END_HOUR;
+  const minutes = parts.hour * 60 + parts.minute;
+  const open = isWeekday
+    && minutes >= NEPPO_BUSINESS_START_HOUR * 60
+    && minutes < NEPPO_BUSINESS_END_HOUR * 60 + NEPPO_BUSINESS_END_MINUTE;
   return {
     open,
     isWeekday,
     timezone: 'America/Sao_Paulo',
     startHour: NEPPO_BUSINESS_START_HOUR,
     endHour: NEPPO_BUSINESS_END_HOUR,
+    endMinute: NEPPO_BUSINESS_END_MINUTE,
     nextStartAt: open ? '' : nextNeppoBusinessStart(date),
   };
 }
@@ -1658,14 +1752,17 @@ async function enrichLiveRowsFromNeppoHistory(liveRows, env) {
   return result;
 }
 
-async function buildLiveNeppoDashboard(request, env, month, year) {
-  const baseData = await readPublishedDashboardData(request, env);
+async function buildLiveNeppoDashboard(request, env, month, year, options = {}) {
+  const previousData = options.previousBody?.data;
+  const baseData = previousData && options.fullMonth !== true
+    ? cloneDashboardDataForWorker(previousData)
+    : await readPublishedDashboardData(request, env);
   const initialContactCache = await readNeppoContactCache(env).catch(() => ({ items: {} }));
   const initialContactApplied = applyNeppoContactCacheToRows(baseData, initialContactCache);
   const auth = await getNeppoApiToken(env);
   if (!auth.ok) return { ok: false, status: auth.status, body: auth };
 
-  const range = neppoLiveRangeForRequest(year, month);
+  const range = neppoLiveRangeForRequest(year, month, { fullMonth: options.fullMonth === true });
   const { start, end } = range;
   const token = auth.token;
   const agents = [];
@@ -1836,9 +1933,9 @@ async function handleNeppoLiveDashboard(request, env, ctx) {
     return jsonResponse({ ...body, cached: true, cache: 'kv', ageMs: neppoLiveAgeMs(kvBody), schedule });
   }
 
-  if (!force && !schedule.open) {
+  if (!force && !schedule.open && kvBody) {
     const age = neppoLiveAgeMs(kvBody);
-    if (kvBody && age <= NEPPO_LIVE_KV_EXPIRATION_TTL * 1000) {
+    if (age <= NEPPO_LIVE_KV_EXPIRATION_TTL * 1000) {
       const body = await withNeppoContactCache(env, kvBody);
       return jsonResponse({ ...body, cached: true, cache: 'kv-outside-hours', outsideHours: true, ageMs: age, schedule });
     }
@@ -1846,7 +1943,7 @@ async function handleNeppoLiveDashboard(request, env, ctx) {
       ok: false,
       outsideHours: true,
       schedule,
-      message: 'Fora do expediente NEPPO. A coleta automatica fica pausada de segunda a sexta fora de 08:00-18:00.',
+      message: 'Fora do expediente NEPPO. A coleta automatica fica pausada de segunda a sexta fora de 08:00-18:30.',
     });
   }
 
@@ -2285,6 +2382,10 @@ async function loadManagedUsers(env) {
       name: String(item.name || item.user),
       role: normalizeUserRole(item.role),
       active: item.active !== false,
+      email: normalizeAlertEmail(item.email),
+      whatsapp: normalizeAlertPhone(item.whatsapp),
+      emailAlerts: item.emailAlerts === true,
+      whatsappAlerts: item.whatsappAlerts === true,
       passwordHash: String(item.passwordHash),
       createdAt: item.createdAt || '',
       updatedAt: item.updatedAt || '',
@@ -2297,6 +2398,28 @@ async function loadManagedUsers(env) {
 async function saveManagedUsers(env, users) {
   if (!env.ADJUSTMENTS) throw new Error('KV ADJUSTMENTS indisponível.');
   await env.ADJUSTMENTS.put(MANAGED_USERS_KEY, JSON.stringify(users.slice(0, 500)));
+}
+
+async function loadUserAlertProfiles(env) {
+  if (!env.ADJUSTMENTS) return {};
+  const stored = (await env.ADJUSTMENTS.get(USER_ALERT_PROFILES_KEY, 'json')) || {};
+  return stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {};
+}
+
+async function saveUserAlertProfiles(env, profiles) {
+  if (!env.ADJUSTMENTS) throw new Error('KV ADJUSTMENTS indisponível.');
+  await env.ADJUSTMENTS.put(USER_ALERT_PROFILES_KEY, JSON.stringify(profiles));
+}
+
+function userWithAlertProfile(item, profiles = {}) {
+  const profile = profiles[normalizeLogin(item.user)] || {};
+  return {
+    ...item,
+    email: normalizeAlertEmail(profile.email || item.email),
+    whatsapp: normalizeAlertPhone(profile.whatsapp || item.whatsapp),
+    emailAlerts: profile.emailAlerts === true || item.emailAlerts === true,
+    whatsappAlerts: profile.whatsappAlerts === true || item.whatsappAlerts === true,
+  };
 }
 
 async function findAppUser(env, user, password = null) {
@@ -2396,34 +2519,103 @@ function loginPage(error = '', next = '/') {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Entrar no painel</title>
+  <script>
+    try {
+      const savedTheme = localStorage.getItem('gestao-theme');
+      document.documentElement.dataset.theme = savedTheme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    } catch { document.documentElement.dataset.theme = 'light'; }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
+    :root{--paper:#f3f6f1;--surface:#fff;--ink:#172219;--sub:#617061;--ghost:#879487;--brand:#315f43;--brand-hover:#244d35;--line:#d7e1d4;--soft:#edf4ec;--danger:#a83232;--danger-bg:#fff1f0;--danger-line:#efc0bc;--shadow:0 26px 70px rgba(36,77,53,.14)}
+    html[data-theme="dark"]{color-scheme:dark;--paper:#101713;--surface:#18211b;--ink:#edf5ef;--sub:#b6c3b8;--ghost:#89998c;--brand:#6fa17c;--brand-hover:#82b38e;--line:#2c3b31;--soft:#223027;--danger:#ff8e89;--danger-bg:#321d1d;--danger-line:#6f3532;--shadow:0 28px 80px rgba(0,0,0,.38)}
     *{box-sizing:border-box}
-    body{margin:0;min-height:100vh;display:grid;place-items:center;background:#edf5ef;font-family:Arial,sans-serif;color:#102817}
-    .card{width:min(472px,calc(100vw - 32px));background:#fff;border:1px solid #d6e2d2;border-radius:12px;padding:32px 28px;box-shadow:0 28px 80px rgba(31,61,42,.18)}
-    h1{font-size:26px;line-height:1.1;margin:0 0 10px;font-weight:800}
-    p{margin:0 0 24px;color:#5b6e62;line-height:1.45}
-    label{display:block;margin:16px 0 7px;color:#809183;font-size:12px;letter-spacing:.04em;text-transform:uppercase;font-weight:800}
-    input{width:100%;height:46px;border:1px solid #c7d6c9;border-radius:8px;background:#edf3ff;padding:0 14px;font-size:15px;color:#102817}
-    input:focus{outline:2px solid #2f6d45;outline-offset:1px}
-    button{width:100%;height:46px;margin-top:28px;border:0;border-radius:8px;background:#6f8874;color:#fff;font-size:15px;font-weight:800;cursor:pointer}
-    button:hover{background:#2f6d45}
-    .error{margin:0 0 16px;padding:10px 12px;border:1px solid #e4b9b9;border-radius:8px;background:#fff4f4;color:#8a1f1f;font-weight:700}
+    body{margin:0;min-height:100vh;background:radial-gradient(circle at 15% 15%,rgba(158,196,168,.20),transparent 32%),radial-gradient(circle at 88% 82%,rgba(49,95,67,.10),transparent 30%),var(--paper);color:var(--ink);font-family:'Geist',Arial,sans-serif}
+    .shell{min-height:100vh;display:grid;grid-template-rows:auto 1fr auto}
+    .top{height:62px;background:color-mix(in srgb,var(--surface) 88%,transparent);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 28px;backdrop-filter:blur(12px)}
+    .brand{display:flex;align-items:center;gap:11px;font-weight:650}.mark{width:32px;height:32px;border-radius:8px;background:var(--brand);color:#fff;display:grid;place-items:center;font-weight:800}.brand span{font-size:16px}.brand em{color:var(--brand);font-style:normal}
+    .theme-toggle{height:36px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink);padding:0 12px;display:flex;align-items:center;gap:8px;font:600 11px 'Geist',sans-serif;cursor:pointer}.theme-toggle:hover{background:var(--soft)}
+    .content{display:grid;place-items:center;padding:34px 18px}.card{width:min(430px,100%);background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:32px;box-shadow:var(--shadow)}
+    .eyebrow{font:500 10px 'Geist Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--brand);margin-bottom:12px}
+    h1{font-size:27px;line-height:1.15;margin:0 0 9px;letter-spacing:-.03em}.intro{font-size:14px;line-height:1.55;color:var(--sub);margin:0 0 26px}
+    .field{margin-top:17px}label{display:block;margin-bottom:7px;font:500 11px 'Geist Mono',monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--sub)}
+    .input-wrap{position:relative}input{width:100%;height:48px;border:1px solid var(--line);border-radius:9px;background:var(--soft);padding:0 14px;font-size:15px;color:var(--ink);outline:none}input:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(49,95,67,.12);background:var(--surface)}
+    #password{padding-right:52px}.eye{position:absolute;right:7px;top:7px;width:36px;height:34px;border:0;border-radius:7px;background:transparent;color:var(--brand);cursor:pointer;font-size:16px}.eye:hover{background:var(--soft)}
+    .caps{display:none;margin-top:7px;color:#d3a64f;font:500 11px 'Geist Mono',monospace}.caps.show{display:block}
+    .error{margin:0 0 18px;padding:11px 12px;border:1px solid var(--danger-line);border-radius:9px;background:var(--danger-bg);color:var(--danger);font-size:13px;line-height:1.4}
+    .submit{width:100%;height:48px;margin-top:25px;border:0;border-radius:9px;background:var(--brand);color:#fff;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px}.submit:hover:not(:disabled){background:var(--brand-hover)}.submit:disabled{opacity:.72;cursor:wait}
+    .spinner{display:none;width:15px;height:15px;border:2px solid rgba(255,255,255,.38);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}.loading .spinner{display:block}@keyframes spin{to{transform:rotate(360deg)}}
+    .secure{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:18px;color:var(--ghost);font:400 10px 'Geist Mono',monospace}.footer{text-align:center;padding:0 20px 22px;color:var(--ghost);font:400 10px 'Geist Mono',monospace}
+    html[data-theme="dark"] .mark{background:#416f50}html[data-theme="dark"] .submit{background:#477858}html[data-theme="dark"] .submit:hover:not(:disabled){background:#568e68}
+    @media(max-width:560px){.top{height:56px;padding:0 16px}.brand span{font-size:14px}.card{padding:26px 22px;border-radius:12px}}
   </style>
 </head>
 <body>
-  <main class="card">
-    <h1>Entrar no painel</h1>
-    <p>Use seu usuário para acessar os dados protegidos do atendimento.</p>
-    ${error ? `<div class="error">${escapeHtml(error)}</div>` : ''}
-    <form method="post" action="/login">
-      <input type="hidden" name="next" value="${escapeHtml(safeNext)}">
-      <label for="user">Usuário</label>
-      <input id="user" name="user" autocomplete="username" autofocus>
-      <label for="password">Senha</label>
-      <input id="password" name="password" type="password" autocomplete="current-password">
-      <button type="submit">Entrar</button>
-    </form>
-  </main>
+  <div class="shell">
+    <header class="top">
+      <div class="brand"><div class="mark">M</div><span>Gestão de <em>Atendimento</em></span></div>
+      <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Ativar modo escuro"><span id="theme-icon">☾</span><span id="theme-label">Modo escuro</span></button>
+    </header>
+    <main class="content">
+      <section class="card" aria-labelledby="login-title">
+        <div class="eyebrow">Acesso restrito</div>
+        <h1 id="login-title">Entrar no painel</h1>
+        <p class="intro">Use suas credenciais para acessar os dados protegidos do atendimento.</p>
+        ${error ? `<div class="error" role="alert">${escapeHtml(error)}</div>` : ''}
+        <form id="login-form" method="post" action="/login">
+          <input type="hidden" name="next" value="${escapeHtml(safeNext)}">
+          <div class="field"><label for="user">Usuário</label><input id="user" name="user" autocomplete="username" autofocus placeholder="Digite seu usuário" required></div>
+          <div class="field">
+            <label for="password">Senha</label>
+            <div class="input-wrap"><input id="password" name="password" type="password" autocomplete="current-password" placeholder="Digite sua senha" required><button class="eye" id="toggle-password" type="button" aria-label="Mostrar senha" title="Mostrar senha">◉</button></div>
+            <div class="caps" id="caps">Caps Lock está ativado</div>
+          </div>
+          <button class="submit" id="submit" type="submit"><span class="spinner"></span><span id="submit-label">Entrar</span></button>
+        </form>
+        <div class="secure">◆ Acesso seguro · sessão protegida</div>
+      </section>
+    </main>
+    <footer class="footer">Gestão de Atendimento · Multsoft MB</footer>
+  </div>
+  <script>
+    const password=document.getElementById('password');
+    const toggle=document.getElementById('toggle-password');
+    const caps=document.getElementById('caps');
+    const form=document.getElementById('login-form');
+    const submit=document.getElementById('submit');
+    const submitLabel=document.getElementById('submit-label');
+    const themeToggle=document.getElementById('theme-toggle');
+    const themeIcon=document.getElementById('theme-icon');
+    const themeLabel=document.getElementById('theme-label');
+    const applyTheme=theme=>{
+      const next=theme==='dark'?'dark':'light';
+      document.documentElement.dataset.theme=next;
+      const dark=next==='dark';
+      themeIcon.textContent=dark?'☀':'☾';
+      themeLabel.textContent=dark?'Modo claro':'Modo escuro';
+      themeToggle.setAttribute('aria-label',dark?'Ativar modo claro':'Ativar modo escuro');
+    };
+    applyTheme(document.documentElement.dataset.theme);
+    themeToggle.addEventListener('click',()=>{
+      const next=document.documentElement.dataset.theme==='dark'?'light':'dark';
+      try{localStorage.setItem('gestao-theme',next)}catch{}
+      applyTheme(next);
+    });
+    toggle.addEventListener('click',()=>{
+      const visible=password.type==='text';
+      password.type=visible?'password':'text';
+      toggle.setAttribute('aria-label',visible?'Mostrar senha':'Ocultar senha');
+      toggle.title=visible?'Mostrar senha':'Ocultar senha';
+      toggle.textContent=visible?'◉':'⊘';
+      password.focus();
+    });
+    password.addEventListener('keyup',event=>caps.classList.toggle('show',Boolean(event.getModifierState&&event.getModifierState('CapsLock'))));
+    form.addEventListener('submit',()=>{
+      submit.disabled=true;
+      submit.classList.add('loading');
+      submitLabel.textContent='Entrando…';
+    });
+  </script>
 </body>
 </html>`,
     {
@@ -2453,6 +2645,11 @@ async function handleLogin(request, env) {
     return loginPage('Usuário ou senha inválidos.', next);
   }
 
+  try {
+    await recordUserPresence(env, matched, true);
+  } catch (error) {
+    console.error(JSON.stringify({ event: 'user_presence_login_failed', user: matched.user, error: String(error?.message || error) }));
+  }
   const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/';
   return redirectTo(safeNext, {
     'Set-Cookie': await createSessionCookie(matched.user, env),
@@ -2482,6 +2679,8 @@ async function isAuthorized(request, env) {
 }
 
 const MANAGED_USERS_KEY = 'app-users-v1';
+const USER_ALERT_PROFILES_KEY = 'app-user-alert-profiles-v1';
+const USER_ONLINE_WINDOW_MS = 75 * 1000;
 const MANUAL_ADJUSTMENTS_KEY = 'manual-adjustments-v1';
 const BONUS_CLOSURES_KEY = 'bonus-closures-v1';
 const TREATMENT_PATTERNS_KEY = 'treatment-patterns-v1';
@@ -2489,6 +2688,7 @@ const REVIEW_REQUESTS_KEY = 'treatment-review-requests-v1';
 const REVIEW_REQUESTS_MAX_ITEMS = 3000;
 const INITIAL_DELETED_TREATMENT_PATTERNS = ['WA00000119688'];
 const WHATSAPP_GROUP_ORIGIN = 'WHATSAPP_GRUPO';
+const WHATSAPP_EXCLUDED_METRIC_GROUP_IDS = new Set(['120363410441482394@g.us']);
 const WHATSAPP_GROUP_SETTINGS_KEY = 'monitor_mode';
 const WHATSAPP_GROUP_DEFAULT_MODE = 'ALL_GROUPS';
 const WHATSAPP_GROUP_REGISTERED_MODE = 'REGISTERED_ONLY';
@@ -2496,8 +2696,15 @@ const WHATSAPP_WEBHOOK_MAX_BYTES = 32 * 1024 * 1024;
 const WHATSAPP_WEBHOOK_RAW_MAX_BYTES = 512 * 1024;
 const WHATSAPP_MEDIA_BASE64_MAX_BYTES = 24 * 1024 * 1024;
 const WHATSAPP_MEDIA_D1_INLINE_MAX_BYTES = 512 * 1024;
-const WHATSAPP_MEDIA_KV_EXPIRATION_TTL = 30 * 24 * 60 * 60;
+const WHATSAPP_OUTBOUND_MEDIA_MAX_BYTES = 15 * 1024 * 1024;
+const WHATSAPP_OUTBOUND_MEDIA_TYPES = new Set([
+  'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+  'video/mp4', 'video/webm', 'video/quicktime',
+  'audio/ogg', 'audio/webm', 'audio/mpeg', 'audio/mp4', 'audio/wav', 'audio/aac',
+  'application/pdf',
+]);
 const WHATSAPP_MEDIA_KV_PREFIX = 'whatsapp-group-media-v1';
+const WHATSAPP_MEDIA_KV_SENTINEL = '@kv';
 const WHATSAPP_SESSION_OPEN = 'OPEN';
 const WHATSAPP_SESSION_UNANSWERED = 'SEM_RESPOSTA';
 const WHATSAPP_SESSION_IN_PROGRESS = 'EM_ATENDIMENTO';
@@ -2506,6 +2713,11 @@ const WHATSAPP_SESSION_RESPONDED = 'RESPONDIDO';
 const WHATSAPP_SESSION_CLOSED = 'CLOSED';
 const WHATSAPP_SESSION_MAX_IDLE_MS = 4 * 60 * 60 * 1000;
 const WHATSAPP_SESSION_BACKFILL_GRACE_MS = 15 * 60 * 1000;
+
+function whatsappIsClosedStatus(value) {
+  return String(value || '').trim().toUpperCase() === WHATSAPP_SESSION_CLOSED;
+}
+
 const WHATSAPP_DEFAULT_AGENTS = [
   ['Suporte N1', '5562981980261'],
   ['Guilherme', '+55 62 9232-1529'],
@@ -3203,6 +3415,16 @@ function decodeBase64Bytes(base64 = '') {
   return bytes;
 }
 
+function encodeBase64Bytes(bytes) {
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    const chunk = bytes.subarray(offset, Math.min(offset + chunkSize, bytes.length));
+    for (let i = 0; i < chunk.length; i += 1) binary += String.fromCharCode(chunk[i]);
+  }
+  return btoa(binary);
+}
+
 async function readWhatsappMediaKv(env, id) {
   if (!env.ADJUSTMENTS || !id) return null;
   const [meta, base64] = await Promise.all([
@@ -3222,14 +3444,16 @@ async function writeWhatsappMediaCache(env, id, media = {}, base64Value = '') {
   let inlineBase64 = base64;
   if (env.ADJUSTMENTS && base64.length > WHATSAPP_MEDIA_D1_INLINE_MAX_BYTES) {
     await Promise.all([
-      env.ADJUSTMENTS.put(whatsappMediaKvKey(id, 'base64'), base64, { expirationTtl: WHATSAPP_MEDIA_KV_EXPIRATION_TTL }),
+      // Midias de atendimento fazem parte do historico e nao devem expirar.
+      env.ADJUSTMENTS.put(whatsappMediaKvKey(id, 'base64'), base64),
       env.ADJUSTMENTS.put(
         whatsappMediaKvKey(id, 'meta'),
         JSON.stringify({ mimetype, fileName, type: media.type, updatedAt: now }),
-        { expirationTtl: WHATSAPP_MEDIA_KV_EXPIRATION_TTL },
       ),
     ]);
-    inlineBase64 = '';
+    // Mantem no D1 a indicacao de que o conteudo esta no KV. Registros antigos
+    // com string vazia voltam para a fila de recuperacao uma unica vez.
+    inlineBase64 = WHATSAPP_MEDIA_KV_SENTINEL;
   }
   await env.REVIEWS_DB.prepare(`
     INSERT INTO whatsapp_group_media_cache (attendance_id, mimetype, file_name, base64, created_at, updated_at)
@@ -3241,6 +3465,61 @@ async function writeWhatsappMediaCache(env, id, media = {}, base64Value = '') {
       updated_at = excluded.updated_at
   `).bind(id, mimetype, fileName, inlineBase64, now, now).run();
   return true;
+}
+
+function whatsappOutboundTempMediaKey(id, suffix) {
+  return `whatsapp:outbound-temp:${id}:${suffix}`;
+}
+
+async function createWhatsappOutboundTempMedia(request, env, bytes, mimetype, fileName) {
+  if (!env.ADJUSTMENTS) return null;
+  const id = crypto.randomUUID();
+  const token = `${crypto.randomUUID()}${crypto.randomUUID()}`.replace(/-/g, '');
+  const meta = {
+    token,
+    mimetype: cleanWebhookText(mimetype, 120) || 'application/octet-stream',
+    fileName: cleanWebhookText(fileName, 180),
+    createdAt: new Date().toISOString(),
+  };
+  await Promise.all([
+    env.ADJUSTMENTS.put(
+      whatsappOutboundTempMediaKey(id, 'bytes'),
+      bytes,
+      { expirationTtl: 15 * 60 },
+    ),
+    env.ADJUSTMENTS.put(
+      whatsappOutboundTempMediaKey(id, 'meta'),
+      JSON.stringify(meta),
+      { expirationTtl: 15 * 60 },
+    ),
+  ]);
+  const origin = new URL(request.url).origin;
+  return {
+    id,
+    url: `${origin}/api/whatsapp-grupo/outbound-media/${encodeURIComponent(id)}?token=${encodeURIComponent(token)}`,
+  };
+}
+
+async function handleWhatsappOutboundTempMedia(request, env, id) {
+  if (request.method !== 'GET' || !env.ADJUSTMENTS) return new Response('Nao encontrado.', { status: 404 });
+  const mediaId = cleanWebhookText(decodeURIComponent(id || ''), 100);
+  const token = cleanWebhookText(new URL(request.url).searchParams.get('token'), 180);
+  if (!mediaId || !token) return new Response('Nao autorizado.', { status: 401 });
+  const meta = await env.ADJUSTMENTS.get(whatsappOutboundTempMediaKey(mediaId, 'meta'), 'json').catch(() => null);
+  if (!meta?.token || !timingSafeEqual(token, String(meta.token))) {
+    return new Response('Link expirado ou invalido.', { status: 403 });
+  }
+  const bytes = await env.ADJUSTMENTS.get(whatsappOutboundTempMediaKey(mediaId, 'bytes'), 'arrayBuffer').catch(() => null);
+  if (!bytes) return new Response('Arquivo expirado.', { status: 404 });
+  const fileName = String(meta.fileName || 'arquivo').replace(/[\r\n"]/g, '');
+  return new Response(bytes, {
+    headers: {
+      'Content-Type': cleanWebhookText(meta.mimetype, 120) || 'application/octet-stream',
+      'Content-Disposition': `inline; filename="${fileName}"`,
+      'Cache-Control': 'private, max-age=300',
+      'X-Robots-Tag': 'noindex, nofollow',
+    },
+  });
 }
 
 function extractEvolutionMediaInfo(message = {}) {
@@ -3429,9 +3708,15 @@ function isWhatsappGroupSystemEventPayload(payload = {}) {
   );
   if (data.messageStubType !== undefined || data.messageStubParameters !== undefined || data.messageStubParametersJson !== undefined) return true;
   if (data.participants || data.action || data.update || data.author) return true;
+  if (message.messageHistoryBundle || message.messageHistoryNotice || message.historySyncNotification || message.secretEncryptedMessage || message.appStateSyncKeyShare || message.initialSecurityNotification) return true;
   if (!hasUserContent && (message.protocolMessage || message.senderKeyDistributionMessage)) return true;
   if (!hasUserContent && /protocol|senderkeydistribution|group_participants|participant|group.*update/.test(messageType)) return true;
   return false;
+}
+
+function isWhatsappGroupStoredSystemEvent(row = {}) {
+  const raw = String(row.raw_payload_json || '');
+  return /"(?:messageHistoryBundle|messageHistoryNotice|historySyncNotification|secretEncryptedMessage|appStateSyncKeyShare|initialSecurityNotification)"\s*:/.test(raw);
 }
 
 function extractWhatsAppGroupRecord(payload) {
@@ -3561,6 +3846,20 @@ async function ensureWhatsappGroupD1(env) {
   await tryAddD1Column(env, 'whatsapp_group_sessions', "titulo_atendimento TEXT NOT NULL DEFAULT ''");
   await tryAddD1Column(env, 'whatsapp_group_sessions', "resumo_atendimento TEXT NOT NULL DEFAULT ''");
   await tryAddD1Column(env, 'whatsapp_group_sessions', "observacoes_internas TEXT NOT NULL DEFAULT ''");
+  await tryAddD1Column(env, 'whatsapp_group_sessions', "nucleo_atendimento TEXT NOT NULL DEFAULT ''");
+  await env.REVIEWS_DB.prepare(`
+    CREATE TABLE IF NOT EXISTS whatsapp_group_session_merges (
+      id TEXT PRIMARY KEY,
+      source_session_id TEXT NOT NULL,
+      source_protocol TEXT NOT NULL,
+      target_session_id TEXT NOT NULL,
+      target_protocol TEXT NOT NULL,
+      merged_by TEXT NOT NULL DEFAULT '',
+      source_snapshot_json TEXT NOT NULL,
+      target_snapshot_json TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    )
+  `).run();
   await env.REVIEWS_DB.prepare(`
     CREATE TABLE IF NOT EXISTS whatsapp_instances (
       instance TEXT PRIMARY KEY,
@@ -3596,6 +3895,18 @@ async function ensureWhatsappGroupD1(env) {
     )
   `).run();
   await env.REVIEWS_DB.prepare(`
+    CREATE TABLE IF NOT EXISTS whatsapp_group_participant_aliases (
+      instance TEXT NOT NULL,
+      grupo_id TEXT NOT NULL,
+      remetente_id TEXT NOT NULL,
+      nome TEXT NOT NULL,
+      updated_by TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (instance, grupo_id, remetente_id)
+    )
+  `).run();
+  await env.REVIEWS_DB.prepare(`
     CREATE TABLE IF NOT EXISTS whatsapp_webhook_failures (
       id TEXT PRIMARY KEY,
       instance TEXT NOT NULL DEFAULT '',
@@ -3616,6 +3927,90 @@ async function ensureWhatsappGroupD1(env) {
       updated_at TEXT NOT NULL
     )
   `).run();
+  await env.REVIEWS_DB.prepare(`
+    CREATE TABLE IF NOT EXISTS app_push_subscriptions (
+      endpoint TEXT PRIMARY KEY,
+      user_login TEXT NOT NULL DEFAULT '',
+      p256dh TEXT NOT NULL,
+      auth TEXT NOT NULL,
+      expiration_time INTEGER,
+      user_agent TEXT NOT NULL DEFAULT '',
+      active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      last_success_at TEXT NOT NULL DEFAULT '',
+      last_error TEXT NOT NULL DEFAULT ''
+    )
+  `).run();
+  await env.REVIEWS_DB.prepare(`
+    CREATE TABLE IF NOT EXISTS app_alert_deliveries (
+      id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL,
+      protocol TEXT NOT NULL DEFAULT '',
+      channel TEXT NOT NULL,
+      destination TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'PENDING',
+      error_message TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL,
+      sent_at TEXT NOT NULL DEFAULT '',
+      UNIQUE(session_id, channel, destination)
+    )
+  `).run();
+  await env.REVIEWS_DB.prepare(`
+    CREATE TABLE IF NOT EXISTS app_alert_test_requests (
+      id TEXT PRIMARY KEY,
+      channel TEXT NOT NULL,
+      destination TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'PENDING',
+      error_message TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL,
+      finished_at TEXT NOT NULL DEFAULT ''
+    )
+  `).run();
+  await env.REVIEWS_DB.prepare(`
+    CREATE TABLE IF NOT EXISTS whatsapp_outbound_messages (
+      id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL,
+      protocol TEXT NOT NULL DEFAULT '',
+      instance TEXT NOT NULL DEFAULT '',
+      grupo_id TEXT NOT NULL DEFAULT '',
+      agent_user TEXT NOT NULL DEFAULT '',
+      agent_name TEXT NOT NULL DEFAULT '',
+      message_text TEXT NOT NULL,
+      rendered_text TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'PENDING',
+      evolution_message_id TEXT NOT NULL DEFAULT '',
+      error_message TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL,
+      sent_at TEXT NOT NULL DEFAULT ''
+    )
+  `).run();
+  await tryAddD1Column(env, 'whatsapp_outbound_messages', "message_type TEXT NOT NULL DEFAULT 'text'");
+  await tryAddD1Column(env, 'whatsapp_outbound_messages', "media_name TEXT NOT NULL DEFAULT ''");
+  await tryAddD1Column(env, 'whatsapp_outbound_messages', "media_mimetype TEXT NOT NULL DEFAULT ''");
+  await tryAddD1Column(env, 'whatsapp_outbound_messages', "media_size INTEGER NOT NULL DEFAULT 0");
+  await tryAddD1Column(env, 'whatsapp_outbound_messages', "is_proactive INTEGER NOT NULL DEFAULT 0");
+  await tryAddD1Column(env, 'whatsapp_outbound_messages', "subject TEXT NOT NULL DEFAULT ''");
+  await tryAddD1Column(env, 'whatsapp_outbound_messages', "summary TEXT NOT NULL DEFAULT ''");
+  await env.REVIEWS_DB.prepare(`
+    CREATE TABLE IF NOT EXISTS app_transfer_notifications (
+      id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL,
+      protocol TEXT NOT NULL DEFAULT '',
+      from_user TEXT NOT NULL DEFAULT '',
+      from_name TEXT NOT NULL DEFAULT '',
+      to_user TEXT NOT NULL,
+      to_name TEXT NOT NULL DEFAULT '',
+      note TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'PENDING',
+      target_online INTEGER NOT NULL DEFAULT 0,
+      whatsapp_status TEXT NOT NULL DEFAULT 'SKIPPED',
+      email_status TEXT NOT NULL DEFAULT 'SKIPPED',
+      error_message TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL,
+      read_at TEXT NOT NULL DEFAULT ''
+    )
+  `).run();
   await env.REVIEWS_DB.prepare('CREATE INDEX IF NOT EXISTS idx_wg_att_created ON whatsapp_group_attendances(created_at DESC)').run();
   await env.REVIEWS_DB.prepare('CREATE INDEX IF NOT EXISTS idx_wg_att_group_created ON whatsapp_group_attendances(grupo_id, created_at DESC)').run();
   await env.REVIEWS_DB.prepare('CREATE INDEX IF NOT EXISTS idx_wg_att_origin_created ON whatsapp_group_attendances(origin, created_at DESC)').run();
@@ -3626,6 +4021,10 @@ async function ensureWhatsappGroupD1(env) {
   await env.REVIEWS_DB.prepare('CREATE INDEX IF NOT EXISTS idx_wg_sess_sender_status ON whatsapp_group_sessions(instance, grupo_id, remetente_id, status)').run();
   await env.REVIEWS_DB.prepare('CREATE INDEX IF NOT EXISTS idx_wg_fail_created ON whatsapp_webhook_failures(created_at DESC)').run();
   await env.REVIEWS_DB.prepare('CREATE INDEX IF NOT EXISTS idx_wg_media_cache_updated ON whatsapp_group_media_cache(updated_at DESC)').run();
+  await env.REVIEWS_DB.prepare('CREATE INDEX IF NOT EXISTS idx_push_user_active ON app_push_subscriptions(user_login, active)').run();
+  await env.REVIEWS_DB.prepare('CREATE INDEX IF NOT EXISTS idx_alert_delivery_session ON app_alert_deliveries(session_id, channel, status)').run();
+  await env.REVIEWS_DB.prepare('CREATE INDEX IF NOT EXISTS idx_wg_outbound_session ON whatsapp_outbound_messages(session_id, created_at DESC)').run();
+  await env.REVIEWS_DB.prepare('CREATE INDEX IF NOT EXISTS idx_transfer_target_status ON app_transfer_notifications(to_user, status, created_at DESC)').run();
   await env.REVIEWS_DB.prepare(`
     INSERT OR IGNORE INTO whatsapp_group_settings (key, value, updated_at)
     VALUES (?, ?, ?)
@@ -3633,6 +4032,473 @@ async function ensureWhatsappGroupD1(env) {
 
   whatsappGroupD1SchemaReady = true;
   return true;
+}
+
+function validPushSubscription(body) {
+  const endpoint = String(body?.endpoint || '').trim();
+  const p256dh = String(body?.keys?.p256dh || '').trim();
+  const auth = String(body?.keys?.auth || '').trim();
+  if (!endpoint.startsWith('https://') || endpoint.length > 2048) return null;
+  if (!p256dh || p256dh.length > 512 || !auth || auth.length > 512) return null;
+  return {
+    endpoint,
+    expirationTime: Number.isFinite(Number(body?.expirationTime)) ? Number(body.expirationTime) : null,
+    keys: { p256dh, auth },
+  };
+}
+
+async function handlePushSubscriptionApi(request, env, appUser) {
+  await ensureWhatsappGroupD1(env);
+  const configured = Boolean(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY);
+  if (request.method === 'GET') {
+    const total = await env.REVIEWS_DB.prepare(
+      'SELECT COUNT(*) AS total FROM app_push_subscriptions WHERE user_login = ? AND active = 1',
+    ).bind(appUser).first();
+    return jsonResponse({
+      configured,
+      publicKey: configured ? String(env.VAPID_PUBLIC_KEY) : '',
+      devices: Number(total?.total || 0),
+    });
+  }
+  const body = await request.json().catch(() => ({}));
+  if (request.method === 'POST') {
+    if (!configured) return jsonResponse({ error: 'Web Push ainda não configurado no servidor.' }, 503);
+    const subscription = validPushSubscription(body?.subscription || body);
+    if (!subscription) return jsonResponse({ error: 'Inscrição de dispositivo inválida.' }, 400);
+    const now = new Date().toISOString();
+    await env.REVIEWS_DB.prepare(`
+      INSERT INTO app_push_subscriptions (
+        endpoint, user_login, p256dh, auth, expiration_time, user_agent,
+        active, created_at, updated_at, last_success_at, last_error
+      ) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, '', '')
+      ON CONFLICT(endpoint) DO UPDATE SET
+        user_login = excluded.user_login,
+        p256dh = excluded.p256dh,
+        auth = excluded.auth,
+        expiration_time = excluded.expiration_time,
+        user_agent = excluded.user_agent,
+        active = 1,
+        updated_at = excluded.updated_at,
+        last_error = ''
+    `).bind(
+      subscription.endpoint,
+      appUser,
+      subscription.keys.p256dh,
+      subscription.keys.auth,
+      subscription.expirationTime,
+      String(request.headers.get('User-Agent') || '').slice(0, 500),
+      now,
+      now,
+    ).run();
+    return jsonResponse({ ok: true, devices: 1 });
+  }
+  if (request.method === 'DELETE') {
+    const endpoint = String(body?.endpoint || '').trim();
+    if (!endpoint) return jsonResponse({ error: 'Dispositivo inválido.' }, 400);
+    await env.REVIEWS_DB.prepare(
+      'UPDATE app_push_subscriptions SET active = 0, updated_at = ? WHERE endpoint = ? AND user_login = ?',
+    ).bind(new Date().toISOString(), endpoint, appUser).run();
+    return jsonResponse({ ok: true });
+  }
+  return jsonResponse({ error: 'Metodo nao permitido.' }, 405);
+}
+
+async function sendPendingWhatsappPushAlerts(env) {
+  if (!env.REVIEWS_DB || !env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY) {
+    return { ok: false, skipped: true, reason: 'push_not_configured' };
+  }
+  await ensureWhatsappGroupD1(env);
+  webpush.setVapidDetails(
+    String(env.VAPID_SUBJECT || 'https://gestaoatendimento.reinaldo-bueno.workers.dev'),
+    String(env.VAPID_PUBLIC_KEY),
+    String(env.VAPID_PRIVATE_KEY),
+  );
+  const pending = await env.REVIEWS_DB.prepare(`
+    SELECT
+      s.id AS session_id, s.protocol, s.grupo_nome, s.cliente_nome,
+      s.remetente_nome, s.started_at,
+      p.endpoint, p.p256dh, p.auth
+    FROM whatsapp_group_sessions s
+    JOIN app_push_subscriptions p
+      ON p.active = 1 AND p.created_at <= s.started_at
+    LEFT JOIN app_alert_deliveries d
+      ON d.session_id = s.id AND d.channel = 'push' AND d.destination = p.endpoint
+    WHERE s.status IN ('OPEN', 'SEM_RESPOSTA')
+      AND d.id IS NULL
+    ORDER BY s.started_at ASC
+    LIMIT 100
+  `).all();
+  const rows = Array.isArray(pending?.results) ? pending.results : [];
+  let sent = 0;
+  for (const row of rows) {
+    const deliveryId = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+    const claim = await env.REVIEWS_DB.prepare(`
+      INSERT OR IGNORE INTO app_alert_deliveries
+        (id, session_id, protocol, channel, destination, status, created_at)
+      VALUES (?, ?, ?, 'push', ?, 'PENDING', ?)
+    `).bind(deliveryId, row.session_id, row.protocol, row.endpoint, createdAt).run();
+    if (!Number(claim?.meta?.changes || 0)) continue;
+    const subscription = {
+      endpoint: row.endpoint,
+      keys: { p256dh: row.p256dh, auth: row.auth },
+    };
+    const label = row.cliente_nome || row.grupo_nome || row.remetente_nome || 'WhatsApp Grupo';
+    try {
+      await webpush.sendNotification(subscription, JSON.stringify({
+        title: 'Novo atendimento sem resposta',
+        body: `${label} · ${row.protocol}`,
+        tag: `atendimento-${row.session_id}`,
+        url: whatsappSessionDeepLinkPath(row),
+      }), { TTL: 3600, urgency: 'high' });
+      sent += 1;
+      const sentAt = new Date().toISOString();
+      await env.REVIEWS_DB.batch([
+        env.REVIEWS_DB.prepare(
+          "UPDATE app_alert_deliveries SET status = 'SENT', sent_at = ?, error_message = '' WHERE id = ?",
+        ).bind(sentAt, deliveryId),
+        env.REVIEWS_DB.prepare(
+          "UPDATE app_push_subscriptions SET last_success_at = ?, last_error = '' WHERE endpoint = ?",
+        ).bind(sentAt, row.endpoint),
+      ]);
+    } catch (error) {
+      const statusCode = Number(error?.statusCode || 0);
+      const message = String(error?.message || error || 'push_error').slice(0, 500);
+      await env.REVIEWS_DB.batch([
+        env.REVIEWS_DB.prepare(
+          "UPDATE app_alert_deliveries SET status = 'FAILED', error_message = ? WHERE id = ?",
+        ).bind(message, deliveryId),
+        env.REVIEWS_DB.prepare(
+          'UPDATE app_push_subscriptions SET active = ?, updated_at = ?, last_error = ? WHERE endpoint = ?',
+        ).bind(statusCode === 404 || statusCode === 410 ? 0 : 1, new Date().toISOString(), message, row.endpoint),
+      ]);
+    }
+  }
+  return { ok: true, checked: rows.length, sent };
+}
+
+const ALERT_SETTINGS_KEY = 'alert_escalation_config_v1';
+
+function appPublicBaseUrl(env) {
+  const configured = String(env.APP_PUBLIC_URL || '').trim().replace(/\/+$/, '');
+  return /^https:\/\/[a-z0-9.-]+(?::\d+)?$/i.test(configured)
+    ? configured
+    : 'https://gestaoatendimento.reinaldo-bueno.workers.dev';
+}
+
+function whatsappSessionDeepLinkPath(session = {}) {
+  const protocol = cleanWebhookText(session.protocol || '', 120);
+  const id = cleanWebhookText(session.id || session.session_id || '', 160);
+  const query = new URLSearchParams({ pane: 'whatsapp-grupo' });
+  if (protocol) query.set('protocolo', protocol);
+  else if (id) query.set('sessao', id);
+  return `/?${query.toString()}`;
+}
+
+function whatsappSessionDeepLink(env, session = {}) {
+  return `${appPublicBaseUrl(env)}${whatsappSessionDeepLinkPath(session)}`;
+}
+
+function normalizeAlertPhone(value) {
+  const digits = String(value || '').replace(/\D/g, '');
+  return digits.length >= 10 && digits.length <= 15 ? digits : '';
+}
+
+function normalizeAlertEmail(value) {
+  const email = String(value || '').trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 200 ? email : '';
+}
+
+async function loadAlertEscalationConfig(env) {
+  const raw = await whatsappGroupSettingValue(env, ALERT_SETTINGS_KEY);
+  let saved = {};
+  try { saved = raw ? JSON.parse(raw) : {}; } catch {}
+  return {
+    whatsappEnabled: saved.whatsappEnabled === true,
+    emailEnabled: saved.emailEnabled === true,
+    whatsappDelaySeconds: Math.max(60, Math.min(Number(saved.whatsappDelaySeconds || 120), 3600)),
+    emailDelaySeconds: Math.max(60, Math.min(Number(saved.emailDelaySeconds || 300), 7200)),
+    whatsappRecipients: [...new Set((saved.whatsappRecipients || []).map(normalizeAlertPhone).filter(Boolean))].slice(0, 30),
+    emailRecipients: [...new Set((saved.emailRecipients || []).map(normalizeAlertEmail).filter(Boolean))].slice(0, 30),
+    instance: cleanWebhookText(saved.instance || 'principal', 120) || 'principal',
+    fromEmail: normalizeAlertEmail(saved.fromEmail),
+    activatedAt: String(saved.activatedAt || ''),
+    updatedAt: String(saved.updatedAt || ''),
+    updatedBy: String(saved.updatedBy || ''),
+  };
+}
+
+async function handleAlertSettingsApi(request, env, appUser) {
+  if (!(await isAdminUser(appUser, env))) return jsonResponse({ error: 'Acesso negado.' }, 403);
+  await ensureWhatsappGroupD1(env);
+  if (request.method === 'GET') {
+    const config = await loadAlertEscalationConfig(env);
+    const deviceCount = await env.REVIEWS_DB.prepare(
+      'SELECT COUNT(*) AS total FROM app_push_subscriptions WHERE active = 1',
+    ).first();
+    return jsonResponse({
+      config,
+      available: {
+        push: Boolean(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY),
+        whatsapp: Boolean(evolutionApiBase(env) && evolutionApiKey(env)),
+        email: emailAlertAvailable(env),
+      },
+      pushDevices: Number(deviceCount?.total || 0),
+    });
+  }
+  if (request.method !== 'POST') return jsonResponse({ error: 'Metodo nao permitido.' }, 405);
+  const body = await request.json().catch(() => ({}));
+  const previous = await loadAlertEscalationConfig(env);
+  const now = new Date().toISOString();
+  const config = {
+    whatsappEnabled: body.whatsappEnabled === true,
+    emailEnabled: body.emailEnabled === true,
+    whatsappDelaySeconds: Math.max(60, Math.min(Number(body.whatsappDelaySeconds || 120), 3600)),
+    emailDelaySeconds: Math.max(60, Math.min(Number(body.emailDelaySeconds || 300), 7200)),
+    whatsappRecipients: [...new Set((Array.isArray(body.whatsappRecipients) ? body.whatsappRecipients : []).map(normalizeAlertPhone).filter(Boolean))].slice(0, 30),
+    emailRecipients: [...new Set((Array.isArray(body.emailRecipients) ? body.emailRecipients : []).map(normalizeAlertEmail).filter(Boolean))].slice(0, 30),
+    instance: cleanWebhookText(body.instance || 'principal', 120) || 'principal',
+    fromEmail: normalizeAlertEmail(body.fromEmail),
+    activatedAt: previous.activatedAt || now,
+    updatedAt: now,
+    updatedBy: appUser,
+  };
+  const alertProfiles = await loadUserAlertProfiles(env);
+  const managedUsers = (await loadManagedUsers(env)).map((user) => userWithAlertProfile(user, alertProfiles));
+  const environmentUsers = parseAppUsers(env).map((user) => userWithAlertProfile(user, alertProfiles));
+  const configuredUsers = [...managedUsers, ...environmentUsers];
+  const hasUserWhatsapp = configuredUsers.some((user) => user.active !== false && user.whatsappAlerts && user.whatsapp);
+  const hasUserEmail = configuredUsers.some((user) => user.active !== false && user.emailAlerts && user.email);
+  if (config.whatsappEnabled && !config.whatsappRecipients.length && !hasUserWhatsapp) {
+    return jsonResponse({ error: 'Inclua pelo menos um WhatsApp válido antes de ativar.' }, 400);
+  }
+  if (config.emailEnabled && !config.emailRecipients.length && !hasUserEmail) {
+    return jsonResponse({ error: 'Inclua pelo menos um e-mail válido antes de ativar.' }, 400);
+  }
+  if (config.emailEnabled && !config.fromEmail) {
+    return jsonResponse({ error: 'Informe o endereço remetente do domínio habilitado na Cloudflare.' }, 400);
+  }
+  await saveWhatsappGroupSetting(env, ALERT_SETTINGS_KEY, JSON.stringify(config));
+  return jsonResponse({
+    ok: true,
+    config,
+    available: {
+      push: Boolean(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY),
+      whatsapp: Boolean(evolutionApiBase(env) && evolutionApiKey(env)),
+      email: emailAlertAvailable(env),
+    },
+  });
+}
+
+let lastEvolutionAlertSendAt = 0;
+async function sendEvolutionAlert(env, instance, number, text) {
+  const minimumIntervalMs = 2200;
+  const waitMs = Math.max(0, minimumIntervalMs - (Date.now() - lastEvolutionAlertSendAt));
+  if (waitMs) await new Promise((resolve) => setTimeout(resolve, waitMs));
+  const response = await fetch(`${evolutionApiBase(env)}/message/sendText/${encodeURIComponent(instance)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: evolutionApiKey(env) },
+    body: JSON.stringify({ number, text }),
+  });
+  lastEvolutionAlertSendAt = Date.now();
+  if (!response.ok) throw new Error(`Evolution HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`);
+}
+
+function emailAlertAvailable(env) {
+  return Boolean(env.EMAIL || (env.GMAIL_ALERT_WEBHOOK_URL && env.GMAIL_ALERT_WEBHOOK_SECRET));
+}
+
+async function sendConfiguredEmailAlert(env, message) {
+  if (env.EMAIL) return env.EMAIL.send(message);
+  const url = String(env.GMAIL_ALERT_WEBHOOK_URL || '').trim();
+  const secret = String(env.GMAIL_ALERT_WEBHOOK_SECRET || '').trim();
+  if (!url || !secret) throw new Error('Canal de e-mail ainda não disponível.');
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      secret,
+      to: message.to,
+      subject: message.subject,
+      text: message.text,
+      html: message.html,
+    }),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || result?.ok !== true) {
+    throw new Error(`Google Workspace: ${result?.error || `HTTP ${response.status}`}`);
+  }
+  return result;
+}
+
+async function claimAlertDelivery(env, session, channel, destination) {
+  const id = crypto.randomUUID();
+  const result = await env.REVIEWS_DB.prepare(`
+    INSERT OR IGNORE INTO app_alert_deliveries
+      (id, session_id, protocol, channel, destination, status, created_at)
+    VALUES (?, ?, ?, ?, ?, 'PENDING', ?)
+  `).bind(id, session.id, session.protocol, channel, destination, new Date().toISOString()).run();
+  return Number(result?.meta?.changes || 0) ? id : '';
+}
+
+async function finishAlertDelivery(env, id, status, error = '') {
+  await env.REVIEWS_DB.prepare(`
+    UPDATE app_alert_deliveries SET status = ?, error_message = ?, sent_at = ? WHERE id = ?
+  `).bind(status, String(error || '').slice(0, 500), status === 'SENT' ? new Date().toISOString() : '', id).run();
+}
+
+async function sendEscalatedWhatsappAndEmailAlerts(env) {
+  if (!env.REVIEWS_DB) return { ok: false, skipped: true, reason: 'missing_db' };
+  await ensureWhatsappGroupD1(env);
+  const config = await loadAlertEscalationConfig(env);
+  const managedAlertUsers = await loadManagedUsers(env);
+  const alertProfiles = await loadUserAlertProfiles(env);
+  const alertUsers = managedAlertUsers.map((user) => userWithAlertProfile(user, alertProfiles));
+  for (const envUser of parseAppUsers(env)) alertUsers.push(userWithAlertProfile(envUser, alertProfiles));
+  const whatsappRecipients = [...new Set([
+    ...config.whatsappRecipients,
+    ...alertUsers.filter((user) => user.active !== false && user.whatsappAlerts).map((user) => user.whatsapp),
+  ].map(normalizeAlertPhone).filter(Boolean))];
+  const emailRecipients = [...new Set([
+    ...config.emailRecipients,
+    ...alertUsers.filter((user) => user.active !== false && user.emailAlerts).map((user) => user.email),
+  ].map(normalizeAlertEmail).filter(Boolean))];
+  if (!config.activatedAt || (!config.whatsappEnabled && !config.emailEnabled)) {
+    return { ok: true, skipped: true, reason: 'channels_disabled' };
+  }
+  const rows = await env.REVIEWS_DB.prepare(`
+    SELECT id, protocol, grupo_nome, cliente_nome, remetente_nome, started_at
+    FROM whatsapp_group_sessions
+    WHERE status IN ('OPEN', 'SEM_RESPOSTA') AND started_at >= ?
+    ORDER BY started_at ASC LIMIT 100
+  `).bind(config.activatedAt).all();
+  const sessions = Array.isArray(rows?.results) ? rows.results : [];
+  let sent = 0;
+  for (const session of sessions) {
+    const ageSeconds = Math.max(0, (Date.now() - Date.parse(session.started_at || '')) / 1000);
+    const label = session.cliente_nome || session.grupo_nome || session.remetente_nome || 'WhatsApp Grupo';
+    const waitMinutes = Math.max(1, Math.floor(ageSeconds / 60));
+    const sessionUrl = whatsappSessionDeepLink(env, session);
+    const text = `⚠️ Atendimento sem resposta\n${label}\nProtocolo: ${session.protocol}\nAguardando há ${waitMinutes} min.\n\nAbra: ${sessionUrl}`;
+    if (config.whatsappEnabled && ageSeconds >= config.whatsappDelaySeconds && evolutionApiBase(env) && evolutionApiKey(env)) {
+      for (const phone of whatsappRecipients) {
+        const deliveryId = await claimAlertDelivery(env, session, 'whatsapp', phone);
+        if (!deliveryId) continue;
+        try {
+          await sendEvolutionAlert(env, config.instance, phone, text);
+          await finishAlertDelivery(env, deliveryId, 'SENT');
+          sent += 1;
+        } catch (error) {
+          await finishAlertDelivery(env, deliveryId, 'FAILED', error?.message || error);
+        }
+      }
+    }
+    if (config.emailEnabled && ageSeconds >= config.emailDelaySeconds && emailAlertAvailable(env) && config.fromEmail) {
+      for (const email of emailRecipients) {
+        const deliveryId = await claimAlertDelivery(env, session, 'email', email);
+        if (!deliveryId) continue;
+        try {
+          await sendConfiguredEmailAlert(env, {
+            to: email,
+            from: { email: config.fromEmail, name: 'Gestão de Atendimento' },
+            subject: `Atendimento sem resposta · ${session.protocol}`,
+            text,
+            html: `<h2>Atendimento sem resposta</h2><p><b>${escapeHtml(label)}</b></p><p>Protocolo: <b>${escapeHtml(session.protocol)}</b></p><p>Aguardando há ${waitMinutes} minuto(s).</p><p><a href="${escapeHtml(sessionUrl)}">Abrir este protocolo</a></p>`,
+          });
+          await finishAlertDelivery(env, deliveryId, 'SENT');
+          sent += 1;
+        } catch (error) {
+          await finishAlertDelivery(env, deliveryId, 'FAILED', error?.message || error);
+        }
+      }
+    }
+  }
+  return { ok: true, sessions: sessions.length, sent };
+}
+
+async function processAlertTestRequests(env) {
+  await ensureWhatsappGroupD1(env);
+  const result = await env.REVIEWS_DB.prepare(`
+    SELECT id, channel, destination
+    FROM app_alert_test_requests
+    WHERE status = 'PENDING'
+    ORDER BY created_at ASC, CASE channel WHEN 'email' THEN 0 ELSE 1 END, id ASC
+    LIMIT 50
+  `).all();
+  const requests = Array.isArray(result?.results) ? result.results : [];
+  const config = await loadAlertEscalationConfig(env);
+  for (const item of requests) {
+    let status = 'SENT';
+    let error = '';
+    try {
+      if (item.channel === 'push') {
+        if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY) throw new Error('Web Push não configurado.');
+        webpush.setVapidDetails(
+          String(env.VAPID_SUBJECT || 'https://gestaoatendimento.reinaldo-bueno.workers.dev'),
+          String(env.VAPID_PUBLIC_KEY),
+          String(env.VAPID_PRIVATE_KEY),
+        );
+        const subscriptions = await env.REVIEWS_DB.prepare(`
+          SELECT endpoint, p256dh, auth FROM app_push_subscriptions WHERE active = 1
+        `).all();
+        const devices = Array.isArray(subscriptions?.results) ? subscriptions.results : [];
+        if (!devices.length) throw new Error('Nenhum dispositivo Push ativo.');
+        let delivered = 0;
+        for (const device of devices) {
+          try {
+            await webpush.sendNotification({
+              endpoint: device.endpoint,
+              keys: { p256dh: device.p256dh, auth: device.auth },
+            }, JSON.stringify({
+              title: 'Teste Push concluído',
+              body: 'A Cloudflare entregou este aviso mesmo sem depender da guia do sistema.',
+              tag: `teste-push-${item.id}`,
+              url: '/?pane=whatsapp-grupo',
+            }), { TTL: 600, urgency: 'high' });
+            delivered += 1;
+          } catch (pushError) {
+            const statusCode = Number(pushError?.statusCode || 0);
+            if (statusCode === 404 || statusCode === 410) {
+              await env.REVIEWS_DB.prepare(
+                'UPDATE app_push_subscriptions SET active = 0, last_error = ?, updated_at = ? WHERE endpoint = ?',
+              ).bind(String(pushError?.message || pushError).slice(0, 500), new Date().toISOString(), device.endpoint).run();
+            }
+          }
+        }
+        if (!delivered) throw new Error('O serviço Push não aceitou a entrega em nenhum dispositivo.');
+      } else if (item.channel === 'whatsapp') {
+        const phone = normalizeAlertPhone(item.destination);
+        if (!phone) throw new Error('Número de teste inválido.');
+        await sendEvolutionAlert(
+          env,
+          config.instance || 'principal',
+          phone,
+          '✅ TESTE DE ALERTA\nGestão de Atendimento\n\nO envio independente pela nuvem está funcionando. Este teste não criou nem alterou protocolos.',
+        );
+      } else if (item.channel === 'email') {
+        const email = normalizeAlertEmail(item.destination);
+        if (!email || !emailAlertAvailable(env) || !config.fromEmail) throw new Error('Canal de e-mail ainda não disponível.');
+        await sendConfiguredEmailAlert(env, {
+          to: email,
+          from: { email: config.fromEmail, name: 'Gestão de Atendimento' },
+          subject: 'Teste de alerta · Gestão de Atendimento',
+          text: 'O envio independente pela nuvem está funcionando. Este teste não criou nem alterou protocolos.',
+          html: '<h2>Teste de alerta concluído</h2><p>O envio independente pela nuvem está funcionando.</p><p>Este teste não criou nem alterou protocolos.</p>',
+        });
+      } else {
+        throw new Error('Canal de teste inválido.');
+      }
+    } catch (caught) {
+      status = 'FAILED';
+      error = String(caught?.message || caught || 'Falha no teste').slice(0, 500);
+    }
+    await env.REVIEWS_DB.prepare(`
+      UPDATE app_alert_test_requests
+      SET status = ?, error_message = ?, finished_at = ?
+      WHERE id = ?
+    `).bind(status, error, new Date().toISOString(), item.id).run();
+  }
+  return { checked: requests.length };
 }
 
 async function whatsappGroupSettingMode(env) {
@@ -3679,7 +4545,7 @@ async function upsertWhatsappGroupFromRecord(env, record) {
     VALUES (?, ?, ?, '', '', '[]', 1, ?, ?)
     ON CONFLICT(instance, grupo_id) DO UPDATE SET
       grupo_nome = CASE
-        WHEN excluded.grupo_nome <> '' THEN excluded.grupo_nome
+        WHEN whatsapp_groups.grupo_nome = '' AND excluded.grupo_nome <> '' THEN excluded.grupo_nome
         ELSE whatsapp_groups.grupo_nome
       END,
       updated_at = excluded.updated_at
@@ -3766,6 +4632,8 @@ function whatsappMetricText(value) {
 }
 
 function whatsappIsExcludedMetricGroup(row = {}) {
+  const groupId = String(row.grupo_id || row.grupoId || '').trim().toLowerCase();
+  if (WHATSAPP_EXCLUDED_METRIC_GROUP_IDS.has(groupId)) return true;
   const text = [
     row.grupo_nome,
     row.grupoNome,
@@ -3775,6 +4643,59 @@ function whatsappIsExcludedMetricGroup(row = {}) {
     row.clienteNome,
   ].map(whatsappMetricText).join(' ');
   return text.includes('teste integracao');
+}
+
+function evolutionRevokedMessageId(payload = {}) {
+  const data = payload?.data && typeof payload.data === 'object' ? payload.data : {};
+  const message = data.message && typeof data.message === 'object' ? data.message : {};
+  const protocol = message.protocolMessage || message.editedMessage?.message?.protocolMessage || {};
+  const event = normalizeWebhookEvent(payload?.event);
+  const protocolType = String(protocol?.type ?? '').trim().toUpperCase();
+  const isRevoke = event.includes('delete') || protocolType === '0' || protocolType === 'REVOKE';
+  return cleanWebhookText(
+    (isRevoke ? (protocol?.key?.id || protocol?.messageKey?.id) : '') ||
+      data?.deletedMessage?.key?.id ||
+      data?.messageKey?.id ||
+      (event.includes('delete') ? data?.key?.id : ''),
+    180,
+  );
+}
+
+async function applyWhatsappDeletedMessage(env, payload = {}) {
+  const data = payload?.data && typeof payload.data === 'object' ? payload.data : {};
+  const targetMessageId = evolutionRevokedMessageId(payload);
+  const instance = cleanWebhookText(payload?.instance, 120);
+  const groupId = whatsappGroupIdForSql(
+    data?.key?.remoteJid ||
+      data?.deletedMessage?.key?.remoteJid ||
+      data?.messageKey?.remoteJid,
+  );
+  if (!targetMessageId) return { handled: false };
+  const target = await env.REVIEWS_DB.prepare(`
+    SELECT id, session_id
+    FROM whatsapp_group_attendances
+    WHERE message_id = ?
+      AND (? = '' OR instance = ?)
+      AND (? = '' OR grupo_id = ?)
+    ORDER BY created_at DESC
+    LIMIT 1
+  `).bind(targetMessageId, instance, instance, groupId, groupId).first();
+  if (!target) return { handled: true, updated: false, targetMessageId };
+  await env.REVIEWS_DB.batch([
+    env.REVIEWS_DB.prepare(`
+      UPDATE whatsapp_group_attendances
+      SET tipo_mensagem = 'deleted',
+          conteudo = 'Mensagem apagada',
+          processing_status = 'deleted',
+          error_message = ''
+      WHERE id = ?
+    `).bind(target.id),
+    env.REVIEWS_DB.prepare('DELETE FROM whatsapp_group_media_cache WHERE attendance_id = ?').bind(target.id),
+  ]);
+  if (target.session_id) {
+    await recalculateWhatsappSessionTiming(env, target.session_id).catch(() => null);
+  }
+  return { handled: true, updated: true, targetMessageId, attendanceId: target.id };
 }
 
 function whatsappNameMatches(name, candidate) {
@@ -3924,6 +4845,19 @@ async function whatsappActorInfo(env, record, meta, command) {
   };
 }
 
+async function whatsappParticipantAlias(env, record = {}) {
+  const instance = cleanWebhookText(record.instance, 120);
+  const groupId = whatsappGroupIdForSql(record.grupoId || record.grupo_id);
+  const participantId = cleanWebhookText(record.remetenteId || record.remetente_id, 180);
+  if (!instance || !groupId || !participantId) return '';
+  const row = await env.REVIEWS_DB.prepare(`
+    SELECT nome FROM whatsapp_group_participant_aliases
+    WHERE instance = ? AND grupo_id = ? AND remetente_id = ?
+    LIMIT 1
+  `).bind(instance, groupId, participantId).first();
+  return cleanWebhookText(row?.nome, 180);
+}
+
 function whatsappSessionProtocol() {
   const stamp = new Date().toISOString().replace(/\D/g, '').slice(2, 14);
   return `WG-${stamp}-${crypto.randomUUID().slice(0, 4).toUpperCase()}`;
@@ -3946,6 +4880,7 @@ function whatsappBusinessParts(value) {
     day: br.getUTCDate(),
     dow: br.getUTCDay(),
     hour: br.getUTCHours(),
+    minute: br.getUTCMinutes(),
   };
 }
 
@@ -3955,7 +4890,8 @@ function whatsappBusinessBoundaryUtc(parts, hour) {
 
 function whatsappBusinessOpen(value) {
   const parts = whatsappBusinessParts(value);
-  return Boolean(parts && parts.dow >= 1 && parts.dow <= 5 && parts.hour >= 8 && parts.hour < 18);
+  const minutes = parts ? parts.hour * 60 + parts.minute : -1;
+  return Boolean(parts && parts.dow >= 1 && parts.dow <= 5 && minutes >= 8 * 60 && minutes < 18 * 60 + 30);
 }
 
 function whatsappBusinessSecondsBetween(startValue, endValue) {
@@ -3969,7 +4905,7 @@ function whatsappBusinessSecondsBetween(startValue, endValue) {
     const parts = whatsappBusinessParts(new Date(start));
     if (!parts) break;
     const dayStart = whatsappBusinessBoundaryUtc(parts, 8);
-    const dayEnd = whatsappBusinessBoundaryUtc(parts, 18);
+    const dayEnd = whatsappBusinessBoundaryUtc(parts, 18) + 30 * 60 * 1000;
     if (parts.dow >= 1 && parts.dow <= 5) {
       const from = Math.max(start, dayStart);
       const to = Math.min(end, dayEnd);
@@ -4085,6 +5021,8 @@ async function recalculateRecentWhatsappSessions(env, limit = 200) {
   const result = await env.REVIEWS_DB.prepare(`
     SELECT id
     FROM whatsapp_group_sessions
+    WHERE status IN ('OPEN', 'SEM_RESPOSTA', 'EM_ATENDIMENTO', 'ANSWERED', 'RESPONDED')
+      AND datetime(started_at) >= datetime('now', '-3 hours', 'start of day', '+3 hours')
     ORDER BY updated_at DESC
     LIMIT ?
   `).bind(Math.max(1, Math.min(Number(limit || 200), 500))).all();
@@ -4144,7 +5082,16 @@ function whatsappSameParticipant(left = {}, right = {}) {
 function whatsappSessionDateKey(value) {
   const date = new Date(value || '');
   if (!Number.isFinite(date.getTime())) return '';
-  return date.toISOString().slice(0, 10);
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date).reduce((out, part) => {
+    out[part.type] = part.value;
+    return out;
+  }, {});
+  return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
 function whatsappSessionWindowMatches(session, record) {
@@ -4159,7 +5106,8 @@ function whatsappSessionWindowMatches(session, record) {
   const messageDay = whatsappSessionDateKey(messageAt);
   const sessionDay = whatsappSessionDateKey(firstAt || lastAt);
   const businessContinuation = whatsappSameParticipantBusinessContinuation(session, record);
-  if (messageDay && sessionDay && messageDay !== sessionDay && !businessContinuation) return false;
+  if (messageDay && sessionDay && messageDay !== sessionDay) return false;
+  if (messageDay && sessionDay && messageDay === sessionDay) return true;
   if (Number.isFinite(firstTime) && messageTime < firstTime - WHATSAPP_SESSION_BACKFILL_GRACE_MS) return false;
   if (Number.isFinite(lastTime) && messageTime > lastTime + WHATSAPP_SESSION_MAX_IDLE_MS && !businessContinuation) return false;
   return true;
@@ -4190,7 +5138,7 @@ function whatsappSessionSameParticipantDayMatches(session, record) {
   const lastAt = session.last_message_at || session.updated_at || firstAt;
   const messageDay = whatsappSessionDateKey(messageAt);
   const sessionDay = whatsappSessionDateKey(firstAt || lastAt);
-  if (messageDay && sessionDay && messageDay !== sessionDay && !whatsappSameParticipantBusinessContinuation(session, record)) return false;
+  if (messageDay && sessionDay && messageDay !== sessionDay) return false;
   const messageTime = new Date(messageAt).getTime();
   const firstTime = new Date(firstAt).getTime();
   if (Number.isFinite(messageTime) && Number.isFinite(firstTime) && messageTime < firstTime - WHATSAPP_SESSION_BACKFILL_GRACE_MS) return false;
@@ -4198,12 +5146,7 @@ function whatsappSessionSameParticipantDayMatches(session, record) {
 }
 
 async function whatsappGroupSessionForRecord(env, record) {
-  if (!record.agentId && !record.fromMe) {
-    const participantSession = await latestWhatsappParticipantSession(env, record);
-    if (whatsappSessionSameParticipantDayMatches(participantSession, record)) return participantSession;
-  }
-  const session = await latestWhatsappGroupSession(env, record);
-  return whatsappSessionWindowMatches(session, record) ? session : null;
+  return (await latestWhatsappGroupSession(env, record)) || null;
 }
 
 function whatsappSessionsShareWindow(left, right) {
@@ -4235,8 +5178,7 @@ function whatsappSessionsShareParticipantDay(left, right) {
   const rightLast = right.last_message_at || right.updated_at || rightFirst;
   const leftDay = whatsappSessionDateKey(leftFirst || leftLast);
   const rightDay = whatsappSessionDateKey(rightFirst || rightLast);
-  if (leftDay && rightDay && leftDay === rightDay) return true;
-  return whatsappSameParticipantBusinessContinuation(left, right);
+  return Boolean(leftDay && rightDay && leftDay === rightDay);
 }
 
 function whatsappDuplicateSessionClusters(rows) {
@@ -4578,18 +5520,261 @@ async function assignWhatsappGroupSessionFromPanel(env, sessionId, profile = {})
   return { session: updated };
 }
 
+async function transferableUsers(env) {
+  const alertProfiles = await loadUserAlertProfiles(env);
+  const envUsers = parseAppUsers(env).map((item) => publicManagedUser({ ...item, active: true, source: 'ambiente' }));
+  const managedUsers = await loadManagedUsers(env);
+  const visible = mergeVisibleUsers(envUsers, managedUsers)
+    .map((item) => userWithAlertProfile(item, alertProfiles))
+    .filter((item) => item.active !== false);
+  return usersWithPresence(env, visible);
+}
+
+async function handleWhatsappTransferUsers(request, env, profile = {}) {
+  if (request.method !== 'GET') return jsonResponse({ error: 'Metodo nao permitido.' }, 405);
+  const current = normalizeLogin(profile.user);
+  const users = (await transferableUsers(env))
+    .filter((item) => normalizeLogin(item.user) !== current)
+    .map((item) => ({
+      user: item.user,
+      name: item.name || item.user,
+      role: item.role,
+      online: item.online === true,
+      hasWhatsapp: Boolean(item.whatsapp),
+      hasEmail: Boolean(item.email),
+      lastSeen: item.lastSeen || '',
+    }));
+  return jsonResponse({ ok: true, users });
+}
+
+async function handleWhatsappSessionTransfer(request, env, profile = {}) {
+  if (!env.REVIEWS_DB) return jsonResponse({ error: 'REVIEWS_DB nao configurado' }, 501);
+  await ensureWhatsappGroupD1(env);
+  if (request.method !== 'POST') return jsonResponse({ error: 'Metodo nao permitido.' }, 405);
+  const body = await request.json().catch(() => ({}));
+  const sessionId = cleanWebhookText(body.id || body.sessionId, 160);
+  const targetLogin = normalizeLogin(body.toUser || body.targetUser);
+  const note = cleanWebhookText(body.note || body.reason, 800);
+  if (!sessionId || !targetLogin) return jsonResponse({ error: 'Protocolo e colaborador sao obrigatorios.' }, 400);
+  if (targetLogin === normalizeLogin(profile.user)) return jsonResponse({ error: 'O atendimento ja esta com voce.' }, 409);
+
+  const [session, users] = await Promise.all([
+    env.REVIEWS_DB.prepare('SELECT * FROM whatsapp_group_sessions WHERE id = ? LIMIT 1').bind(sessionId).first(),
+    transferableUsers(env),
+  ]);
+  if (!session) return jsonResponse({ error: 'Atendimento nao encontrado.' }, 404);
+  if (whatsappIsClosedStatus(session.status)) return jsonResponse({ error: 'Atendimento encerrado nao pode ser transferido.' }, 409);
+  const target = users.find((item) => normalizeLogin(item.user) === targetLogin);
+  if (!target) return jsonResponse({ error: 'Colaborador ativo nao encontrado.' }, 404);
+
+  const now = new Date().toISOString();
+  const notificationId = crypto.randomUUID();
+  const fromUser = cleanWebhookText(profile.user || '', 120);
+  const fromName = cleanWebhookText(profile.name || profile.user || 'Equipe', 180);
+  const targetName = cleanWebhookText(target.name || target.user, 180);
+  await env.REVIEWS_DB.batch([
+    env.REVIEWS_DB.prepare(`
+      UPDATE whatsapp_group_sessions
+      SET status = ?, agente_id = ?, agente_nome = ?, updated_at = ?
+      WHERE id = ?
+    `).bind(WHATSAPP_SESSION_IN_PROGRESS, target.user, targetName, now, sessionId),
+    env.REVIEWS_DB.prepare(`
+      UPDATE whatsapp_group_attendances
+      SET session_status = ?, agent_id = ?, agent_name = ?
+      WHERE session_id = ?
+    `).bind(WHATSAPP_SESSION_IN_PROGRESS, target.user, targetName, sessionId),
+    env.REVIEWS_DB.prepare(`
+      INSERT INTO app_transfer_notifications
+        (id, session_id, protocol, from_user, from_name, to_user, to_name, note,
+         status, target_online, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?)
+    `).bind(
+      notificationId, sessionId, session.protocol || '', fromUser, fromName,
+      target.user, targetName, note, target.online ? 1 : 0, now,
+    ),
+  ]);
+
+  let whatsappStatus = 'SKIPPED';
+  let emailStatus = 'SKIPPED';
+  const errors = [];
+  if (!target.online) {
+    const config = await loadAlertEscalationConfig(env);
+    const label = session.cliente_nome || session.grupo_nome || session.remetente_nome || 'WhatsApp Grupo';
+    const link = whatsappSessionDeepLink(env, session);
+    const message = `🔄 Atendimento transferido para voce\n${label}\nProtocolo: ${session.protocol}\nTransferido por: ${fromName}${note ? `\nMotivo: ${note}` : ''}\n\nAbra: ${link}`;
+    if (target.whatsapp && evolutionApiBase(env) && evolutionApiKey(env)) {
+      try {
+        await sendEvolutionAlert(env, config.instance || session.instance || 'principal', target.whatsapp, message);
+        whatsappStatus = 'SENT';
+      } catch (error) {
+        whatsappStatus = 'FAILED';
+        errors.push(`WhatsApp: ${String(error?.message || error)}`);
+      }
+    }
+    if (target.email && config.fromEmail && emailAlertAvailable(env)) {
+      try {
+        await sendConfiguredEmailAlert(env, {
+          to: target.email,
+          from: { email: config.fromEmail, name: 'Gestao de Atendimento' },
+          subject: `Atendimento transferido · ${session.protocol}`,
+          text: message,
+          html: `<h2>Atendimento transferido para voce</h2><p><b>${escapeHtml(label)}</b></p><p>Protocolo: <b>${escapeHtml(session.protocol || '')}</b></p><p>Transferido por: ${escapeHtml(fromName)}</p>${note ? `<p>Motivo: ${escapeHtml(note)}</p>` : ''}<p><a href="${escapeHtml(link)}">Abrir protocolo</a></p>`,
+        });
+        emailStatus = 'SENT';
+      } catch (error) {
+        emailStatus = 'FAILED';
+        errors.push(`E-mail: ${String(error?.message || error)}`);
+      }
+    }
+  }
+  await env.REVIEWS_DB.prepare(`
+    UPDATE app_transfer_notifications
+    SET whatsapp_status = ?, email_status = ?, error_message = ?
+    WHERE id = ?
+  `).bind(whatsappStatus, emailStatus, errors.join(' | ').slice(0, 500), notificationId).run();
+  const updated = await env.REVIEWS_DB.prepare('SELECT * FROM whatsapp_group_sessions WHERE id = ? LIMIT 1').bind(sessionId).first();
+  return jsonResponse({
+    ok: true,
+    target: { user: target.user, name: targetName, online: target.online },
+    channels: { popup: true, whatsapp: whatsappStatus, email: emailStatus },
+    session: whatsappSessionToPublic(updated || session),
+  });
+}
+
+async function handleTransferNotifications(request, env, profile = {}) {
+  if (!env.REVIEWS_DB) return jsonResponse({ error: 'REVIEWS_DB nao configurado' }, 501);
+  await ensureWhatsappGroupD1(env);
+  const user = normalizeLogin(profile.user);
+  if (request.method === 'GET') {
+    const result = await env.REVIEWS_DB.prepare(`
+      SELECT id, session_id, protocol, from_name, to_name, note, created_at
+      FROM app_transfer_notifications
+      WHERE lower(to_user) = ? AND status = 'PENDING'
+      ORDER BY created_at DESC LIMIT 20
+    `).bind(user).all();
+    return jsonResponse({ ok: true, notifications: result.results || [] });
+  }
+  if (request.method !== 'POST') return jsonResponse({ error: 'Metodo nao permitido.' }, 405);
+  const body = await request.json().catch(() => ({}));
+  const id = cleanWebhookText(body.id, 180);
+  if (!id) return jsonResponse({ error: 'Notificacao nao informada.' }, 400);
+  await env.REVIEWS_DB.prepare(`
+    UPDATE app_transfer_notifications
+    SET status = 'READ', read_at = ?
+    WHERE id = ? AND lower(to_user) = ?
+  `).bind(new Date().toISOString(), id, user).run();
+  return jsonResponse({ ok: true });
+}
+
+async function mergeWhatsappGroupSessionsFromPanel(env, sourceSessionId, targetSessionId, profile = {}) {
+  const sourceId = cleanWebhookText(sourceSessionId, 160);
+  const targetId = cleanWebhookText(targetSessionId, 160);
+  if (!sourceId || !targetId) return { error: 'Informe os dois protocolos.' };
+  if (sourceId === targetId) return { error: 'Escolha dois protocolos diferentes.' };
+  const [source, target] = await Promise.all([
+    env.REVIEWS_DB.prepare('SELECT * FROM whatsapp_group_sessions WHERE id = ? LIMIT 1').bind(sourceId).first(),
+    env.REVIEWS_DB.prepare('SELECT * FROM whatsapp_group_sessions WHERE id = ? LIMIT 1').bind(targetId).first(),
+  ]);
+  if (!source || !target) return { error: 'Protocolo não encontrado.', status: 404 };
+  const technical = new Set(['INCIDENT_REPAIR', 'MERGED_DUPLICATE', 'SPLIT_ROLLBACK']);
+  if (technical.has(String(source.status || '').toUpperCase()) || technical.has(String(target.status || '').toUpperCase())) {
+    return { error: 'Protocolo técnico não pode ser mesclado.', status: 409 };
+  }
+  if (String(source.instance || '') !== String(target.instance || '') || String(source.grupo_id || '') !== String(target.grupo_id || '')) {
+    return { error: 'Só é possível mesclar protocolos do mesmo grupo.', status: 409 };
+  }
+  if (new Date(target.started_at || 0).getTime() > new Date(source.started_at || 0).getTime()) {
+    return { error: 'O destino deve ser um protocolo anterior.', status: 409 };
+  }
+
+  const sourceStatus = String(source.status || '').toUpperCase();
+  const targetStatus = String(target.status || '').toUpperCase();
+  const mergedStatus = sourceStatus === WHATSAPP_SESSION_CLOSED ? targetStatus : sourceStatus;
+  const remainsClosed = mergedStatus === WHATSAPP_SESSION_CLOSED;
+  const closedCandidates = [source.closed_at, target.closed_at].filter(Boolean).sort();
+  const mergedClosedAt = remainsClosed ? (closedCandidates[closedCandidates.length - 1] || '') : '';
+  const now = new Date().toISOString();
+  const mergedBy = String(profile.name || profile.user || 'Painel').slice(0, 160);
+  const mergeId = `WGM-${Date.now()}-${crypto.randomUUID()}`;
+
+  await env.REVIEWS_DB.batch([
+    env.REVIEWS_DB.prepare(`
+      INSERT INTO whatsapp_group_session_merges (
+        id, source_session_id, source_protocol, target_session_id, target_protocol,
+        merged_by, source_snapshot_json, target_snapshot_json, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(mergeId, source.id, source.protocol, target.id, target.protocol, mergedBy, JSON.stringify(source), JSON.stringify(target), now),
+    env.REVIEWS_DB.prepare(`
+      UPDATE whatsapp_group_attendances
+      SET session_id = ?, session_protocol = ?, session_status = ?
+      WHERE session_id = ?
+    `).bind(target.id, target.protocol, mergedStatus, source.id),
+    env.REVIEWS_DB.prepare(`
+      UPDATE whatsapp_group_sessions
+      SET
+        status = ?,
+        started_at = (SELECT MIN(message_datetime) FROM whatsapp_group_attendances WHERE session_id = ?),
+        first_message_at = (SELECT MIN(message_datetime) FROM whatsapp_group_attendances WHERE session_id = ?),
+        first_response_at = COALESCE((
+          SELECT MIN(message_datetime) FROM whatsapp_group_attendances
+          WHERE session_id = ? AND (from_me = 1 OR agent_name <> '')
+        ), ''),
+        first_response_seconds = COALESCE(MAX(0, CAST(ROUND((
+          julianday((SELECT MIN(message_datetime) FROM whatsapp_group_attendances WHERE session_id = ? AND (from_me = 1 OR agent_name <> ''))) -
+          julianday((SELECT MIN(message_datetime) FROM whatsapp_group_attendances WHERE session_id = ?))
+        ) * 86400) AS INTEGER)), 0),
+        last_message_at = (SELECT MAX(message_datetime) FROM whatsapp_group_attendances WHERE session_id = ?),
+        closed_at = ?,
+        closed_by = CASE WHEN ? = 1 THEN closed_by ELSE '' END,
+        close_reason = CASE WHEN ? = 1 THEN close_reason ELSE '' END,
+        message_count = (SELECT COUNT(*) FROM whatsapp_group_attendances WHERE session_id = ?),
+        participant_count = (SELECT SUM(CASE WHEN from_me = 0 THEN 1 ELSE 0 END) FROM whatsapp_group_attendances WHERE session_id = ?),
+        from_me_count = (SELECT SUM(CASE WHEN from_me = 1 THEN 1 ELSE 0 END) FROM whatsapp_group_attendances WHERE session_id = ?),
+        agente_id = CASE WHEN ? <> '' THEN ? ELSE agente_id END,
+        agente_nome = CASE WHEN ? <> '' THEN ? ELSE agente_nome END,
+        updated_at = ?
+      WHERE id = ?
+    `).bind(
+      mergedStatus,
+      target.id, target.id, target.id, target.id, target.id, target.id,
+      mergedClosedAt,
+      remainsClosed ? 1 : 0,
+      remainsClosed ? 1 : 0,
+      target.id, target.id, target.id,
+      source.agente_id || '', source.agente_id || '',
+      source.agente_nome || '', source.agente_nome || '',
+      now,
+      target.id,
+    ),
+    env.REVIEWS_DB.prepare(`
+      UPDATE whatsapp_group_sessions
+      SET status = 'MERGED_DUPLICATE',
+          closed_by = ?,
+          close_reason = ?,
+          updated_at = ?
+      WHERE id = ?
+    `).bind(mergedBy, `Mesclado manualmente em ${target.protocol}`, now, source.id),
+  ]);
+  const updated = await env.REVIEWS_DB.prepare('SELECT * FROM whatsapp_group_sessions WHERE id = ? LIMIT 1')
+    .bind(target.id)
+    .first();
+  return { session: updated, sourceProtocol: source.protocol, targetProtocol: target.protocol };
+}
+
 async function updateWhatsappGroupSessionDetails(env, sessionId, body = {}) {
   const id = cleanWebhookText(sessionId, 120);
   if (!id) return { error: 'Informe o atendimento.' };
   const title = cleanWebhookText(body.tituloAtendimento ?? body.titulo ?? body.title, 220);
   const summary = cleanWebhookText(body.resumoAtendimento ?? body.resumo ?? body.summary, 1600);
   const notes = cleanWebhookText(body.observacoesInternas ?? body.observacoes ?? body.notes, 2000);
+  const nucleus = normalizeWhatsappNucleus(body.nucleoAtendimento ?? body.nucleo ?? body.nucleus);
   const now = new Date().toISOString();
   const result = await env.REVIEWS_DB.prepare(`
     UPDATE whatsapp_group_sessions
-    SET titulo_atendimento = ?, resumo_atendimento = ?, observacoes_internas = ?, updated_at = ?
+    SET titulo_atendimento = ?, resumo_atendimento = ?, observacoes_internas = ?,
+        nucleo_atendimento = ?, updated_at = ?
     WHERE id = ?
-  `).bind(title, summary, notes, now, id).run();
+  `).bind(title, summary, notes, nucleus, now, id).run();
   if (Number(result?.meta?.changes || 0) < 1) return { error: 'Atendimento nao encontrado.', status: 404 };
   const updated = await env.REVIEWS_DB.prepare('SELECT * FROM whatsapp_group_sessions WHERE id = ? LIMIT 1')
     .bind(id)
@@ -4597,12 +5782,30 @@ async function updateWhatsappGroupSessionDetails(env, sessionId, body = {}) {
   return { session: updated };
 }
 
+function normalizeWhatsappNucleus(value) {
+  const raw = cleanWebhookText(value, 80).trim();
+  const normalized = normalizeWhatsappName(raw);
+  const options = new Map([
+    ['engorda', 'Engorda'],
+    ['reprodutivo', 'Reprodutivo'],
+    ['infraestrutura', 'Infraestrutura'],
+    ['outros', 'Outros'],
+  ]);
+  return options.get(normalized) || '';
+}
+
 async function processWhatsappGroupSession(env, record) {
   const command = whatsappGroupCommand(record);
   const meta = await whatsappGroupMeta(env, record);
-  if (meta.grupoNome && !record.grupoNome) record.grupoNome = meta.grupoNome;
+  // O cadastro confirmado é a fonte canônica. Campos como groupName/chatName
+  // vindos de webhooks variam entre versões da Evolution e não podem renomear
+  // um protocolo nem alterar visualmente seu destino.
+  if (meta.grupoNome) record.grupoNome = meta.grupoNome;
   record.clienteId = meta.clienteId || '';
   record.clienteNome = meta.clienteNome || '';
+  if (!record.fromMe) {
+    record.remetenteNome = (await whatsappParticipantAlias(env, record)) || record.remetenteNome;
+  }
   const actor = await whatsappActorInfo(env, record, meta, command);
   record.agentId = actor.isAgent ? (actor.agentId || record.remetenteId || '') : '';
   record.agentName = actor.isAgent ? (actor.agentName || record.remetenteNome || '') : '';
@@ -4734,7 +5937,57 @@ async function whatsappGroupAttendanceExists(env, record) {
   return result || null;
 }
 
+function whatsappIgnoredMessageSettingKey(record = {}) {
+  return `ignored_message:${record.instance || ''}:${record.grupoId || ''}:${record.messageId || ''}`;
+}
+
+function whatsappIgnoredBeforeSettingKey(record = {}) {
+  return `ignored_before:${record.instance || ''}:${record.grupoId || ''}`;
+}
+
+function whatsappBlockedGroupSettingKey(record = {}) {
+  return `blocked_group:${record.instance || ''}:${record.grupoId || ''}`;
+}
+
+function whatsappOutboundBlockedSettingKey(instance, groupId) {
+  return `outbound_blocked:${cleanWebhookText(instance || 'principal', 120)}:${whatsappGroupIdForSql(groupId)}`;
+}
+
+async function whatsappOutboundBlockReason(env, instance, groupId) {
+  if (!env.REVIEWS_DB) return '';
+  const row = await env.REVIEWS_DB.prepare(
+    'SELECT value FROM whatsapp_group_settings WHERE key = ? LIMIT 1',
+  ).bind(whatsappOutboundBlockedSettingKey(instance, groupId)).first();
+  return cleanWebhookText(row?.value, 500);
+}
+
+async function isWhatsappGroupBlocked(env, record) {
+  const row = await env.REVIEWS_DB.prepare('SELECT 1 AS blocked FROM whatsapp_group_settings WHERE key = ? LIMIT 1')
+    .bind(whatsappBlockedGroupSettingKey(record))
+    .first();
+  return !!row?.blocked;
+}
+
+async function isWhatsappGroupMessageIgnored(env, record) {
+  const keys = [whatsappIgnoredBeforeSettingKey(record)];
+  if (record?.messageId) keys.push(whatsappIgnoredMessageSettingKey(record));
+  const placeholders = keys.map(() => '?').join(',');
+  const result = await env.REVIEWS_DB.prepare(`SELECT key, value FROM whatsapp_group_settings WHERE key IN (${placeholders})`)
+    .bind(...keys)
+    .all();
+  const rows = result.results || [];
+  if (record?.messageId && rows.some((row) => row.key === whatsappIgnoredMessageSettingKey(record))) return true;
+  const cutoff = rows.find((row) => row.key === whatsappIgnoredBeforeSettingKey(record))?.value || '';
+  const cutoffMs = new Date(cutoff).getTime();
+  const messageMs = Number(record?.messageTimestamp || 0) * 1000;
+  return Number.isFinite(cutoffMs) && cutoffMs > 0 && messageMs > 0 && messageMs <= cutoffMs;
+}
+
 async function processWhatsappGroupItemPayload(env, itemPayload, ctx = null) {
+  const deleted = await applyWhatsappDeletedMessage(env, itemPayload);
+  if (deleted.handled) {
+    return { inserted: false, ignored: true, reason: 'message_deleted', ...deleted };
+  }
   if (isWhatsappGroupSystemEventPayload(itemPayload)) {
     return { inserted: false, ignored: true, reason: 'group_system_event' };
   }
@@ -4744,23 +5997,55 @@ async function processWhatsappGroupItemPayload(env, itemPayload, ctx = null) {
     return { inserted: false, ignored: true, reason: 'not_group_message' };
   }
 
+  if (await isWhatsappGroupBlocked(env, record)) {
+    return { inserted: false, ignored: true, reason: 'group_permanently_blocked' };
+  }
+
+  if (await isWhatsappGroupMessageIgnored(env, record)) {
+    return { inserted: false, ignored: true, reason: 'message_permanently_ignored' };
+  }
+
   if (!(await isWhatsappGroupMonitored(env, record))) {
     return { inserted: false, ignored: true, reason: 'group_not_monitored', grupoId: record.grupoId };
   }
 
   const duplicate = await whatsappGroupAttendanceExists(env, record);
   if (duplicate) {
-    const recalculated = duplicate.session_id ? await recalculateWhatsappSessionTiming(env, duplicate.session_id).catch(() => null) : null;
-    const merged = duplicate.session_id ? await mergeWhatsappGroupSessionDuplicates(env, record, duplicate.session_id).catch(() => null) : null;
     return {
       inserted: false,
       duplicate: true,
       origin: WHATSAPP_GROUP_ORIGIN,
       grupoId: record.grupoId,
       tipoMensagem: record.tipoMensagem,
-      sessionId: merged?.id || duplicate.session_id || '',
-      sessionProtocol: merged?.protocol || duplicate.session_protocol || '',
-      sessionStatus: merged?.status || recalculated?.status || duplicate.session_status || '',
+      sessionId: duplicate.session_id || '',
+      sessionProtocol: duplicate.session_protocol || '',
+      sessionStatus: duplicate.session_status || '',
+    };
+  }
+
+  const reconciled = Boolean(itemPayload?._gestaoReconciled || itemPayload?.data?._gestaoReconciled);
+  const messageAgeMs = Date.now() - (Number(record.messageTimestamp || 0) * 1000);
+  const historicalReconciliation = reconciled
+    && Number.isFinite(messageAgeMs)
+    && messageAgeMs > 15 * 60 * 1000;
+  if (historicalReconciliation) {
+    record.sessionId = '';
+    record.sessionProtocol = '';
+    record.sessionStatus = '';
+    const inserted = await insertWhatsappGroupAttendance(env, record);
+    await upsertWhatsappInstanceFromRecord(env, record);
+    await upsertWhatsappGroupFromRecord(env, record);
+    return {
+      inserted,
+      duplicate: !inserted,
+      historical: true,
+      ignoredForMetrics: true,
+      reason: 'historical_reconciliation_without_session',
+      origin: WHATSAPP_GROUP_ORIGIN,
+      grupoId: record.grupoId,
+      tipoMensagem: record.tipoMensagem,
+      sessionProtocol: '',
+      sessionStatus: '',
     };
   }
 
@@ -4849,7 +6134,7 @@ async function handleWhatsappGroupWebhook(request, env, ctx) {
   try {
     await ensureWhatsappGroupD1(env);
     const event = normalizeWebhookEvent(payload?.event);
-    if (event !== 'messages.upsert') {
+    if (!['messages.upsert', 'messages.delete', 'messages.update'].includes(event)) {
       return jsonResponse({ ok: true, ignored: true, reason: 'event_not_supported', event });
     }
 
@@ -4938,6 +6223,7 @@ function normalizeEvolutionHistoryPayload(instance, group, item = {}) {
   return {
     instance,
     event: 'messages.upsert',
+    _gestaoReconciled: true,
     data: {
       ...source,
       key: {
@@ -4967,6 +6253,7 @@ async function evolutionPostJson(env, path, body) {
       apikey: apiKey,
     },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(12000),
   });
   if (!response.ok) return null;
   return response.json().catch(() => null);
@@ -5026,7 +6313,14 @@ async function reconcileWhatsappGroups(env, ctx = null, options = {}) {
   if (!evolutionApiBase(env) || !evolutionApiKey(env)) return { ok: false, skipped: true, reason: 'missing_evolution_config' };
   await ensureWhatsappGroupD1(env);
   const limit = Math.max(5, Math.min(Number(options.limit || 50), 100));
-  const groups = await whatsappGroupsForReconcile(env);
+  const allGroups = await whatsappGroupsForReconcile(env);
+  const requestedBatchSize = Number(options.groupBatchSize || allGroups.length || 1);
+  const groupBatchSize = Math.max(1, Math.min(requestedBatchSize, allGroups.length || 1));
+  const cursorRaw = await whatsappGroupSettingValue(env, 'reconcile_group_cursor').catch(() => '0');
+  const cursor = allGroups.length ? Math.max(0, Number.parseInt(cursorRaw || '0', 10) || 0) % allGroups.length : 0;
+  const groups = allGroups.length
+    ? Array.from({ length: Math.min(groupBatchSize, allGroups.length) }, (_, index) => allGroups[(cursor + index) % allGroups.length])
+    : [];
   const results = [];
   let insertedCount = 0;
   let checkedCount = 0;
@@ -5056,11 +6350,18 @@ async function reconcileWhatsappGroups(env, ctx = null, options = {}) {
       results.push(result);
     }
   }
-  const recalculatedCount = await recalculateRecentWhatsappSessions(env, 200).catch(() => 0);
+  const recalculatedCount = insertedCount > 0
+    ? await recalculateRecentWhatsappSessions(env, 200).catch(() => 0)
+    : 0;
+  const nextCursor = allGroups.length ? (cursor + groups.length) % allGroups.length : 0;
+  await saveWhatsappGroupSetting(env, 'reconcile_group_cursor', String(nextCursor)).catch(() => {});
   const ok = groups.length === 0 || checkedCount > 0;
   const result = {
     ok,
+    totalGroups: allGroups.length,
     groups: groups.length,
+    groupCursor: cursor,
+    nextGroupCursor: nextCursor,
     checkedCount,
     insertedCount,
     recalculatedCount,
@@ -5159,7 +6460,10 @@ async function handleWhatsappGroupHealth(request, env, profile = {}) {
   let lastReconcile = null;
   try { lastReconcile = lastReconcileRaw ? JSON.parse(lastReconcileRaw) : null; } catch {}
   const lastMessage = (lastMessagesResult?.results || []).find((row) => !whatsappIsExcludedMetricGroup(row)) || null;
-  const sessionList = (sessionRows?.results || []).filter((row) => !whatsappIsExcludedMetricGroup(row));
+  const sessionList = (sessionRows?.results || []).filter((row) => (
+    !whatsappIsExcludedMetricGroup(row)
+    && !['INCIDENT_REPAIR', 'MERGED_DUPLICATE', 'SPLIT_ROLLBACK'].includes(String(row?.status || '').toUpperCase())
+  ));
   const sessions = {};
   for (const row of sessionList) sessions[String(row.status || '')] = Number(sessions[String(row.status || '')] || 0) + 1;
   const openStatuses = [WHATSAPP_SESSION_OPEN, WHATSAPP_SESSION_UNANSWERED];
@@ -5216,7 +6520,10 @@ async function handleWhatsappGroupReconcileCron(request, env, ctx = null) {
   const received = requestSecret(request);
   if (!received || !timingSafeEqual(received, expected)) return jsonResponse({ error: 'Nao autorizado.' }, 401);
   const body = await request.json().catch(() => ({}));
-  const result = await reconcileWhatsappGroups(env, ctx, { limit: body.limit || 50 });
+  const result = await reconcileWhatsappGroups(env, ctx, {
+    limit: body.limit || 10,
+    groupBatchSize: body.groupBatchSize || 3,
+  });
   return jsonResponse(result, result.insertedCount > 0 ? 201 : 200);
 }
 
@@ -5237,6 +6544,8 @@ async function handleWhatsappGroupReconcileTargets(request, env) {
 }
 
 function whatsappAttendanceToPublic(row) {
+  const deleted = String(row.processing_status || '').toLowerCase() === 'deleted'
+    || String(row.tipo_mensagem || '').toLowerCase() === 'deleted';
   const mediaInfo = extractEvolutionMediaInfoFromRaw(row.raw_payload_json || '');
   const rowMediaType = inferEvolutionMediaType(row.tipo_mensagem || '', {}, '', '');
   const hasMediaType = /^(image|audio|video|document|sticker)$/.test(rowMediaType);
@@ -5247,8 +6556,9 @@ function whatsappAttendanceToPublic(row) {
     document: 'Documento recebido',
     sticker: 'Sticker recebido',
   };
-  let content = row.conteudo || '';
-  const publicMediaType = mediaInfo?.type || (hasMediaType ? rowMediaType : '');
+  let content = deleted ? 'Mensagem apagada' : (row.conteudo || '');
+  const publicMediaType = deleted ? '' : (mediaInfo?.type || (hasMediaType ? rowMediaType : ''));
+  const mediaAvailable = Number(row.media_cached || 0) === 1 || !!mediaInfo?.base64;
   if (publicMediaType && (/^(audio|imagem|image|video|documento|sticker) recebido$/i.test(content) || /^image\/|^audio\/|^video\//i.test(content))) {
     content = mediaInfo?.caption || mediaInfo?.fileName || mediaLabels[publicMediaType] || content;
   }
@@ -5274,12 +6584,13 @@ function whatsappAttendanceToPublic(row) {
     sessionStatus: row.session_status || '',
     agentId: row.agent_id || '',
     agentName: row.agent_name || '',
+    deleted,
     media: publicMediaType ? {
       type: publicMediaType,
       mimetype: normalizeEvolutionMediaContentType(mediaInfo || { type: publicMediaType }),
       fileName: mediaInfo?.fileName || '',
       caption: mediaInfo?.caption || '',
-      available: true,
+      available: mediaAvailable,
       url: `/api/whatsapp-grupo/media/${encodeURIComponent(row.id || '')}`,
     } : null,
     createdAt: row.created_at || '',
@@ -5312,6 +6623,7 @@ function whatsappSessionToPublic(row) {
     tituloAtendimento: row.titulo_atendimento || '',
     resumoAtendimento: row.resumo_atendimento || '',
     observacoesInternas: row.observacoes_internas || '',
+    nucleoAtendimento: row.nucleo_atendimento || '',
     messageCount: Number(row.message_count || 0),
     participantCount: Number(row.participant_count || 0),
     fromMeCount: Number(row.from_me_count || 0),
@@ -5365,18 +6677,29 @@ async function handleWhatsappGroupAttendances(request, env) {
 
   const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
   const result = await env.REVIEWS_DB.prepare(`
-    SELECT * FROM whatsapp_group_attendances
+    SELECT a.*,
+      CASE WHEN EXISTS (
+        SELECT 1 FROM whatsapp_group_media_cache c
+        WHERE c.attendance_id = a.id AND c.base64 <> ''
+      ) THEN 1 ELSE 0 END AS media_cached
+    FROM whatsapp_group_attendances a
     ${where}
-    ORDER BY message_datetime DESC, created_at DESC
+    ORDER BY a.message_datetime DESC, a.created_at DESC
     LIMIT ?
   `).bind(...binds, limit).all();
   const sessionResult = await env.REVIEWS_DB.prepare(`
     SELECT * FROM whatsapp_group_sessions
+    WHERE status NOT IN ('OPEN', 'SEM_RESPOSTA', 'EM_ATENDIMENTO', 'ANSWERED', 'RESPONDED')
+       OR datetime(started_at) >= datetime('now', '-3 hours', 'start of day', '+3 hours')
     ORDER BY updated_at DESC
     LIMIT 500
   `).all();
-  const attendances = (result.results || []).filter((row) => !whatsappIsExcludedMetricGroup(row));
-  const sessions = (sessionResult.results || []).filter((row) => !whatsappIsExcludedMetricGroup(row));
+  // Grupos de integração continuam fora das métricas, mas precisam permanecer
+  // consultáveis para que o protocolo, o chat e o teste operacional funcionem.
+  const attendances = (result.results || []).filter((row) => !isWhatsappGroupStoredSystemEvent(row));
+  const sessions = (sessionResult.results || []).filter((row) => (
+    !['INCIDENT_REPAIR', 'MERGED_DUPLICATE', 'SPLIT_ROLLBACK'].includes(String(row?.status || '').toUpperCase())
+  ));
 
   return jsonResponse({
     attendances: attendances.map(whatsappAttendanceToPublic),
@@ -5412,7 +6735,7 @@ async function handleWhatsappGroupMedia(request, env, id) {
     'X-Robots-Tag': 'noindex, nofollow',
     'Content-Disposition': `inline; filename="${(cached?.file_name || kvCached?.fileName || media?.fileName || `whatsapp-${media?.type || 'media'}`).replace(/"/g, '')}"`,
   };
-  if (cached?.base64) {
+  if (cached?.base64 && cached.base64 !== WHATSAPP_MEDIA_KV_SENTINEL) {
     return new Response(decodeBase64Bytes(cached.base64), { headers });
   }
   if (kvCached?.base64) {
@@ -5440,11 +6763,16 @@ async function handleWhatsappGroupMediaCache(request, env) {
     const url = new URL(request.url);
     const limit = Math.max(1, Math.min(100, Number(url.searchParams.get('limit') || 50)));
     const result = await env.REVIEWS_DB.prepare(`
-      SELECT id, instance, raw_payload_json
-      FROM whatsapp_group_attendances
-      WHERE tipo_mensagem IN ('image','audio','video','document','sticker')
-        AND id NOT IN (SELECT attendance_id FROM whatsapp_group_media_cache)
-      ORDER BY created_at DESC
+      SELECT a.id, a.instance, a.grupo_id, a.message_id, a.raw_payload_json
+      FROM whatsapp_group_attendances a
+      LEFT JOIN whatsapp_group_media_cache c ON c.attendance_id = a.id
+      WHERE a.tipo_mensagem IN ('image','audio','video','document','sticker')
+        AND (c.attendance_id IS NULL OR c.base64 = '')
+        AND a.raw_payload_json NOT LIKE '%"messageHistoryBundle"%'
+        AND a.raw_payload_json NOT LIKE '%"messageHistoryNotice"%'
+        AND a.raw_payload_json NOT LIKE '%"historySyncNotification"%'
+        AND a.raw_payload_json NOT LIKE '%"secretEncryptedMessage"%'
+      ORDER BY a.created_at DESC
       LIMIT ?
     `).bind(limit).all();
     const items = (result.results || []).map((row) => {
@@ -5459,7 +6787,13 @@ async function handleWhatsappGroupMediaCache(request, env) {
           messageType: data.messageType || '',
         };
       } catch {
-        return null;
+        return {
+          id: row.id || '',
+          instance: row.instance || '',
+          key: { id: row.message_id || '', remoteJid: row.grupo_id || '' },
+          message: {},
+          messageType: '',
+        };
       }
     }).filter(Boolean);
     return jsonResponse({ items, limit });
@@ -5512,6 +6846,551 @@ async function handleWhatsappGroupSessionAssign(request, env, profile = {}) {
   return jsonResponse({ ok: true, session: whatsappSessionToPublic(result.session || {}) });
 }
 
+function evolutionMessageId(result = {}) {
+  return cleanWebhookText(
+    result?.key?.id ||
+    result?.messageId ||
+    result?.message_id ||
+    result?.id ||
+    result?.data?.key?.id ||
+    result?.data?.messageId ||
+    '',
+    180,
+  );
+}
+
+async function handleWhatsappGroupSessionReply(request, env, profile = {}) {
+  if (!env.REVIEWS_DB) return jsonResponse({ error: 'REVIEWS_DB nao configurado' }, 501);
+  await ensureWhatsappGroupD1(env);
+  if (request.method !== 'POST') return jsonResponse({ error: 'Metodo nao permitido' }, 405);
+  if (!evolutionApiBase(env) || !evolutionApiKey(env)) {
+    return jsonResponse({ error: 'Canal WhatsApp indisponivel no momento.' }, 503);
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const sessionId = cleanWebhookText(body.id || body.sessionId, 160);
+  const requestId = cleanWebhookText(body.requestId, 180);
+  const message = cleanWebhookText(body.message || body.text, 4000).trim();
+  if (!sessionId || !requestId || !message) {
+    return jsonResponse({ error: 'Protocolo, identificador e mensagem sao obrigatorios.' }, 400);
+  }
+
+  const session = await env.REVIEWS_DB.prepare(
+    'SELECT * FROM whatsapp_group_sessions WHERE id = ? LIMIT 1',
+  ).bind(sessionId).first();
+  if (!session) return jsonResponse({ error: 'Protocolo nao encontrado.' }, 404);
+  if (whatsappIsClosedStatus(session.status)) {
+    return jsonResponse({ error: 'Este protocolo esta encerrado e nao pode receber novas respostas.' }, 409);
+  }
+  const instance = cleanWebhookText(session.instance || 'principal', 120) || 'principal';
+  const groupId = whatsappGroupIdForSql(session.grupo_id);
+  if (!groupId) return jsonResponse({ error: 'Grupo de destino nao identificado.' }, 409);
+  const outboundBlock = await whatsappOutboundBlockReason(env, instance, groupId);
+  if (outboundBlock) {
+    return jsonResponse({ error: `Envio bloqueado por seguranca para este grupo: ${outboundBlock}` }, 423);
+  }
+
+  const existing = await env.REVIEWS_DB.prepare(
+    'SELECT status, evolution_message_id, error_message FROM whatsapp_outbound_messages WHERE id = ? LIMIT 1',
+  ).bind(requestId).first();
+  if (existing) {
+    return jsonResponse({
+      ok: existing.status === 'SENT',
+      duplicate: true,
+      status: existing.status,
+      messageId: existing.evolution_message_id || '',
+      error: existing.error_message || '',
+    }, existing.status === 'SENT' ? 200 : 409);
+  }
+
+  const agentUser = cleanWebhookText(profile.user || '', 120);
+  const agentName = cleanWebhookText(profile.name || profile.user || 'Equipe Multsoft', 180) || 'Equipe Multsoft';
+  const renderedText = `*${agentName} — Multsoft:*\n${message}`;
+  const recentDuplicate = await env.REVIEWS_DB.prepare(`
+    SELECT status, evolution_message_id
+    FROM whatsapp_outbound_messages
+    WHERE session_id = ? AND rendered_text = ? AND status = 'SENT'
+      AND julianday(created_at) >= julianday('now', '-5 minutes')
+    ORDER BY created_at DESC
+    LIMIT 1
+  `).bind(session.id, renderedText).first();
+  if (recentDuplicate) {
+    return jsonResponse({
+      ok: true,
+      duplicate: true,
+      status: 'SENT',
+      messageId: recentDuplicate.evolution_message_id || '',
+    });
+  }
+  const createdAt = new Date().toISOString();
+  await env.REVIEWS_DB.prepare(`
+    INSERT INTO whatsapp_outbound_messages
+      (id, session_id, protocol, instance, grupo_id, agent_user, agent_name,
+       message_text, rendered_text, status, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)
+  `).bind(
+    requestId,
+    session.id,
+    session.protocol || '',
+    instance,
+    groupId,
+    agentUser,
+    agentName,
+    message,
+    renderedText,
+    createdAt,
+  ).run();
+
+  try {
+    const response = await fetch(`${evolutionApiBase(env)}/message/sendText/${encodeURIComponent(instance)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: evolutionApiKey(env) },
+      body: JSON.stringify({ number: groupId, text: renderedText }),
+      signal: AbortSignal.timeout(15000),
+    });
+    const responseText = await response.text();
+    let result = {};
+    try { result = responseText ? JSON.parse(responseText) : {}; } catch {}
+    if (!response.ok) {
+      throw new Error(`Evolution HTTP ${response.status}: ${responseText.slice(0, 300)}`);
+    }
+    const sentAt = new Date().toISOString();
+    const messageId = evolutionMessageId(result);
+    await env.REVIEWS_DB.prepare(`
+      UPDATE whatsapp_outbound_messages
+      SET status = 'SENT', evolution_message_id = ?, error_message = '', sent_at = ?
+      WHERE id = ?
+    `).bind(messageId, sentAt, requestId).run();
+    const assigned = await assignWhatsappGroupSessionFromPanel(env, session.id, profile).catch(() => null);
+    return jsonResponse({
+      ok: true,
+      messageId,
+      session: whatsappSessionToPublic(assigned?.session || session),
+    });
+  } catch (error) {
+    const detail = String(error?.message || error || 'Falha ao enviar mensagem.').slice(0, 500);
+    await env.REVIEWS_DB.prepare(`
+      UPDATE whatsapp_outbound_messages
+      SET status = 'FAILED', error_message = ?
+      WHERE id = ?
+    `).bind(detail, requestId).run();
+    return jsonResponse({
+      error: 'Nao foi possivel enviar. O protocolo permaneceu inalterado.',
+      detail,
+    }, 502);
+  }
+}
+
+function outboundMediaKind(mimetype = '') {
+  const type = String(mimetype || '').toLowerCase();
+  if (type.startsWith('image/')) return 'image';
+  if (type.startsWith('video/')) return 'video';
+  if (type.startsWith('audio/')) return 'audio';
+  return 'document';
+}
+
+function outboundFileMime(file) {
+  const raw = cleanWebhookText(file?.type || '', 120).toLowerCase().split(';')[0].trim();
+  const name = String(file?.name || '').trim().toLowerCase();
+  if ((!raw || raw === 'application/octet-stream' || raw === 'application/x-pdf') && name.endsWith('.pdf')) {
+    return 'application/pdf';
+  }
+  return raw || 'application/octet-stream';
+}
+
+async function outboundFileSignatureValid(file, mimetype) {
+  if (mimetype !== 'application/pdf') return true;
+  const signature = await file.slice(0, 5).text().catch(() => '');
+  return signature === '%PDF-';
+}
+
+async function handleWhatsappGroupSessionMediaReply(request, env, profile = {}) {
+  if (!env.REVIEWS_DB) return jsonResponse({ error: 'REVIEWS_DB nao configurado' }, 501);
+  await ensureWhatsappGroupD1(env);
+  if (request.method !== 'POST') return jsonResponse({ error: 'Metodo nao permitido' }, 405);
+  if (!evolutionApiBase(env) || !evolutionApiKey(env)) {
+    return jsonResponse({ error: 'Canal WhatsApp indisponivel no momento.' }, 503);
+  }
+
+  const form = await request.formData().catch(() => null);
+  if (!form) return jsonResponse({ error: 'Nao foi possivel ler o arquivo enviado.' }, 400);
+  const sessionId = cleanWebhookText(form.get('sessionId'), 160);
+  const requestId = cleanWebhookText(form.get('requestId'), 180);
+  const caption = cleanWebhookText(form.get('caption'), 2000).trim();
+  const file = form.get('media');
+  if (!sessionId || !requestId || !(file instanceof File) || !file.size) {
+    return jsonResponse({ error: 'Protocolo, identificador e arquivo sao obrigatorios.' }, 400);
+  }
+  if (file.size > WHATSAPP_OUTBOUND_MEDIA_MAX_BYTES) {
+    return jsonResponse({ error: 'O arquivo excede o limite de 15 MB.' }, 413);
+  }
+  // MediaRecorder do Chrome costuma enviar "audio/webm;codecs=opus".
+  // A lista de formatos trabalha com o MIME-base, sem parâmetros de codec.
+  const mimetype = outboundFileMime(file);
+  if (!WHATSAPP_OUTBOUND_MEDIA_TYPES.has(mimetype)) {
+    return jsonResponse({ error: 'Formato nao permitido. Use foto, video, audio ou PDF.' }, 415);
+  }
+  if (!(await outboundFileSignatureValid(file, mimetype))) {
+    return jsonResponse({ error: 'O arquivo informado nao possui uma assinatura PDF valida.' }, 415);
+  }
+
+  const session = await env.REVIEWS_DB.prepare(
+    'SELECT * FROM whatsapp_group_sessions WHERE id = ? LIMIT 1',
+  ).bind(sessionId).first();
+  if (!session) return jsonResponse({ error: 'Protocolo nao encontrado.' }, 404);
+  if (whatsappIsClosedStatus(session.status)) {
+    return jsonResponse({ error: 'Este protocolo esta encerrado e nao pode receber novas mensagens.' }, 409);
+  }
+  const instance = cleanWebhookText(session.instance || 'principal', 120) || 'principal';
+  const groupId = whatsappGroupIdForSql(session.grupo_id);
+  if (!groupId) return jsonResponse({ error: 'Grupo de destino nao identificado.' }, 409);
+  const outboundBlock = await whatsappOutboundBlockReason(env, instance, groupId);
+  if (outboundBlock) {
+    return jsonResponse({ error: `Envio bloqueado por seguranca para este grupo: ${outboundBlock}` }, 423);
+  }
+
+  const existing = await env.REVIEWS_DB.prepare(
+    'SELECT status, evolution_message_id, error_message FROM whatsapp_outbound_messages WHERE id = ? LIMIT 1',
+  ).bind(requestId).first();
+  if (existing) {
+    return jsonResponse({
+      ok: existing.status === 'SENT',
+      duplicate: true,
+      status: existing.status,
+      messageId: existing.evolution_message_id || '',
+      error: existing.error_message || '',
+    }, existing.status === 'SENT' ? 200 : 409);
+  }
+
+  const kind = outboundMediaKind(mimetype);
+  const agentUser = cleanWebhookText(profile.user || '', 120);
+  const agentName = cleanWebhookText(profile.name || profile.user || 'Equipe Multsoft', 180) || 'Equipe Multsoft';
+  const mediaName = cleanWebhookText(file.name || `arquivo-${Date.now()}`, 180).replace(/[\r\n"]/g, '');
+  const renderedText = caption ? `*${agentName} — Multsoft:*\n${caption}` : `Enviado por ${agentName} — Multsoft`;
+  const createdAt = new Date().toISOString();
+  await env.REVIEWS_DB.prepare(`
+    INSERT INTO whatsapp_outbound_messages
+      (id, session_id, protocol, instance, grupo_id, agent_user, agent_name,
+       message_text, rendered_text, message_type, media_name, media_mimetype,
+       media_size, status, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)
+  `).bind(
+    requestId, session.id, session.protocol || '', instance, groupId, agentUser, agentName,
+    caption, renderedText, kind, mediaName, mimetype, file.size, createdAt,
+  ).run();
+
+  try {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const isAudio = kind === 'audio';
+    const endpoint = isAudio ? 'sendWhatsAppAudio' : 'sendMedia';
+    const useTemporaryUrl = !isAudio && bytes.byteLength >= 1024 * 1024 && !!env.ADJUSTMENTS;
+    const temporaryMedia = useTemporaryUrl
+      ? await createWhatsappOutboundTempMedia(request, env, bytes, mimetype, mediaName)
+      : null;
+    const media = temporaryMedia?.url || encodeBase64Bytes(bytes);
+    const payload = isAudio
+      ? { number: groupId, audio: media }
+      : {
+        number: groupId,
+        mediatype: kind,
+        mimetype,
+        media,
+        fileName: mediaName,
+        caption: renderedText,
+      };
+    const response = await fetch(`${evolutionApiBase(env)}/message/${endpoint}/${encodeURIComponent(instance)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: evolutionApiKey(env) },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(45000),
+    });
+    const responseText = await response.text();
+    let result = {};
+    try { result = responseText ? JSON.parse(responseText) : {}; } catch {}
+    if (!response.ok) {
+      throw new Error(`Evolution HTTP ${response.status}: ${responseText.slice(0, 300)}`);
+    }
+    const sentAt = new Date().toISOString();
+    const messageId = evolutionMessageId(result);
+    await env.REVIEWS_DB.prepare(`
+      UPDATE whatsapp_outbound_messages
+      SET status = 'SENT', evolution_message_id = ?, error_message = '', sent_at = ?
+      WHERE id = ?
+    `).bind(messageId, sentAt, requestId).run();
+    const assigned = await assignWhatsappGroupSessionFromPanel(env, session.id, profile).catch(() => null);
+    return jsonResponse({
+      ok: true,
+      messageId,
+      mediaType: kind,
+      session: whatsappSessionToPublic(assigned?.session || session),
+    });
+  } catch (error) {
+    const detail = String(error?.message || error || 'Falha ao enviar midia.').slice(0, 500);
+    await env.REVIEWS_DB.prepare(`
+      UPDATE whatsapp_outbound_messages
+      SET status = 'FAILED', error_message = ?
+      WHERE id = ?
+    `).bind(detail, requestId).run();
+    return jsonResponse({
+      error: 'Nao foi possivel enviar a midia. O protocolo permaneceu inalterado.',
+      detail,
+    }, 502);
+  }
+}
+
+async function handleWhatsappGroupOutboundStart(request, env, profile = {}) {
+  if (!env.REVIEWS_DB) return jsonResponse({ error: 'REVIEWS_DB nao configurado' }, 501);
+  await ensureWhatsappGroupD1(env);
+  if (request.method !== 'POST') return jsonResponse({ error: 'Metodo nao permitido' }, 405);
+  if (!evolutionApiBase(env) || !evolutionApiKey(env)) {
+    return jsonResponse({ error: 'Canal WhatsApp indisponivel no momento.' }, 503);
+  }
+
+  const form = await request.formData().catch(() => null);
+  if (!form) return jsonResponse({ error: 'Nao foi possivel ler os dados do envio.' }, 400);
+  const requestId = cleanWebhookText(form.get('requestId'), 180);
+  const instance = cleanWebhookText(form.get('instance') || 'principal', 120) || 'principal';
+  const groupId = whatsappGroupIdForSql(form.get('grupoId'));
+  const subject = cleanWebhookText(form.get('subject'), 180).trim();
+  const summary = cleanWebhookText(form.get('summary'), 1200).trim();
+  const nucleus = normalizeWhatsappNucleus(form.get('nucleus'));
+  const message = cleanWebhookText(form.get('message'), 4000).trim();
+  const fileValue = form.get('media');
+  const file = fileValue instanceof File && fileValue.size ? fileValue : null;
+  if (!requestId || !groupId || !subject || !summary || (!message && !file)) {
+    return jsonResponse({ error: 'Grupo, assunto, resumo e mensagem ou arquivo sao obrigatorios.' }, 400);
+  }
+  if (!groupId.endsWith('@g.us')) return jsonResponse({ error: 'O destino informado nao e um grupo valido.' }, 400);
+
+  const group = await env.REVIEWS_DB.prepare(`
+    SELECT instance, grupo_id, grupo_nome, cliente_id, cliente_nome, agentes_json, monitorado
+    FROM whatsapp_groups
+    WHERE instance = ? AND grupo_id = ?
+    LIMIT 1
+  `).bind(instance, groupId).first();
+  if (!group || Number(group.monitorado || 0) !== 1) {
+    return jsonResponse({ error: 'Selecione um grupo cadastrado e monitorado.' }, 404);
+  }
+  const outboundBlock = await whatsappOutboundBlockReason(env, instance, groupId);
+  if (outboundBlock) {
+    return jsonResponse({ error: `Envio bloqueado por seguranca para este grupo: ${outboundBlock}` }, 423);
+  }
+  const evolutionGroupName = await fetchEvolutionGroupName(env, instance, groupId).catch(() => '');
+  if (!evolutionGroupName) {
+    return jsonResponse({
+      error: 'Nao foi possivel confirmar o nome real do grupo na Evolution. O envio foi bloqueado por seguranca.',
+    }, 503);
+  }
+  const configuredName = cleanWebhookText(group.grupo_nome, 180);
+  if (!configuredName || normalizeWhatsappName(configuredName) !== normalizeWhatsappName(evolutionGroupName)) {
+    return jsonResponse({
+      error: `Destino divergente. Cadastro: "${configuredName || 'sem nome'}". Evolution: "${evolutionGroupName}". O envio foi bloqueado.`,
+      code: 'GROUP_IDENTITY_MISMATCH',
+    }, 409);
+  }
+  const allowedAgents = parseWhatsappAgentNames(group.agentes_json).map(normalizeWhatsappName);
+  const profileNames = [profile.name, profile.user].map(normalizeWhatsappName).filter(Boolean);
+  const authorized = profile.role === 'admin' || profileNames.some((name) => allowedAgents.includes(name));
+  if (!authorized) {
+    return jsonResponse({ error: 'Seu usuario nao possui permissao para iniciar atendimento neste grupo.' }, 403);
+  }
+
+  const existingRequest = await env.REVIEWS_DB.prepare(`
+    SELECT status, evolution_message_id, session_id, error_message
+    FROM whatsapp_outbound_messages WHERE id = ? LIMIT 1
+  `).bind(requestId).first();
+  if (existingRequest) {
+    const session = existingRequest.session_id
+      ? await env.REVIEWS_DB.prepare('SELECT * FROM whatsapp_group_sessions WHERE id = ? LIMIT 1').bind(existingRequest.session_id).first()
+      : null;
+    return jsonResponse({
+      ok: existingRequest.status === 'SENT',
+      duplicate: true,
+      status: existingRequest.status,
+      messageId: existingRequest.evolution_message_id || '',
+      session: session ? whatsappSessionToPublic(session) : null,
+      error: existingRequest.error_message || '',
+    }, existingRequest.status === 'SENT' ? 200 : 409);
+  }
+
+  const open = await env.REVIEWS_DB.prepare(`
+    SELECT * FROM whatsapp_group_sessions
+    WHERE instance = ? AND grupo_id = ?
+      AND status IN ('OPEN','SEM_RESPOSTA','UNANSWERED','PENDING','EM_ATENDIMENTO','ANSWERED','RESPONDIDO')
+    ORDER BY last_message_at DESC, updated_at DESC
+    LIMIT 1
+  `).bind(instance, groupId).first();
+  if (open) {
+    return jsonResponse({
+      error: 'Este grupo ja possui um protocolo aberto. Continue por ele para evitar duplicidade.',
+      code: 'OPEN_SESSION_EXISTS',
+      session: whatsappSessionToPublic(open),
+    }, 409);
+  }
+
+  let mimetype = '';
+  let mediaName = '';
+  let mediaSize = 0;
+  let kind = 'text';
+  if (file) {
+    if (file.size > WHATSAPP_OUTBOUND_MEDIA_MAX_BYTES) {
+      return jsonResponse({ error: 'O arquivo excede o limite de 15 MB.' }, 413);
+    }
+    mimetype = outboundFileMime(file);
+    if (!WHATSAPP_OUTBOUND_MEDIA_TYPES.has(mimetype)) {
+      return jsonResponse({ error: 'Formato nao permitido. Use foto, video, audio ou PDF.' }, 415);
+    }
+    if (!(await outboundFileSignatureValid(file, mimetype))) {
+      return jsonResponse({ error: 'O arquivo informado nao possui uma assinatura PDF valida.' }, 415);
+    }
+    kind = outboundMediaKind(mimetype);
+    mediaName = cleanWebhookText(file.name || `arquivo-${Date.now()}`, 180).replace(/[\r\n"]/g, '');
+    mediaSize = file.size;
+  }
+
+  const agentUser = cleanWebhookText(profile.user || '', 120);
+  const agentName = cleanWebhookText(profile.name || profile.user || 'Equipe Multsoft', 180) || 'Equipe Multsoft';
+  const renderedText = message
+    ? `*${agentName} — Multsoft:*\n${message}`
+    : `Enviado por ${agentName} — Multsoft`;
+  const createdAt = new Date().toISOString();
+  await env.REVIEWS_DB.prepare(`
+    INSERT INTO whatsapp_outbound_messages
+      (id, session_id, protocol, instance, grupo_id, agent_user, agent_name,
+       message_text, rendered_text, message_type, media_name, media_mimetype,
+       media_size, is_proactive, subject, summary, status, created_at)
+    VALUES (?, '', '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 'PENDING', ?)
+  `).bind(
+    requestId, instance, groupId, agentUser, agentName, message, renderedText,
+    kind, mediaName, mimetype, mediaSize, subject, summary, createdAt,
+  ).run();
+
+  try {
+    let endpoint = 'sendText';
+    let payload = { number: groupId, text: renderedText };
+    let mediaBase64 = '';
+    if (file) {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const useTemporaryUrl = kind !== 'audio' && bytes.byteLength >= 1024 * 1024 && !!env.ADJUSTMENTS;
+      const temporaryMedia = useTemporaryUrl
+        ? await createWhatsappOutboundTempMedia(request, env, bytes, mimetype, mediaName)
+        : null;
+      const media = temporaryMedia?.url || encodeBase64Bytes(bytes);
+      if (!temporaryMedia) mediaBase64 = media;
+      endpoint = kind === 'audio' ? 'sendWhatsAppAudio' : 'sendMedia';
+      payload = kind === 'audio'
+        ? { number: groupId, audio: media }
+        : { number: groupId, mediatype: kind, mimetype, media, fileName: mediaName, caption: renderedText };
+    }
+    const response = await fetch(`${evolutionApiBase(env)}/message/${endpoint}/${encodeURIComponent(instance)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: evolutionApiKey(env) },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(file ? 45000 : 15000),
+    });
+    const responseText = await response.text();
+    let result = {};
+    try { result = responseText ? JSON.parse(responseText) : {}; } catch {}
+    if (!response.ok) throw new Error(`Evolution HTTP ${response.status}: ${responseText.slice(0, 300)}`);
+
+    const sentAt = new Date().toISOString();
+    const sentTimestamp = Math.floor(new Date(sentAt).getTime() / 1000);
+    const messageId = evolutionMessageId(result) || `outbound-${requestId}`;
+    const sessionId = `WGS-${Date.now()}-${crypto.randomUUID()}`;
+    const protocol = whatsappSessionProtocol();
+    const attendanceId = `WGA-OUT-${crypto.randomUUID()}`;
+    const content = message || `[${kind}] ${mediaName}`;
+    const rawPayload = JSON.stringify({
+      source: 'PAINEL_ATIVO',
+      requestId,
+      evolutionMessageId: messageId,
+      subject,
+      media: file ? { type: kind, mimetype, fileName: mediaName, size: mediaSize } : null,
+    });
+    await env.REVIEWS_DB.batch([
+      env.REVIEWS_DB.prepare(`
+        INSERT INTO whatsapp_group_sessions (
+          id, protocol, origin, instance, grupo_id, grupo_nome, cliente_id, cliente_nome,
+          remetente_id, remetente_nome, agente_id, agente_nome, status, started_at,
+          first_message_at, first_response_at, first_response_seconds, last_message_at,
+          closed_at, closed_by, close_reason, titulo_atendimento, resumo_atendimento,
+          observacoes_internas, message_count, participant_count, from_me_count, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', '', ?, ?, ?, ?, ?, '', 0, ?, '', '', '',
+          ?, ?, '', 1, 0, 1, ?, ?)
+      `).bind(
+        sessionId, protocol, WHATSAPP_GROUP_ORIGIN, instance, groupId,
+        group.grupo_nome || '', group.cliente_id || '', group.cliente_nome || '',
+        agentUser, agentName, WHATSAPP_SESSION_IN_PROGRESS, sentAt, sentAt, sentAt,
+        subject, summary, sentAt, sentAt,
+      ),
+      env.REVIEWS_DB.prepare(`
+        INSERT INTO whatsapp_group_attendances (
+          id, external_id, origin, instance, event, grupo_id, grupo_nome, cliente_id,
+          cliente_nome, remetente_id, remetente_nome, from_me, message_timestamp,
+          message_datetime, tipo_mensagem, conteudo, message_id, session_id,
+          session_protocol, session_status, agent_id, agent_name, raw_payload_json,
+          processing_status, error_message, created_at
+        ) VALUES (?, ?, ?, ?, 'messages.upsert', ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?,
+          ?, ?, ?, 'ok', '', ?)
+      `).bind(
+        attendanceId, `outbound:${messageId}`, WHATSAPP_GROUP_ORIGIN, instance, groupId,
+        group.grupo_nome || '', group.cliente_id || '', group.cliente_nome || '',
+        agentUser, agentName, sentTimestamp, sentAt, kind, content, messageId,
+        sessionId, protocol, WHATSAPP_SESSION_IN_PROGRESS, agentUser, agentName, rawPayload, sentAt,
+      ),
+      env.REVIEWS_DB.prepare(`
+        UPDATE whatsapp_outbound_messages
+        SET status = 'SENT', session_id = ?, protocol = ?, evolution_message_id = ?,
+            error_message = '', sent_at = ?
+        WHERE id = ?
+      `).bind(sessionId, protocol, messageId, sentAt, requestId),
+      env.REVIEWS_DB.prepare(`
+        UPDATE whatsapp_group_sessions SET nucleo_atendimento = ? WHERE id = ?
+      `).bind(nucleus, sessionId),
+    ]);
+    if (file && mediaBase64) {
+      await writeWhatsappMediaCache(env, attendanceId, {
+        type: kind,
+        mimetype,
+        fileName: mediaName,
+        caption: renderedText,
+      }, mediaBase64).catch(() => false);
+    }
+    const session = await env.REVIEWS_DB.prepare('SELECT * FROM whatsapp_group_sessions WHERE id = ? LIMIT 1')
+      .bind(sessionId).first();
+    return jsonResponse({ ok: true, messageId, session: whatsappSessionToPublic(session || {}) });
+  } catch (error) {
+    const detail = String(error?.message || error || 'Falha ao iniciar atendimento.').slice(0, 500);
+    await env.REVIEWS_DB.prepare(`
+      UPDATE whatsapp_outbound_messages SET status = 'FAILED', error_message = ? WHERE id = ?
+    `).bind(detail, requestId).run();
+    return jsonResponse({
+      error: 'Nao foi possivel enviar. Nenhum protocolo foi criado e as metricas permaneceram inalteradas.',
+      detail,
+    }, 502);
+  }
+}
+
+async function handleWhatsappGroupSessionMerge(request, env, profile = {}) {
+  if (!env.REVIEWS_DB) return jsonResponse({ error: 'REVIEWS_DB nao configurado' }, 501);
+  await ensureWhatsappGroupD1(env);
+  if (request.method !== 'POST') return jsonResponse({ error: 'Metodo nao permitido' }, 405);
+  const body = await request.json().catch(() => ({}));
+  const result = await mergeWhatsappGroupSessionsFromPanel(
+    env,
+    body.sourceId || body.sourceSessionId,
+    body.targetId || body.targetSessionId,
+    profile,
+  );
+  if (result.error) return jsonResponse({ error: result.error }, result.status || 400);
+  return jsonResponse({
+    ok: true,
+    sourceProtocol: result.sourceProtocol,
+    targetProtocol: result.targetProtocol,
+    session: whatsappSessionToPublic(result.session || {}),
+  });
+}
+
 async function handleWhatsappGroupSessionDetails(request, env) {
   if (!env.REVIEWS_DB) return jsonResponse({ error: 'REVIEWS_DB nao configurado' }, 501);
   await ensureWhatsappGroupD1(env);
@@ -5520,6 +7399,49 @@ async function handleWhatsappGroupSessionDetails(request, env) {
   const result = await updateWhatsappGroupSessionDetails(env, body.id || body.sessionId, body);
   if (result.error) return jsonResponse({ error: result.error }, result.status || 400);
   return jsonResponse({ ok: true, session: whatsappSessionToPublic(result.session || {}) });
+}
+
+async function handleWhatsappGroupParticipantRename(request, env, profile = {}) {
+  if (!env.REVIEWS_DB) return jsonResponse({ error: 'REVIEWS_DB nao configurado' }, 501);
+  await ensureWhatsappGroupD1(env);
+  if (request.method !== 'POST') return jsonResponse({ error: 'Metodo nao permitido' }, 405);
+  const body = await request.json().catch(() => ({}));
+  const instance = cleanWebhookText(body.instance, 120);
+  const groupId = whatsappGroupIdForSql(body.grupoId || body.groupId);
+  const participantId = cleanWebhookText(body.remetenteId || body.participantId, 180);
+  const name = cleanWebhookText(body.nome || body.name, 180);
+  if (!instance || !groupId || !participantId) return jsonResponse({ error: 'Participante nao identificado.' }, 400);
+  if (!name || name.length < 2) return jsonResponse({ error: 'Informe um nome com pelo menos 2 caracteres.' }, 400);
+  const exists = await env.REVIEWS_DB.prepare(`
+    SELECT id FROM whatsapp_group_attendances
+    WHERE instance = ? AND grupo_id = ? AND remetente_id = ? AND from_me = 0
+    LIMIT 1
+  `).bind(instance, groupId, participantId).first();
+  if (!exists) return jsonResponse({ error: 'Participante do cliente nao encontrado neste grupo.' }, 404);
+  const now = new Date().toISOString();
+  const updatedBy = cleanWebhookText(profile.user || profile.name, 120);
+  await env.REVIEWS_DB.batch([
+    env.REVIEWS_DB.prepare(`
+      INSERT INTO whatsapp_group_participant_aliases
+        (instance, grupo_id, remetente_id, nome, updated_by, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(instance, grupo_id, remetente_id) DO UPDATE SET
+        nome = excluded.nome,
+        updated_by = excluded.updated_by,
+        updated_at = excluded.updated_at
+    `).bind(instance, groupId, participantId, name, updatedBy, now, now),
+    env.REVIEWS_DB.prepare(`
+      UPDATE whatsapp_group_attendances
+      SET remetente_nome = ?
+      WHERE instance = ? AND grupo_id = ? AND remetente_id = ? AND from_me = 0
+    `).bind(name, instance, groupId, participantId),
+    env.REVIEWS_DB.prepare(`
+      UPDATE whatsapp_group_sessions
+      SET remetente_nome = ?, updated_at = ?
+      WHERE instance = ? AND grupo_id = ? AND remetente_id = ?
+    `).bind(name, now, instance, groupId, participantId),
+  ]);
+  return jsonResponse({ ok: true, nome: name, instance, grupoId: groupId, remetenteId: participantId });
 }
 
 async function handleWhatsappGroupInstances(request, env, profile = {}) {
@@ -5570,8 +7492,13 @@ async function handleWhatsappGroupConfig(request, env, profile = {}) {
   if (request.method === 'GET') {
     const mode = await whatsappGroupSettingMode(env);
     const result = await env.REVIEWS_DB.prepare(`
-      SELECT instance, grupo_id, grupo_nome, cliente_id, cliente_nome, agentes_json, monitorado, created_at, updated_at
-      FROM whatsapp_groups
+      SELECT g.instance, g.grupo_id, g.grupo_nome, g.cliente_id, g.cliente_nome,
+        g.agentes_json, g.monitorado, g.created_at, g.updated_at,
+        CASE WHEN EXISTS (
+          SELECT 1 FROM whatsapp_group_settings s
+          WHERE s.key = 'outbound_blocked:' || g.instance || ':' || g.grupo_id
+        ) THEN 1 ELSE 0 END AS outbound_blocked
+      FROM whatsapp_groups g
       ORDER BY grupo_nome COLLATE NOCASE, grupo_id
       LIMIT 2000
     `).all();
@@ -5592,6 +7519,7 @@ async function handleWhatsappGroupConfig(request, env, profile = {}) {
         clienteNome: row.cliente_nome || '',
         agentes: parseWhatsappAgentNames(row.agentes_json),
         monitorado: Number(row.monitorado || 0) === 1,
+        outboundBlocked: Number(row.outbound_blocked || 0) === 1,
         createdAt: row.created_at || '',
         updatedAt: row.updated_at || '',
       })),
@@ -5683,6 +7611,10 @@ function publicManagedUser(item) {
     name: String(item.name || item.user || ''),
     role: normalizeUserRole(item.role),
     active: item.active !== false,
+    email: normalizeAlertEmail(item.email),
+    whatsapp: normalizeAlertPhone(item.whatsapp),
+    emailAlerts: item.emailAlerts === true,
+    whatsappAlerts: item.whatsappAlerts === true,
     source: item.source || 'kv',
     createdAt: item.createdAt || '',
     updatedAt: item.updatedAt || '',
@@ -5702,13 +7634,92 @@ function mergeVisibleUsers(envUsers, managedUsers) {
   return [...map.values()].sort((a, b) => String(a.name || a.user).localeCompare(String(b.name || b.user), 'pt-BR'));
 }
 
+async function ensureUserPresenceSchema(env) {
+  if (!env.REVIEWS_DB) return;
+  await env.REVIEWS_DB.prepare(`
+    CREATE TABLE IF NOT EXISTS app_user_presence (
+      user_key TEXT PRIMARY KEY,
+      user_login TEXT NOT NULL,
+      name TEXT NOT NULL DEFAULT '',
+      role TEXT NOT NULL DEFAULT 'agente',
+      last_seen TEXT NOT NULL,
+      last_login TEXT NOT NULL DEFAULT ''
+    )
+  `).run();
+}
+
+async function recordUserPresence(env, userOrProfile, loginEvent = false) {
+  if (!env.REVIEWS_DB) return null;
+  const user = String(userOrProfile?.user || userOrProfile || '').trim();
+  if (!user) return null;
+  const profile = typeof userOrProfile === 'object'
+    ? userOrProfile
+    : await appUserProfile(env, user);
+  const now = new Date().toISOString();
+  await ensureUserPresenceSchema(env);
+  await env.REVIEWS_DB.prepare(`
+    INSERT INTO app_user_presence (user_key, user_login, name, role, last_seen, last_login)
+    VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(user_key) DO UPDATE SET
+      user_login = excluded.user_login,
+      name = excluded.name,
+      role = excluded.role,
+      last_seen = excluded.last_seen,
+      last_login = CASE WHEN excluded.last_login <> '' THEN excluded.last_login ELSE app_user_presence.last_login END
+  `).bind(
+    normalizeLogin(user),
+    user,
+    String(profile?.name || user),
+    normalizeUserRole(profile?.role),
+    now,
+    loginEvent ? now : '',
+  ).run();
+  return { lastSeen: now, lastLogin: loginEvent ? now : '' };
+}
+
+async function loadUserPresence(env) {
+  if (!env.REVIEWS_DB) return new Map();
+  await ensureUserPresenceSchema(env);
+  const result = await env.REVIEWS_DB.prepare(`
+    SELECT user_key, last_seen, last_login
+    FROM app_user_presence
+  `).all();
+  return new Map((result.results || []).map((item) => [String(item.user_key || ''), {
+    lastSeen: String(item.last_seen || ''),
+    lastLogin: String(item.last_login || ''),
+  }]));
+}
+
+async function usersWithPresence(env, users) {
+  const presence = await loadUserPresence(env);
+  const now = Date.now();
+  return users.map((item) => {
+    const seen = presence.get(normalizeLogin(item.user)) || {};
+    const seenMs = Date.parse(seen.lastSeen || '');
+    return {
+      ...item,
+      online: Number.isFinite(seenMs) && now - seenMs <= USER_ONLINE_WINDOW_MS,
+      lastSeen: seen.lastSeen || '',
+      lastLogin: seen.lastLogin || '',
+    };
+  });
+}
+
+async function handlePresenceApi(request, env, currentUser) {
+  if (request.method !== 'POST') return jsonResponse({ error: 'Método não permitido' }, 405);
+  const profile = await appUserProfile(env, currentUser);
+  const presence = await recordUserPresence(env, profile, false);
+  return jsonResponse({ ok: true, serverTime: presence?.lastSeen || new Date().toISOString() });
+}
+
 async function handleUsersApi(request, env, currentUser) {
   if (!(await isAdminUser(currentUser, env))) return jsonResponse({ error: 'Acesso negado' }, 403);
   const envUsers = parseAppUsers(env).map((item) => publicManagedUser({ ...item, active: true, source: 'ambiente' }));
   const managedUsers = await loadManagedUsers(env);
+  const alertProfiles = await loadUserAlertProfiles(env);
 
   if (request.method === 'GET') {
-    return jsonResponse({ users: mergeVisibleUsers(envUsers, managedUsers) });
+    return jsonResponse({ users: await usersWithPresence(env, mergeVisibleUsers(envUsers, managedUsers).map((item) => userWithAlertProfile(item, alertProfiles))) });
   }
 
   if (request.method !== 'POST' && request.method !== 'DELETE') {
@@ -5728,8 +7739,23 @@ async function handleUsersApi(request, env, currentUser) {
   if (!/^[a-z0-9._@-]{2,60}$/i.test(targetUser)) {
     return jsonResponse({ error: 'Use usuário com 2 a 60 caracteres: letras, números, ponto, hífen, underline ou @.' }, 400);
   }
-  if (envUsers.some((item) => normalizeLogin(item.user) === login)) {
-    return jsonResponse({ error: 'Usuário de ambiente não pode ser editado por esta tela.' }, 409);
+  const envUser = envUsers.find((item) => normalizeLogin(item.user) === login);
+  if (envUser) {
+    if (request.method === 'DELETE' || body.action === 'delete') {
+      return jsonResponse({ error: 'Usuário de ambiente não pode ser excluído.' }, 409);
+    }
+    const email = normalizeAlertEmail(body.email);
+    const whatsapp = normalizeAlertPhone(body.whatsapp);
+    const emailAlerts = body.emailAlerts === true;
+    const whatsappAlerts = body.whatsappAlerts === true;
+    if (body.email && !email) return jsonResponse({ error: 'Informe um e-mail válido.' }, 400);
+    if (body.whatsapp && !whatsapp) return jsonResponse({ error: 'Informe um WhatsApp válido com DDD.' }, 400);
+    if (emailAlerts && !email) return jsonResponse({ error: 'Informe o e-mail antes de ativar os alertas por e-mail.' }, 400);
+    if (whatsappAlerts && !whatsapp) return jsonResponse({ error: 'Informe o WhatsApp antes de ativar os alertas por WhatsApp.' }, 400);
+    alertProfiles[login] = { email, whatsapp, emailAlerts, whatsappAlerts, updatedAt: new Date().toISOString(), updatedBy: currentUser };
+    await saveUserAlertProfiles(env, alertProfiles);
+    const visible = mergeVisibleUsers(envUsers, managedUsers).map((item) => userWithAlertProfile(item, alertProfiles));
+    return jsonResponse({ ok: true, users: await usersWithPresence(env, visible) });
   }
 
   const now = new Date().toISOString();
@@ -5738,12 +7764,20 @@ async function handleUsersApi(request, env, currentUser) {
 
   if (request.method === 'DELETE' || body.action === 'delete') {
     await saveManagedUsers(env, list);
-    return jsonResponse({ ok: true, users: mergeVisibleUsers(envUsers, list) });
+    return jsonResponse({ ok: true, users: await usersWithPresence(env, mergeVisibleUsers(envUsers, list).map((item) => userWithAlertProfile(item, alertProfiles))) });
   }
 
   const role = normalizeUserRole(body.role || existing?.role || 'agente');
   const name = String(body.name || existing?.name || targetUser).trim() || targetUser;
   const active = body.active !== false;
+  const email = normalizeAlertEmail(body.email);
+  const whatsapp = normalizeAlertPhone(body.whatsapp);
+  const emailAlerts = body.emailAlerts === true;
+  const whatsappAlerts = body.whatsappAlerts === true;
+  if (body.email && !email) return jsonResponse({ error: 'Informe um e-mail válido.' }, 400);
+  if (body.whatsapp && !whatsapp) return jsonResponse({ error: 'Informe um WhatsApp válido com DDD.' }, 400);
+  if (emailAlerts && !email) return jsonResponse({ error: 'Informe o e-mail antes de ativar os alertas por e-mail.' }, 400);
+  if (whatsappAlerts && !whatsapp) return jsonResponse({ error: 'Informe o WhatsApp antes de ativar os alertas por WhatsApp.' }, 400);
   let passwordHash = existing?.passwordHash || '';
   if (body.password) passwordHash = await hashManagedPassword(env, targetUser, String(body.password));
   if (!passwordHash) return jsonResponse({ error: 'Informe uma senha para novo usuário.' }, 400);
@@ -5753,6 +7787,10 @@ async function handleUsersApi(request, env, currentUser) {
     name,
     role,
     active,
+    email,
+    whatsapp,
+    emailAlerts,
+    whatsappAlerts,
     passwordHash,
     createdAt: existing?.createdAt || now,
     updatedAt: now,
@@ -5762,12 +7800,17 @@ async function handleUsersApi(request, env, currentUser) {
   list.push(item);
   list.sort((a, b) => normalizeLogin(a.user).localeCompare(normalizeLogin(b.user), 'pt-BR'));
   await saveManagedUsers(env, list);
-  return jsonResponse({ ok: true, user: publicManagedUser(item), users: mergeVisibleUsers(envUsers, list) });
+  return jsonResponse({ ok: true, user: publicManagedUser(item), users: await usersWithPresence(env, mergeVisibleUsers(envUsers, list).map((entry) => userWithAlertProfile(entry, alertProfiles))) });
 }
 
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+
+    const outboundTempMediaMatch = url.pathname.match(/^\/api\/whatsapp-grupo\/outbound-media\/([^/]+)$/);
+    if (outboundTempMediaMatch) {
+      return handleWhatsappOutboundTempMedia(request, env, outboundTempMediaMatch[1]);
+    }
 
     if (url.pathname === '/api/atendimentos/whatsapp-grupo' && (request.method === 'POST' || request.method === 'OPTIONS')) {
       return handleWhatsappGroupWebhook(request, env, ctx);
@@ -5831,7 +7874,7 @@ export default {
     const appProfile = await appUserProfile(env, appUser);
 
     if (
-      url.pathname === '/cliente-map-privado.csv' ||
+      url.pathname === '/data/cliente-map-privado.csv' ||
       url.pathname.startsWith('/exports/cmax-')
     ) {
       if (appProfile.role !== 'admin') {
@@ -5858,6 +7901,18 @@ export default {
 
     if (url.pathname === '/api/users') {
       return handleUsersApi(request, env, appUser);
+    }
+
+    if (url.pathname === '/api/presence') {
+      return handlePresenceApi(request, env, appUser);
+    }
+
+    if (url.pathname === '/api/push-subscription') {
+      return handlePushSubscriptionApi(request, env, appUser);
+    }
+
+    if (url.pathname === '/api/alert-settings') {
+      return handleAlertSettingsApi(request, env, appUser);
     }
 
     if (url.pathname === '/media') {
@@ -5909,8 +7964,49 @@ export default {
       return handleWhatsappGroupSessionAssign(request, env, appProfile);
     }
 
+    if (url.pathname === '/api/whatsapp-grupo/transfer-users') {
+      return handleWhatsappTransferUsers(request, env, appProfile);
+    }
+
+    if (url.pathname === '/api/whatsapp-grupo/sessions/transfer') {
+      return handleWhatsappSessionTransfer(request, env, appProfile);
+    }
+
+    if (url.pathname === '/api/transfer-notifications') {
+      return handleTransferNotifications(request, env, appProfile);
+    }
+
+    if (url.pathname === '/api/whatsapp-grupo/sessions/reply') {
+      return handleWhatsappGroupSessionReply(request, env, appProfile);
+    }
+
+    if (url.pathname === '/api/whatsapp-grupo/sessions/reply-media') {
+      try {
+        return await handleWhatsappGroupSessionMediaReply(request, env, appProfile);
+      } catch (error) {
+        const detail = String(error?.message || error || 'Erro interno desconhecido.').slice(0, 500);
+        console.error('Falha antes do envio de midia WhatsApp:', detail);
+        return jsonResponse({
+          error: `Falha ao preparar a midia: ${detail}`,
+          detail,
+        }, 500);
+      }
+    }
+
+    if (url.pathname === '/api/whatsapp-grupo/outbound/start') {
+      return handleWhatsappGroupOutboundStart(request, env, appProfile);
+    }
+
+    if (url.pathname === '/api/whatsapp-grupo/sessions/merge') {
+      return handleWhatsappGroupSessionMerge(request, env, appProfile);
+    }
+
     if (url.pathname === '/api/whatsapp-grupo/sessions/details') {
       return handleWhatsappGroupSessionDetails(request, env);
+    }
+
+    if (url.pathname === '/api/whatsapp-grupo/participants/rename') {
+      return handleWhatsappGroupParticipantRename(request, env, appProfile);
     }
 
     if (url.pathname === '/api/whatsapp-grupo/instances') {
@@ -5953,7 +8049,7 @@ export default {
       return fetchAttendanceHistory(decodeURIComponent(attendanceMatch[1]), env);
     }
 
-    if (url.pathname.endsWith('/cliente-map-privado.js')) {
+    if (url.pathname.endsWith('/data/cliente-map-privado.js')) {
       const script = `window.CLIENTE_PRIVADO = ${JSON.stringify(PRIVATE_CLIENT_MAP)};\nwindow.CLIENTE_PRIVADO_STATUS = "ok"; window.CLIENTE_PRIVADO_STATUS_DETAIL = "mapa_embutido_autenticado";`;
       return new Response(script, {
         headers: {
@@ -5981,7 +8077,20 @@ export default {
   async scheduled(event, env, ctx) {
     if (event?.cron === '1-59/2 * * * *') {
       if (evolutionApiBase(env) && evolutionApiKey(env)) {
-        ctx.waitUntil(reconcileWhatsappGroups(env, ctx, { limit: 50 }));
+        ctx.waitUntil((async () => {
+          await processAlertTestRequests(env).catch((error) => {
+            console.error('Falha ao processar testes de alerta:', error);
+          });
+          await reconcileWhatsappGroups(env, ctx, { limit: 10, groupBatchSize: 3 }).catch((error) => {
+            console.error('Falha na reconciliacao agendada:', error);
+          });
+          await sendPendingWhatsappPushAlerts(env).catch((error) => {
+            console.error('Falha no Web Push agendado:', error);
+          });
+          await sendEscalatedWhatsappAndEmailAlerts(env).catch((error) => {
+            console.error('Falha no escalonamento agendado:', error);
+          });
+        })());
       }
       return;
     }
